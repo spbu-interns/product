@@ -20,4 +20,8 @@ dependencies {
     implementation(libs.ktor.serverNetty)
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
+
+    implementation("io.ktor:ktor-server-content-negotiation:2.3.0")
+    implementation("io.ktor:ktor-serialization-jackson:2.3.0")
+    implementation("at.favre.lib:bcrypt:0.9.0")
 }
