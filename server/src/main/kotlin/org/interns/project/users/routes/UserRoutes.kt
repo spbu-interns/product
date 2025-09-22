@@ -7,8 +7,7 @@ import io.ktor.server.response.*
 import org.interns.project.users.dto.RegisterRequest
 import org.interns.project.users.service.UserService
 
-fun Application.registerUserRoutes() {
-    val userService = UserService()
+fun Application.registerUserRoutes(userService: UserService = UserService()) {
 
     routing {
         route("/api/users") {

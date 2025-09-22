@@ -1,17 +1,25 @@
 package org.interns.project.config
 
 import io.ktor.server.application.*
-import kotlin.properties.Delegates
 
 object SecurityConfig {
-    var bcryptCost by Delegates.notNull<Int>()
-        private set
+    private var _bcryptCost: Int? = null
+
+    val bcryptCost: Int
+        get() = requireNotNull(_bcryptCost) { "SecurityConfig not initialized! Call initConfig() or initForTests()." }
 
     fun initConfig(environment: ApplicationEnvironment) {
-        bcryptCost = environment.config
+        if (_bcryptCost != null) return
+
+        _bcryptCost = environment.config
             .propertyOrNull("security.passwordHash.bcryptCost")
-            ?.getString()?.toInt()
-            ?: error("Missing config: security.bcryptCost")
+            ?.getString()
+            ?.toIntOrNull()
+            ?: throw IllegalStateException("Missing config: security.bcryptCost")
+    }
+
+    fun initForTests(cost: Int = 12) {
+        _bcryptCost = cost
     }
 }
 

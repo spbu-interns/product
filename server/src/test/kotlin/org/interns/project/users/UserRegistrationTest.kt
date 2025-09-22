@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.testing.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,6 +16,9 @@ class UserRegistrationTest {
 
     @Test
     fun testSuccessfulRegistrationAndLogin() = testApplication {
+        environment {
+            config = ApplicationConfig("Application.conf")
+        }
         application { module() }
 
         val registerBody = mapOf(
@@ -47,6 +51,9 @@ class UserRegistrationTest {
 
     @Test
     fun testWrongEmail() = testApplication {
+        environment {
+            config = ApplicationConfig("Application.conf")
+        }
         application { module() }
 
         val bad = mapOf("email" to "eto_pashalka", "login" to "dlya_teh", "password" to "kto_chitaet")
@@ -62,6 +69,9 @@ class UserRegistrationTest {
 
     @Test
     fun testDuplicateEmailAndLogin() = testApplication {
+        environment {
+            config = ApplicationConfig("Application.conf")
+        }
         application { module() }
 
         val a = mapOf("email" to "dup@example.com", "login" to "u1", "password" to "p1")
@@ -93,6 +103,9 @@ class UserRegistrationTest {
 
     @Test
     fun testEmptyFields() = testApplication {
+        environment {
+            config = ApplicationConfig("Application.conf")
+        }
         application { module() }
 
         // empty body
@@ -114,6 +127,9 @@ class UserRegistrationTest {
 
     @Test
     fun testLoginWrongPassword() = testApplication {
+        environment {
+            config = ApplicationConfig("Application.conf")
+        }
         application { module() }
 
         val register = mapOf("email" to "who@example.com", "login" to "who", "password" to "rightpass")

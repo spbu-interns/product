@@ -8,11 +8,10 @@ import org.interns.project.users.repo.InMemoryUserRepo
 import org.interns.project.users.utils.Validation
 import at.favre.lib.crypto.bcrypt.BCrypt
 import org.interns.project.config.SecurityConfig
+import org.interns.project.users.repo.UserRepo
 import java.time.Instant
 
-class UserService {
-
-    private val repo = InMemoryUserRepo()
+class UserService(private val repo: UserRepo = InMemoryUserRepo())  {
 
     fun register(req: RegisterRequest): Pair<HttpStatusCode, ApiResponse> {
         if (!Validation.isValidEmail(req.email)) {
