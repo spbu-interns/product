@@ -1,15 +1,40 @@
+from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
-# Входная модель при создании пользователя
 class UserIn(BaseModel):
     email: EmailStr
-    login: str = Field(min_length=3, max_length=128)
+    login: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=6)
-    role: str  # CLIENT | DOCTOR | ADMIN
+    role: str = "CLIENT"  # CLIENT | DOCTOR | ADMIN
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone_number: Optional[str] = None
+    clinic_id: Optional[int] = None
+    is_active: Optional[bool] = True
 
-# Выходная модель без password_hash
+class RegistrationIn(BaseModel):
+    # соответствие «исчерпывающим полям регистрации»
+    # id приходит/возвращается с сервера, в запросе не нужен
+    username: str = Field(min_length=3, max_length=100)  # -> users.login
+    password: str = Field(min_length=6)                  # -> bcrypt hash
+    email: EmailStr
+    is_active: Optional[bool] = True
+
+from typing import Optional
+from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     login: str
     role: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone_number: Optional[str] = None
+    clinic_id: Optional[int] = None
+    is_active: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
