@@ -32,7 +32,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 API будет доступен на:
-	•	Swagger UI → http://127.0.0.1:8000/docs
+	•	Swagger ui → http://127.0.0.1:8000/docs
 	•	Redoc → http://127.0.0.1:8000/redoc
 
 ⸻

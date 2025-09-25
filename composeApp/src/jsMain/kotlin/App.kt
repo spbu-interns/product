@@ -2,24 +2,34 @@ import io.kvision.Application
 import io.kvision.core.Container
 import io.kvision.panel.root
 import ui.registrationScreen
-import ui.successScreen
+import ui.stubScreen
+import ui.loginScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
         root("kvapp") {
-            showRegistration()
+            showLogin()
         }
     }
 }
 
-private fun Container.showRegistration() {
+private fun Container.showLogin() {
     removeAll()
-    registrationScreen(onRegistered = {
-        showSuccess()
-    })
+    loginScreen(
+        onLogin = { showStub("Вы вошли в систему") },
+        onGoToRegister = { showRegister() }
+    )
 }
 
-private fun Container.showSuccess() {
+private fun Container.showRegister() {
     removeAll()
-    successScreen()
+    registrationScreen(
+        onRegistered = { showStub("Регистрация успешна") },
+        onGoToLogin = { showLogin() }
+    )
+}
+
+private fun Container.showStub(msg: String) {
+    removeAll()
+    stubScreen(message = msg, onBack = { showLogin() })
 }

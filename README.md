@@ -9,9 +9,7 @@
 
 ## Структура проекта
 
-- **/composeApp** — общий код для приложений (UI).  
-  - *commonMain* — общий для всех платформ.  
-  - *iosMain, jvmMain* и др. — специфичный для платформ.  
+- **/composeApp** — общий код для приложений (ui с помощью *KVision*).   
 - **/server** — приложение на Ktor.  
 - **/shared** — общий код для всех целей (главный модуль: *commonMain*).  
 
@@ -33,6 +31,6 @@
 
 ### Web
 ```bash
-./gradlew :composeApp:wasmJsBrowserDevelopmentRun      # macOS/Linux
-.\gradlew.bat :composeApp:wasmJsBrowserDevelopmentRun  # Windows
+./gradlew :composeApp:jsBrowserDevelopmentRun      # macOS/Linux
+.\gradlew.bat :composeApp:jsBrowserDevelopmentRun  # Windows
 ```
