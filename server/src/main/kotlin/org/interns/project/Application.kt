@@ -9,11 +9,10 @@ import io.ktor.server.routing.*
 import org.interns.project.auth.authRoutes
 import org.jetbrains.exposed.sql.Database
 
-import io.ktor.serialization.jackson.*
-import io.ktor.server.plugins.contentnegotiation.*
 import org.interns.project.users.routes.registerUserRoutes
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import io.ktor.server.response.respondText
+import org.interns.project.config.DatabaseFactory
 import org.interns.project.config.SecurityConfig
 
 const val SERVER_PORT = 8080
@@ -31,6 +30,7 @@ fun Application.module() {
         }
     }
     SecurityConfig.initConfig(environment)
+    DatabaseFactory.init()
     
     Database.connect(
         url = "jdbc:postgresql://localhost:5432/usersdb",
@@ -44,9 +44,8 @@ fun Application.module() {
             call.respondText("Ktor: ${Greeting().greet()}")
         }
         registerUserRoutes()
+        authRoutes()
     }
-
-    authRoutes()
 }
 
 

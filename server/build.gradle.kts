@@ -21,17 +21,21 @@ dependencies {
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
 
-    implementation("org.jetbrains.exposed:exposed-core:0.45.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:0.45.0")
-    implementation("org.postgresql:postgresql:42.6.0")
+    implementation("org.jetbrains.exposed:exposed-core:0.55.0")
+    implementation("org.jetbrains.exposed:exposed-dao:0.55.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.55.0")
+    implementation("org.jetbrains.exposed:exposed-java-time:0.55.0")
+    implementation("org.postgresql:postgresql:42.7.7")
 
     implementation("io.ktor:ktor-server-content-negotiation-jvm:2.3.4")
     implementation("io.ktor:ktor-serialization-jackson-jvm:2.3.4")
     implementation("io.ktor:ktor-server-content-negotiation:2.3.0")
     implementation("io.ktor:ktor-serialization-jackson:2.3.0")
-    
+
+
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("com.auth0:java-jwt:4.4.0")
+    implementation("com.zaxxer:HikariCP:5.1.0")
 
     implementation("org.postgresql:postgresql:42.7.7")
 
