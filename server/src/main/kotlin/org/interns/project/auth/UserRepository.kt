@@ -13,7 +13,9 @@ object UsersTable : Table("users") {
 open class UserRepository {
 
     open fun findByLogin(login: String): User? = transaction {
-        UsersTable.select { UsersTable.login eq login }
+        UsersTable
+            .selectAll()
+            .where { UsersTable.login eq login }
             .map {
                 User(
                     id = it[UsersTable.id],

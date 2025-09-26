@@ -13,31 +13,37 @@ import java.time.Instant
 
 class UserService(private val repo: UserRepo = InMemoryUserRepo())  {
 
-    fun register(req: RegisterRequest): Pair<HttpStatusCode, ApiResponse> {
+    fun registerAndReturn(req: RegisterRequest): User {
         if (!Validation.isValidEmail(req.email)) {
-            return HttpStatusCode.BadRequest to ApiResponse(success = false, error = "Неверный формат email")
+            throw IllegalArgumentException("Неверный формат email")
+        }
+
+        if (req.login.isBlank() || req.password.isBlank()) {
+            throw IllegalArgumentException("login and password must not be empty")
+        }
+
+        val role = req.role ?: "CLIENT"
+        if (role !in listOf("CLIENT", "DOCTOR", "ADMIN")) {
+            throw IllegalArgumentException("invalid role")
         }
 
         if (repo.findByEmail(req.email) != null) {
-            return HttpStatusCode.BadRequest to ApiResponse(success = false, error = "Email уже зарегистрирован")
+            throw IllegalStateException("email already exists")
         }
-
         if (repo.findByLogin(req.login) != null) {
-            return HttpStatusCode.BadRequest to ApiResponse(success = false, error = "Логин уже занят")
+            throw IllegalStateException("login already exists")
         }
 
         val bcryptHash = BCrypt.withDefaults()
             .hashToString(SecurityConfig.bcryptCost, req.password.toCharArray())
 
-        val id: Long = repo.nextId()
-        val now: Instant = Instant.now()
-
+        val now = Instant.now()
         val user = User(
-            id = id,
+            id = 0L,
             email = req.email,
             login = req.login,
             passwordHash = bcryptHash,
-            role = req.role ?: "CLIENT",
+            role = role,
             firstName = req.firstName,
             lastName = req.lastName,
             patronymic = req.patronymic,
@@ -48,8 +54,7 @@ class UserService(private val repo: UserRepo = InMemoryUserRepo())  {
             updatedAt = now
         )
 
-        repo.save(user)
-        return HttpStatusCode.OK to ApiResponse(success = true, role = user.role)
+        return repo.save(user)
     }
 
     fun login(login: String, password: String): Pair<HttpStatusCode, ApiResponse> {
