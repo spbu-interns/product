@@ -1,10 +1,12 @@
 ﻿package ui
 
 import io.kvision.core.Container
-import io.kvision.core.Position
+import io.kvision.core.onClick
+import io.kvision.html.div
+import io.kvision.html.image
 
-fun Container.homeIconButton(onClick: () -> Unit) = div {
+fun Container.homeIconButton(onHomeClick: () -> Unit) = div {
     addCssClass("home-button")
 
-    image(src = "image")
+    this.onClick { onHomeClick() }
 }

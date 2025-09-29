@@ -15,10 +15,13 @@ import io.kvision.panel.hPanel
 
 fun Container.registrationScreen(
     onRegistered: () -> Unit,
-    onGoToLogin: () -> Unit
+    onGoToLogin: () -> Unit,
+    onGoHome: () -> Unit
 ) = vPanel(spacing = 16) {
     width = 520.px
     addCssClass("mx-auto")
+
+    homeIconButton { onGoHome() }
 
     val email = Text(label = "Email", type = InputType.EMAIL).apply { width = 100.perc }
     val password = Text(label = "Пароль", type = InputType.PASSWORD).apply { width = 100.perc }

@@ -16,10 +16,13 @@ import io.kvision.utils.px
 
 fun Container.loginScreen(
     onLogin: () -> Unit,
-    onGoToRegister: () -> Unit
+    onGoToRegister: () -> Unit,
+    onGoHome: () -> Unit
 ) = vPanel(spacing = 16) {
     width = 520.px
     addCssClass("mx-auto")
+
+    homeIconButton{ onGoHome() }
 
     val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
         width = 100.perc
