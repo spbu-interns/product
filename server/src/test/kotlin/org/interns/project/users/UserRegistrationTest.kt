@@ -1,150 +1,150 @@
 package org.interns.project.users
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.ktor.client.*
+import io.ktor.client.engine.mock.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.config.ApplicationConfig
-import io.ktor.server.testing.*
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import org.interns.project.module
+import kotlin.test.assertFailsWith
+import org.interns.project.users.repo.ApiUserRepo
 
 class UserRegistrationTest {
-    private val mapper = jacksonObjectMapper()
+
+    private fun mockClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient =
+        HttpClient(MockEngine { request -> handler(request) }) {
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        coerceInputValues = true
+                        explicitNulls = false
+                    }
+                )
+            }
+        }
 
     @Test
-    fun testSuccessfulRegistrationAndLogin() = testApplication {
-        environment {
-            config = ApplicationConfig("Application.conf")
-        }
-        application { module() }
+    fun testSuccessfulRegistrationAndLookup() = runBlocking {
+        val jsonHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
 
-        val registerBody = mapOf(
-            "email" to "ok@example.com",
-            "login" to "okuser",
-            "password" to "pass123",
-            "role" to "CLIENT",
-            "first_name" to "Иван",
-            "last_name" to "Иванов"
+        val responseJson = """
+            {
+              "id": 101,
+              "email": "repo@example.com",
+              "login": "repoUser",
+              "role": "CLIENT",
+              "first_name": "Иван",
+              "last_name": "Иванов",
+              "clinic_id": 1,
+              "is_active": true,
+              "created_at": "2025-09-29T18:00:00Z",
+              "updated_at": "2025-09-29T18:00:00Z"
+            }
+        """.trimIndent()
+
+        val engine = mockClient { req ->
+            when (req.url.encodedPath) {
+                "/users" -> respond(responseJson, HttpStatusCode.Created, jsonHeaders)
+                "/users/by-email/repo%40example.com" -> respond(responseJson, HttpStatusCode.OK, jsonHeaders)
+                "/users/by-login/repoUser" -> respond(responseJson, HttpStatusCode.OK, jsonHeaders)
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+
+        val repo = ApiUserRepo(baseUrl = "http://test", client = engine)
+
+        val created = repo.saveByApi(
+            org.interns.project.users.model.UserInDto(
+                email = "repo@example.com",
+                login = "repoUser",
+                password = "pass123",
+                role = "CLIENT",
+                firstName = "Иван",
+                lastName = "Иванов",
+                clinicId = 1,
+                isActive = true
+            )
         )
-        val registerResponse = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(registerBody))
-        }
-        assertEquals(HttpStatusCode.OK, registerResponse.status)
-        val regJson = mapper.readTree(registerResponse.bodyAsText())
-        assertTrue(regJson.get("success").asBoolean())
-        assertEquals("CLIENT", regJson.get("role").asText())
 
-        // login
-        val loginBody = mapOf("login" to "okuser", "password" to "pass123")
-        val loginResponse = client.post("/api/users/login") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(loginBody))
-        }
-        assertEquals(HttpStatusCode.OK, loginResponse.status)
-        val loginJson = mapper.readTree(loginResponse.bodyAsText())
-        assertTrue(loginJson.get("success").asBoolean())
+        assertTrue(created.id > 0)
+        assertEquals("repo@example.com", created.email)
+        assertEquals("repoUser", created.login)
+        assertEquals("CLIENT", created.role)
+
+        val byEmail = assertNotNull(repo.findByEmail("repo@example.com"))
+        val byLogin = assertNotNull(repo.findByLogin("repoUser"))
+        assertEquals(created.id, byEmail.id)
+        assertEquals(created.login, byLogin.login)
+
+        repo.close()
     }
 
     @Test
-    fun testWrongEmail() = testApplication {
-        environment {
-            config = ApplicationConfig("Application.conf")
-        }
-        application { module() }
+    fun testValidationError_422() = runBlocking {
+        val jsonHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+        val errorBody = """
+            {"detail":[{"type":"string_too_short","loc":["body","password"],"msg":"String should have at least 6 characters","input":"short","ctx":{"min_length":6}}]}
+        """.trimIndent()
 
-        val bad = mapOf("email" to "eto_pashalka", "login" to "dlya_teh", "password" to "kto_chitaet")
-        val r1 = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(bad))
+        val engine = mockClient { req ->
+            when (req.url.encodedPath) {
+                "/users" -> respond(errorBody, HttpStatusCode.UnprocessableEntity, jsonHeaders)
+                else -> respondError(HttpStatusCode.NotFound)
+            }
         }
-        assertEquals(HttpStatusCode.BadRequest, r1.status)
-        val body = mapper.readTree(r1.bodyAsText())
-        assertEquals(false, body.get("success").asBoolean())
-        assertTrue(body.get("error").asText().contains("Неверный формат email"))
+
+        val repo = ApiUserRepo(baseUrl = "http://test", client = engine)
+
+        val ex = assertFailsWith<IllegalArgumentException> {
+            repo.saveByApi(
+                org.interns.project.users.model.UserInDto(
+                    email = "e@example.com",
+                    login = "u",
+                    password = "short",
+                    role = "CLIENT",
+                    firstName = null,
+                    lastName = null,
+                    clinicId = null,
+                    isActive = true
+                )
+            )
+        }
+        assertTrue(ex.message!!.contains("422 Unprocessable Entity"))
+
+        repo.close()
     }
 
     @Test
-    fun testDuplicateEmailAndLogin() = testApplication {
-        environment {
-            config = ApplicationConfig("Application.conf")
-        }
-        application { module() }
-
-        val a = mapOf("email" to "dup@example.com", "login" to "u1", "password" to "p1")
-        val b = mapOf("email" to "dup@example.com", "login" to "u2", "password" to "p2")
-        val c = mapOf("email" to "other@example.com", "login" to "u1", "password" to "p3")
-
-        val r1 = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(a))
-        }
-        assertEquals(HttpStatusCode.OK, r1.status)
-
-        val r2 = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(b))
-        }
-        assertEquals(HttpStatusCode.BadRequest, r2.status)
-        val r2json = mapper.readTree(r2.bodyAsText())
-        assertEquals("Email уже зарегистрирован", r2json.get("error").asText())
-
-        val r3 = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(c))
-        }
-        assertEquals(HttpStatusCode.BadRequest, r3.status)
-        val r3json = mapper.readTree(r3.bodyAsText())
-        assertEquals("Логин уже занят", r3json.get("error").asText())
-    }
-
-    @Test
-    fun testEmptyFields() = testApplication {
-        environment {
-            config = ApplicationConfig("Application.conf")
-        }
-        application { module() }
-
-        // empty body
-        val rEmpty = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody("{}")
-        }
-        // Missing required fields -> Jackson/Ktor should respond 400
-        assertEquals(HttpStatusCode.BadRequest, rEmpty.status)
-
-        // missing password
-        val partial = mapOf("email" to "x@y.com", "login" to "noPass")
-        val rPartial = client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(partial))
-        }
-        assertEquals(HttpStatusCode.BadRequest, rPartial.status)
-    }
-
-    @Test
-    fun testLoginWrongPassword() = testApplication {
-        environment {
-            config = ApplicationConfig("Application.conf")
-        }
-        application { module() }
-
-        val register = mapOf("email" to "who@example.com", "login" to "who", "password" to "rightpass")
-        client.post("/api/users/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(register))
+    fun testConflict_409() = runBlocking {
+        val jsonHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+        val engine = mockClient { req ->
+            when (req.url.encodedPath) {
+                "/users" -> respond("""{"detail":"duplicate"}""", HttpStatusCode.Conflict, jsonHeaders)
+                else -> respondError(HttpStatusCode.NotFound)
+            }
         }
 
-        val badLogin = mapOf("login" to "who", "password" to "wrongpass")
-        val resp = client.post("/api/users/login") {
-            contentType(ContentType.Application.Json)
-            setBody(mapper.writeValueAsString(badLogin))
+        val repo = ApiUserRepo(baseUrl = "http://test", client = engine)
+
+        val ex = assertFailsWith<IllegalStateException> {
+            repo.saveByApi(
+                org.interns.project.users.model.UserInDto(
+                    email = "dup@example.com",
+                    login = "dup",
+                    password = "pass123",
+                    role = "CLIENT"
+                )
+            )
         }
-        assertEquals(HttpStatusCode.Unauthorized, resp.status)
-        val json = mapper.readTree(resp.bodyAsText())
-        assertEquals(false, json.get("success").asBoolean())
+        assertTrue(ex.message!!.contains("409 Conflict"))
+
+        repo.close()
     }
 }
