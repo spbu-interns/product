@@ -21,8 +21,9 @@ fun Container.registrationScreen(
     width = 520.px
     addCssClass("mx-auto")
 
-    homeIconButton { onGoHome() }
 
+    homeIconButton { onGoHome() }
+    
     val email = Text(label = "Email", type = InputType.EMAIL).apply { width = 100.perc }
     val password = Text(label = "Пароль", type = InputType.PASSWORD).apply { width = 100.perc }
     val confirmation = Text(label = "Подтверждение пароля", type = InputType.PASSWORD).apply { width = 100.perc }

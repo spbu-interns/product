@@ -23,7 +23,7 @@ fun Container.loginScreen(
     addCssClass("mx-auto")
 
     homeIconButton{ onGoHome() }
-
+    
     val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
         width = 100.perc
     }

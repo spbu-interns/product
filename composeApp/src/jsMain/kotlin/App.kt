@@ -36,7 +36,6 @@ private fun Container.showStub(msg: String) {
     removeAll()
     stubScreen(message = msg, onBack = { showLogin() })
 }
- 
 
 private fun Container.showHome() {
     removeAll()
