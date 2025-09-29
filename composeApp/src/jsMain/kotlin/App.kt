@@ -4,11 +4,12 @@ import io.kvision.panel.root
 import ui.registrationScreen
 import ui.stubScreen
 import ui.loginScreen
+import ui.homeScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
         root("kvapp") {
-            showLogin()
+            showHome()
         }
     }
 }
@@ -32,4 +33,12 @@ private fun Container.showRegister() {
 private fun Container.showStub(msg: String) {
     removeAll()
     stubScreen(message = msg, onBack = { showLogin() })
+}
+
+private fun Container.showHome() {
+    removeAll()
+    homeScreen(
+        onGoToLogin = { showLogin() },
+        onGoToRegister = { showRegister() }
+    )
 }
