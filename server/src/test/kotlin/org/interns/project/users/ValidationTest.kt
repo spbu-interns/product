@@ -13,7 +13,7 @@ class ValidationTest {
             "user.name+tag+sorting@example.com",
             "user_name@example.co.uk",
             "USER123@example.org",
-            "x@y.z"
+            "st128043@student.spbu.ru"
         )
         for (e in valids) {
             assertTrue(Validation.isValidEmail(e), "Should accept $e")

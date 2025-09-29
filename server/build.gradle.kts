@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ktor)
+    kotlin("plugin.serialization") version "2.2.10"
     application
 }
 
@@ -27,11 +28,15 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:0.55.0")
     implementation("org.postgresql:postgresql:42.7.7")
 
+    implementation("io.ktor:ktor-client-core:2.3.4")
+    implementation("io.ktor:ktor-client-cio:2.3.4")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:2.3.4")
     implementation("io.ktor:ktor-serialization-jackson-jvm:2.3.4")
     implementation("io.ktor:ktor-server-content-negotiation:2.3.0")
-    implementation("io.ktor:ktor-serialization-jackson:2.3.0")
-
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.0")
+    implementation("io.ktor:ktor-serialization-jackson:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("com.auth0:java-jwt:4.4.0")
@@ -39,7 +44,10 @@ dependencies {
 
     implementation("org.postgresql:postgresql:42.7.7")
 
-    testImplementation("org.testcontainers:postgresql:1.19.0")
     testImplementation("org.testcontainers:junit-jupiter:1.19.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
+    testImplementation("io.ktor:ktor-client-mock:2.3.12")
+    testImplementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.0")
 }
