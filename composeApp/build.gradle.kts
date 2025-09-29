@@ -1,54 +1,30 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
-
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.composeHotReload)
+    kotlin("multiplatform")
+    kotlin("plugin.serialization")
 }
 
 kotlin {
-    jvm()
-    
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-        binaries.executable()
+    js(IR) {
+        browser {
+            commonWebpackConfig {
+                cssSupport { enabled.set(true) }
+                outputFileName = "composeApp.js"
+            }
+            binaries.executable()
+        }
     }
-    
+
     sourceSets {
-        commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
-            implementation(projects.shared)
+        val jsMain by getting {
+            dependencies {
+                implementation("io.kvision:kvision:9.1.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+            }
         }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
-        jvmMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutinesSwing)
-        }
+        val jsTest by getting {}
     }
 }
 
-
-compose.desktop {
-    application {
-        mainClass = "org.interns.project.MainKt"
-
-        nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "org.interns.project"
-            packageVersion = "1.0.0"
-        }
-    }
+repositories {
+    mavenCentral()
 }
