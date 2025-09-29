@@ -1,0 +1,31 @@
+﻿.home-button {
+    position: fixed;
+    left: 16px;
+    top: 16px;
+    z-index: 1000;
+
+    width: 40px;
+    height: 40px;
+
+    padding: 6px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95)
+                url("../images/home.png") center/contain no-repeat;
+
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.home-button image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.home-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
