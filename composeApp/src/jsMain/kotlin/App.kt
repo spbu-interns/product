@@ -1,3 +1,6 @@
+import api.ApiConfig
+import api.ApiTest
+import api.AuthApiClient
 import io.kvision.Application
 import io.kvision.core.Container
 import io.kvision.panel.root
@@ -7,9 +10,18 @@ import ui.loginScreen
 import ui.homeScreen
 
 class App : Application() {
+    private val authClient = AuthApiClient()
+    
     override fun start(state: Map<String, Any>) {
+        ApiTest.runDiagnostics()
+        
         root("kvapp") {
-            showHome()
+            if (authClient.isLoggedIn()) {
+                val role = authClient.getUserRole() ?: "unknown"
+                showStub("Вы авторизованы с ролью: $role")
+            } else {
+                showHome()
+            }
         }
     }
 }
@@ -17,7 +29,10 @@ class App : Application() {
 private fun Container.showLogin() {
     removeAll()
     loginScreen(
-        onLogin = { showStub("Вы вошли в систему") },
+        onLogin = {
+            val role = ApiConfig.getRole() ?: "unknown"
+            showStub("Вы вошли в систему с ролью: $role")
+        },
         onGoToRegister = { showRegister() },
         onGoHome = { showHome() }
     )
@@ -26,7 +41,7 @@ private fun Container.showLogin() {
 private fun Container.showRegister() {
     removeAll()
     registrationScreen(
-        onRegistered = { showStub("Регистрация успешна") },
+        onRegistered = { showStub("Регистрация успешна. Теперь вы можете войти в систему.") },
         onGoToLogin = { showLogin() },
         onGoHome = { showHome() }
     )
@@ -34,7 +49,14 @@ private fun Container.showRegister() {
 
 private fun Container.showStub(msg: String) {
     removeAll()
-    stubScreen(message = msg, onBack = { showLogin() })
+    stubScreen(
+        message = msg,
+        onBack = {
+            val authClient = AuthApiClient()
+            authClient.logout()
+            showLogin()
+        }
+    )
 }
 
 private fun Container.showHome() {

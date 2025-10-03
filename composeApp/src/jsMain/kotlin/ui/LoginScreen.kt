@@ -1,5 +1,6 @@
 package ui
 
+import api.AuthApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.form.text.Text
@@ -12,6 +13,9 @@ import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 fun Container.loginScreen(
@@ -49,18 +53,51 @@ fun Container.loginScreen(
     }
     add(error)
 
-    add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
+    val loginButton = Button("Войти", style = ButtonStyle.PRIMARY).apply {
         width = 100.perc
-        onClick {
-            val emailOk = EMAIL_REGEX.matches(emailField.value ?: "")
-            val passOk = PASSWORD_REGEX.matches(passField.value ?: "")
-            when {
-                !emailOk -> error.content = "Некорректный email"
-                !passOk -> error.content = "Пароль: 8-71 символ, латиница, минимум 1 цифра"
-                else -> { error.content = ""; onLogin() }
+    }
+
+    val authClient = AuthApiClient()
+
+    loginButton.onClick {
+        val email = emailField.value ?: ""
+        val password = passField.value ?: ""
+        
+        val emailOk = EMAIL_REGEX.matches(email)
+        val passOk = PASSWORD_REGEX.matches(password)
+        
+        when {
+            !emailOk -> error.content = "Некорректный email"
+            !passOk -> error.content = "Пароль: 8-71 символ, латиница, минимум 1 цифра"
+            else -> {
+
+                error.content = "Выполняется вход..."
+                loginButton.disabled = true
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    val result = authClient.login(email, password)
+
+                    result.fold(
+                        onSuccess = { response ->
+                            if (response.success) {
+                                error.content = ""
+                                onLogin()
+                            } else {
+                                error.content = response.error ?: "Ошибка авторизации"
+                                loginButton.disabled = false
+                            }
+                        },
+                        onFailure = { e ->
+                            error.content = e.message ?: "Ошибка соединения с сервером"
+                            loginButton.disabled = false
+                        }
+                    )
+                }
             }
         }
-    })
+    }
+    
+    add(loginButton)
 
     p {
         val link = Span("У вас нет аккаунта? Зарегистрируйтесь!").apply {
