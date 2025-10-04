@@ -28,3 +28,9 @@ data class UserOutDto(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
+
+@Serializable
+data class LoginRequest(
+    @SerialName("login_or_email") val loginOrEmail: String,
+    val password: String
+)
