@@ -36,5 +36,20 @@ class UserOut(BaseModel):
     phone_number: Optional[str] = None
     clinic_id: Optional[int] = None
     is_active: bool
+    email_verified_at: Optional[datetime] = None
+    password_changed_at: datetime 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    
+class EmailStartVerificationIn(BaseModel):
+    email: EmailStr
+
+class EmailVerifyIn(BaseModel):
+    token: str  # сырой токен из письма
+
+class PasswordForgotIn(BaseModel):
+    email: EmailStr
+
+class PasswordResetIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=6)
