@@ -1,9 +1,15 @@
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
+from psycopg2 import errors as pgerr
+from fastapi import HTTPException
 from sqlalchemy import text
 from .db import get_session
-from .models import UserIn, UserOut, RegistrationIn
+from .models import (
+    UserIn, UserOut,
+    EmailStartVerificationIn, EmailVerifyIn,
+    PasswordForgotIn, PasswordResetIn, RegistrationIn
+)
 from . import repository as repo
 
 app = FastAPI(title="Users DB API")
@@ -58,9 +64,9 @@ def insert_user(user: UserIn):
     try:
         try:
             return repo.insert_user(s, user)
-        except IntegrityError:
+        except IntegrityError as e:
             s.rollback()
-            raise HTTPException(status_code=409, detail="email or login already exists")
+            raise _map_integrity(e)
         except ValueError as ve:
             s.rollback()
             raise HTTPException(status_code=400, detail=str(ve))
@@ -82,3 +88,66 @@ def register(reg: RegistrationIn):
             raise HTTPException(status_code=409, detail="email or login already exists")
     finally:
         s.close()
+
+
+@app.post("/auth/email/start")
+def start_email_verification(body: EmailStartVerificationIn):
+    s = get_session()
+    try:
+        uid = repo.find_user_id_by_email(s, body.email)
+        if not uid:
+            raise HTTPException(404, "user not found")
+        raw_token = repo.start_email_verification(s, uid)
+        # здесь вместо "возвращать" можно отправлять письмо; для dev просто возвращаем:
+        return {"token": raw_token, "message": "use this token to verify email"}
+    finally:
+        s.close()
+
+@app.post("/auth/email/verify")
+def verify_email(body: EmailVerifyIn):
+    s = get_session()
+    try:
+        ok = repo.verify_email_token(s, body.token)
+        if not ok:
+            raise HTTPException(400, "invalid or expired token")
+        return {"status": "verified"}
+    finally:
+        s.close()
+
+# == Password reset ==
+@app.post("/auth/password/forgot")
+def password_forgot(body: PasswordForgotIn):
+    s = get_session()
+    try:
+        uid = repo.find_user_id_by_email(s, body.email)
+        if not uid:
+            # чтобы не палить существование пользователя, можно всегда возвращать 200
+            raise HTTPException(404, "user not found")
+        raw = repo.start_password_reset(s, uid)
+        return {"token": raw, "message": "use this token to reset password"}
+    finally:
+        s.close()
+
+@app.post("/auth/password/reset")
+def password_reset(body: PasswordResetIn):
+    s = get_session()
+    try:
+        ok = repo.consume_password_reset(s, body.token, body.new_password)
+        if not ok:
+            raise HTTPException(400, "invalid or expired token")
+        return {"status": "password_changed"}
+    finally:
+        s.close()
+
+def _map_integrity(e: IntegrityError) -> HTTPException:
+    orig = getattr(e, "orig", None)
+    if isinstance(orig, pgerr.UniqueViolation):
+        return HTTPException(status_code=409, detail="email or login already exists")
+    if isinstance(orig, pgerr.ForeignKeyViolation):
+        return HTTPException(status_code=400, detail="clinic_id does not exist")
+    if isinstance(orig, pgerr.CheckViolation):
+        return HTTPException(status_code=400, detail="check constraint failed")
+    if isinstance(orig, pgerr.NotNullViolation):
+        return HTTPException(status_code=400, detail="missing required field")
+    # по умолчанию
+    return HTTPException(status_code=400, detail="integrity error")
