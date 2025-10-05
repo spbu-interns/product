@@ -1,5 +1,6 @@
 package ui
 
+import api.AuthApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.core.onEvent
@@ -12,6 +13,9 @@ import io.kvision.utils.perc
 import io.kvision.html.ButtonStyle
 import io.kvision.html.Span
 import io.kvision.panel.hPanel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 fun Container.registrationScreen(
     onRegistered: () -> Unit,
@@ -58,20 +62,55 @@ fun Container.registrationScreen(
     hPanel(spacing = 8) { add(confirmation); add(toggleConfirmation) }
     add(error)
 
-    add(Button("Зарегистрироваться", style = ButtonStyle.PRIMARY).apply {
+    val registerButton = Button("Зарегистрироваться", style = ButtonStyle.PRIMARY).apply {
         width = 100.perc
-        onClick {
-            val emailOk = EMAIL_REGEX.matches(email.value ?: "")
-            val passwordOk = PASSWORD_REGEX.matches(password.value ?: "")
-            val same = (password.value ?: "") == (confirmation.value ?: "")
-            when {
-                !emailOk -> error.content = "Некорректный email"
-                !passwordOk -> error.content = "Пароль: 8 - 71 символ, латиница, минимум 1 цифра"
-                !same -> error.content = "Пароли не совпадают"
-                else -> { error.content = ""; onRegistered() }
+    }
+
+    val authClient = AuthApiClient()
+    
+    registerButton.onClick {
+        val emailValue = email.value ?: ""
+        val passwordValue = password.value ?: ""
+        val confirmValue = confirmation.value ?: ""
+        
+        val emailOk = EMAIL_REGEX.matches(emailValue)
+        val passwordOk = PASSWORD_REGEX.matches(passwordValue)
+        val same = passwordValue == confirmValue
+        
+        when {
+            !emailOk -> error.content = "Некорректный email"
+            !passwordOk -> error.content = "Пароль: 8 - 71 символ, латиница, минимум 1 цифра"
+            !same -> error.content = "Пароли не совпадают"
+            else -> {
+                error.content = "Выполняется регистрация..."
+                registerButton.disabled = true
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    val username = emailValue.substringBefore("@")
+                    
+                    val result = authClient.register(username, passwordValue, emailValue)
+                    
+                    result.fold(
+                        onSuccess = { response ->
+                            if (response.success) {
+                                error.content = ""
+                                onRegistered()
+                            } else {
+                                error.content = response.error ?: "Ошибка при регистрации"
+                                registerButton.disabled = false
+                            }
+                        },
+                        onFailure = { e ->
+                            error.content = e.message ?: "Ошибка соединения с сервером"
+                            registerButton.disabled = false
+                        }
+                    )
+                }
             }
         }
-    })
+    }
+    
+    add(registerButton)
 
     val link = Span("Уже есть аккаунт? Войти").apply {
         addCssClass("text-primary")
