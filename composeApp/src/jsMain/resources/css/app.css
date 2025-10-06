@@ -2,7 +2,7 @@
     position: fixed;
     left: 16px;
     top: 16px;
-    z-index: 1000;
+    z-index: 20;
 
     width: 40px;
     height: 40px;
@@ -16,9 +16,10 @@
     cursor: pointer;
 
     transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
-.home-button image {
+.home-button img {
     width: 100%;
     height: 100%;
     object-fit: contain;
