@@ -11,6 +11,7 @@ import io.kvision.panel.vPanel
 fun Container.homeScreen() {
     headerBar(
         mode = if (Session.isLoggedIn) HeaderMode.PATIENT else HeaderMode.PUBLIC,
+        active = NavTab.HOME,
         onLogout = {
             Session.isLoggedIn = false
             Navigator.showHome()

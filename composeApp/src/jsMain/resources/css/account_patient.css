@@ -1,0 +1,131 @@
+/* =========================
+   Patient Dashboard (by class names from PatientScreen.kt)
+========================= */
+
+/* Layout */
+.account { padding: 20px 0 36px; }
+.account.grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+}
+
+/* Generic card */
+.card {
+  background: var(--card);
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow);
+}
+
+/* Sidebar */
+.sidebar.card { padding: 20px; }
+.avatar.circle {
+  width: 84px; height: 84px; margin: 4px auto 10px;
+  border-radius: 999px; display:flex; align-items:center; justify-content:center;
+  font-weight: 700; color:#1f2937; background:#e5e7eb;
+}
+.account.name { text-align:center; margin: 6px 0 2px; }
+.account.id   { text-align:center; margin: 0; color: var(--muted); }
+
+.side.menu {
+  list-style: none; padding: 0; margin: 12px 0; display:flex; flex-direction:column; gap: 8px;
+}
+.side_item {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px; color:#1f2937; background:#fff; border:1px solid transparent;
+}
+.side_item:hover { background:#f9fafb; border-color:#eef2f7; }
+.side_item.is-active { background: var(--primary); color:#fff; }
+.side.icon { margin-left: auto; opacity: .7; }
+
+/* Divider before button */
+.side.button { height:1px; background:#e5e7eb; margin: 16px 0; }
+
+/* Primary CTA */
+.btn-primary-lg {
+  width: 100%; padding: 12px 14px; border: none; border-radius: 12px;
+  background: var(--primary); color: #fff; font-weight: 700; cursor: pointer;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.btn-primary-lg:hover { background: var(--primary-600); }
+
+/* Main column */
+.main.column { }
+.account.title { text-align: center; }
+
+/* Statistics */
+.statistics.grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;
+}
+.statistics.card {
+  border-radius: 18px; padding: 16px;
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+  column-gap: 12px; align-items: center;
+}
+.statistics.icon  { font-size: 24px; grid-row: 1 / span 2; }
+.statistics.value { margin: 0; font-size: 28px; line-height: 1; }
+.statistics.label { color: var(--muted); }
+
+/* Content blocks */
+.card.block { padding: 16px; border-radius: 18px; margin-bottom: 18px; }
+.card.block.appointment-block { margin-bottom: 32px; }
+.block.title { margin: 0 0 12px; }
+
+/* Appointment */
+.appointment.card {
+  background: #eef5ff; border:1px solid #dbeafe; border-radius: 14px; padding: 18px 18px 18px 28px;
+}
+.appointment.row  { display:grid; grid-template-columns: auto 1fr auto; align-items:center; gap: 16px; }
+.appointment.avatar {
+  width: 40px; height: 40px; border-radius: 12px;
+  display:flex; align-items:center; justify-content:center; background:#e2e8f0; flex: 0 0 40px;
+}
+.appointment.info { display: flex; flex-direction: column; min-width: 0; }
+.appointment.doctor    { font-weight: 700; }
+.appointment.appointment-specialty { color: var(--primary-600); display:block; margin-top: 2px; }
+.appointment.meta      { display:flex; gap: 16px; margin-top: 6px; color:#475569; font-size: 14px; }
+.appointment.actions { justify-self: end; display: flex; align-items: center; }
+.appointment.card > .block,
+.appointment.card > .card,
+.appointment.card .fill,
+.appointment.card .panel {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.appointment.card .spacer {
+  flex: 1 1 auto;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.spacer { flex: 1 1 auto; }
+
+/* Status badges */
+.status {
+  display:inline-flex; align-items:center; border-radius: 999px;
+  padding: 6px 10px; font-size: 12px; font-weight: 700;
+}
+.status.success { background:#10b981; color:#fff; }
+.status.neutral { background:#eef2f7; color:#111827; }
+.status.info    { background:#e0f2fe; color:#075985; }
+
+/* Records list */
+.records.list { display:flex; flex-direction:column; gap: 12px; }
+.record.item {
+  display:flex; align-items:center; gap: 12px;
+  background:#fff; border:1px solid #e5e7eb; border-radius: 14px; padding: 12px 14px;
+}
+.record.title    { font-weight: 700; }
+.record.subtitle { color:#64748b; font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .account.grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .statistics.grid { grid-template-columns: 1fr; }
+}

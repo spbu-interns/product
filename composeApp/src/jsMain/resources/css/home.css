@@ -98,7 +98,8 @@ a {
 }
 
 .topnav_link.is-active {
-  background: #f3f4f6;
+  background: #e8eefc;
+  color: #1d4ed8;
 }
 
 /* Right: auth links / buttons */

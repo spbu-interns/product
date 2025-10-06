@@ -8,9 +8,11 @@ import io.kvision.html.link
 import io.kvision.html.nav
 
 enum class HeaderMode { PUBLIC, PATIENT }
+enum class NavTab { NONE, HOME, FIND }
 
 fun Container.headerBar(
     mode: HeaderMode = HeaderMode.PUBLIC,
+    active: NavTab = NavTab.NONE,
     onLogout: (() -> Unit)? = null
 ) {
     nav(className = "topnav") {
@@ -23,8 +25,15 @@ fun Container.headerBar(
             }
 
             div(className = "topnav_links") {
-                link("Home", url = "#", className = "topnav_link is-active").onClick { Navigator.showHome() }
-                link("Find Doctors", url = "#", className = "topnav_link").onClick { it.preventDefault(); Navigator.showFind() }
+                val homeClass = "topnav_link" + if (active == NavTab.HOME) " is-active" else ""
+                val findClass = "topnav_link" + if (active == NavTab.FIND) " is-active" else ""
+
+                link("Home", "#", className = homeClass).onClick {
+                    it.preventDefault(); Navigator.showHome()
+                }
+                link("Find Doctors", "#", className = findClass).onClick {
+                    it.preventDefault(); Navigator.showFind()
+                }
             }
 
             when (mode) {
