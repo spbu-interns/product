@@ -2,10 +2,13 @@ package ui
 
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.core.onEvent
+import io.kvision.form.select.Select
 import io.kvision.form.text.Text
 import io.kvision.html.Button
 import io.kvision.html.ButtonStyle
 import io.kvision.html.InputType
+import io.kvision.html.Link
 import io.kvision.html.Span
 import io.kvision.html.div
 import io.kvision.panel.hPanel
@@ -67,6 +70,14 @@ fun Container.authScreen(
 
         when (current) {
             AuthTab.LOGIN -> {
+                val accountType = Select(
+                    options = listOf(
+                        "Пациент" to "Пациент",
+                        "Медицинский работник" to "Медицинский работник"
+                    ),
+                    label = "Тип аккаунта"
+                ).apply { width = 100.perc}
+
                 val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
                     width = 100.perc
                 }
@@ -87,8 +98,14 @@ fun Container.authScreen(
                 }
                 val error = Span("").apply { addCssClass("text-danger") }
 
+                content.add(accountType)
                 content.add(emailField)
                 content.add(passRow)
+
+                content.add(div(className = "aux-row") {
+                    add(Link("Забыли пароль?", "#", className = "forgot-link"))
+                })
+
                 content.add(error)
 
                 content.add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
@@ -106,6 +123,14 @@ fun Container.authScreen(
             }
 
             AuthTab.REGISTER -> {
+                val accountType = Select(
+                    options = listOf(
+                        "Пациент" to "Пациент",
+                        "Медицинский работник" to "Медицинский работник"
+                    ),
+                    label = "Тип аккаунта"
+                ).apply { width = 100.perc}
+
                 val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
                     width = 100.perc
                 }
@@ -139,16 +164,35 @@ fun Container.authScreen(
                         }
                     })
                 }
+
+                val codeField = Text(label = "Код для подтверждения", type = InputType.TEXT).apply {
+                    width = 100.perc
+                    visible = false
+                }
+                val codeRow = hPanel(spacing = 8, className = "input-with-eye") {
+                    add(codeField)
+                }
+
                 val error = Span("").apply { addCssClass("text-danger") }
 
+                content.add(accountType)
                 content.add(emailField)
+                content.add(codeRow)
                 content.add(passRow)
                 content.add(pass2Row)
                 content.add(error)
 
-                content.add(Button("Зарегистрироваться", style = ButtonStyle.PRIMARY).apply {
+                var codeRequsted = false
+                val registerButton = Button("Зарегистрироваться", style = ButtonStyle.PRIMARY).apply {
                     width = 100.perc
                     onClick {
+                        if (!codeRequsted) {
+                            codeRequsted = true
+                            codeField.visible = true
+                            error.content = ""
+                            return@onClick
+                        }
+
                         val emailOk = EMAIL_REGEX.matches(emailField.value ?: "")
                         val passOk = PASSWORD_REGEX.matches(passField.value ?: "")
                         val same = (passField.value ?: "") == (pass2Field.value ?: "")
@@ -159,7 +203,16 @@ fun Container.authScreen(
                             else -> { error.content = ""; onRegister() }
                         }
                     }
-                })
+                }
+
+                codeField.onEvent {
+                    input = {
+                        val codeLen = (codeField.value ?: "").trim().length
+                        registerButton.style = if (codeLen == 6) ButtonStyle.SUCCESS else ButtonStyle.PRIMARY
+                    }
+                }
+
+                content.add(registerButton)
             }
         }
     }
