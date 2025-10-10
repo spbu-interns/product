@@ -14,8 +14,8 @@ class RepoTest {
         val repo = ApiUserRepo("http://127.0.0.1:8000")
         try {
             val userIn = UserInDto(
-                email = "repo@example.com",
-                login = "repoUser",
+                email = "saschavinnik06@mail.ru",
+                login = "ruavee",
                 password = "kukareku",
                 role = "CLIENT",
                 firstName = "A",
@@ -28,8 +28,8 @@ class RepoTest {
             assertNotNull(created)
             assertTrue(created.id > 0)
 
-            val byEmail = assertNotNull(repo.findByEmail("repo@example.com"))
-            val byLogin = assertNotNull(repo.findByLogin("repoUser"))
+            val byEmail = assertNotNull(repo.findByEmail("saschavinnik06@mail.ru"))
+            val byLogin = assertNotNull(repo.findByLogin("ruavee"))
 
             assertEquals(created.id, byEmail.id)
             assertEquals(created.login, byLogin.login)

@@ -11,7 +11,7 @@ import io.ktor.server.routing.*
 import org.interns.project.auth.authRoutes
 import org.interns.project.config.SecurityConfig
 
-const val SERVER_PORT = 8080
+const val SERVER_PORT = 8000
 
 fun main() {
     embeddedServer(
@@ -22,13 +22,16 @@ fun main() {
 }
 
 fun Application.module() {
+    SecurityConfig.initConfig(environment)
+    log.info("bcryptCost = ${SecurityConfig.bcryptCost}")
+
     install(ContentNegotiation) {
         jackson {
             propertyNamingStrategy = PropertyNamingStrategies.SNAKE_CASE
         }
     }
 
-    SecurityConfig.initConfig(environment)
+    installEmailFeatures()
 
     routing {
         get("/") {

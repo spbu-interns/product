@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 from psycopg2 import errors as pgerr
 from fastapi import HTTPException
@@ -11,8 +11,13 @@ from .models import (
     PasswordForgotIn, PasswordResetIn, RegistrationIn
 )
 from . import repository as repo
+from .mailer import MailSettings, Mailer, verification_email_link, reset_email_link
+from .repository import RESET_TOKEN_TTL_MIN
 
 app = FastAPI(title="Users DB API")
+
+settings = MailSettings()
+mailer = Mailer(settings)
 
 @app.get("/health")
 def health():
@@ -89,17 +94,19 @@ def register(reg: RegistrationIn):
     finally:
         s.close()
 
-
 @app.post("/auth/email/start")
-def start_email_verification(body: EmailStartVerificationIn):
+def start_email_verification(body: EmailStartVerificationIn, bt: BackgroundTasks):
     s = get_session()
     try:
         uid = repo.find_user_id_by_email(s, body.email)
         if not uid:
             raise HTTPException(404, "user not found")
         raw_token = repo.start_email_verification(s, uid)
-        # здесь вместо "возвращать" можно отправлять письмо; для dev просто возвращаем:
-        return {"token": raw_token, "message": "use this token to verify email"}
+
+        subj, html, text = verification_email_link(body.email, raw_token, settings.APP_BASE_URL)
+        bt.add_task(mailer.send, to=body.email, subject=subj, html=html, text=text)
+
+        return {"token": raw_token, "message": "verification link sent to email"}
     finally:
         s.close()
 
@@ -114,17 +121,38 @@ def verify_email(body: EmailVerifyIn):
     finally:
         s.close()
 
+@app.get("/auth/email/verify")
+def verify_email_by_link(token: str):
+    s = get_session()
+    try:
+        ok = repo.verify_email_token(s, token)
+        if not ok:
+            raise HTTPException(400, "invalid or expired token")
+        return {"status": "verified"}
+    finally:
+        s.close()
+
 # == Password reset ==
 @app.post("/auth/password/forgot")
-def password_forgot(body: PasswordForgotIn):
+def password_forgot(body: PasswordForgotIn, bt: BackgroundTasks):
     s = get_session()
     try:
         uid = repo.find_user_id_by_email(s, body.email)
         if not uid:
-            # чтобы не палить существование пользователя, можно всегда возвращать 200
+            # можем возвращать всегда 200, чтобы не палить существование адреса
             raise HTTPException(404, "user not found")
+
         raw = repo.start_password_reset(s, uid)
-        return {"token": raw, "message": "use this token to reset password"}
+
+        subj, html, text = reset_email_link(
+            to=body.email,
+            token=raw,
+            base_url=settings.APP_BASE_URL,
+            ttl_minutes=RESET_TOKEN_TTL_MIN
+        )
+        bt.add_task(mailer.send, to=body.email, subject=subj, html=html, text=text)
+
+        return {"token": raw, "message": "reset link sent to email"}
     finally:
         s.close()
 
