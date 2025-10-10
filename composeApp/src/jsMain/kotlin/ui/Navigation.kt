@@ -5,4 +5,8 @@ object Navigator {
     var showFind: () -> Unit = {}
     var showLogin: () -> Unit = {}
     var showPatient: () -> Unit = {}
+    var showStub: (String) -> Unit = {}
+    var showResetPassword: () -> Unit = {}
+    var showRegister: () -> Unit = {}
+    var showConfirmEmail: (String) -> Unit = {}
 }

@@ -78,3 +78,26 @@
 }
 
 .btn-ghost-sm:hover { background: #1d4ed8; }
+
+.aux-row {
+  text-align: right;
+  margin-top: 8px;
+}
+
+.forgot-link {
+  font-size: 14px;
+  text-decoration: underline;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+
+.forgot-link:hover {
+  text-decoration: none;
+}
+
+.kv-simple-select .form-control {
+  height: 44px;
+  line-height: 44px;
+  box-sizing: border-box;
+}
+
