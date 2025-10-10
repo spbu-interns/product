@@ -1,0 +1,68 @@
+@host = http://localhost:8000
+@email = saschavinnik06@mail.ru
+@new_password = NewP@ssw0rd!
+
+### 0) Health (быстрый пинг — uvicorn/Ktor доступны?)
+GET {{host}}/health
+
+### 1) Старт верификации email (отправка 6-значного кода на почту)
+POST {{host}}/auth/email/start
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+> {%
+    if (response.status !== 200) {
+        throw new Error("Ожидался 200 от /auth/email/start, пришёл: " + response.status);
+    }
+    const payload = JSON.parse(response.body);
+    if (!payload.token) {
+        throw new Error("В ответе нет token. В DEV ожидаем token для теста.");
+    }
+    client.global.set("email_token", payload.token);
+%}
+
+### 2) Верификация email по токену (тот же 6-значный код)
+POST {{host}}/auth/email/verify
+Content-Type: application/json
+
+{
+  "token": "{{email_token}}"
+}
+
+> {% if (response.status !== 200) { throw new Error("Верификация не прошла: " + response.body); } %}
+
+### 3) Запрос на сброс пароля (письмо со ссылкой/токеном)
+POST {{host}}/auth/password/forgot
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+> {%
+    // ожидаем 200 и token (в DEV ты его возвращаешь)
+    if (response.status !== 200) {
+        throw new Error("Ожидался 200 от /auth/password/forgot, пришёл: " + response.status);
+    }
+    const payload = JSON.parse(response.body);
+    if (!payload.token) {
+        throw new Error("В ответе нет token (в DEV ожидаем его для теста)");
+    }
+    client.global.set("reset_token", payload.token);
+%}
+
+### 4) Сброс пароля по токену
+@token = pE0i1TcLaH8zx0a7mDJll1UjFlpYwA3kOdKp6oy_-FA
+### токен пришел на почту в ссылке после token=
+POST {{host}}/auth/password/reset
+Content-Type: application/json
+
+{
+  "token": "{{token}}",
+  "new_password": "{{new_password}}"
+}
+
+> {% if (response.status !== 200) { throw new Error("Сброс пароля не прошёл: " + response.body); } %}
