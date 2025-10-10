@@ -7,6 +7,8 @@ import ui.AuthTab
 import ui.Session
 import ui.patientScreen
 import ui.authScreen
+import ui.confirmEmailScreen
+import ui.resetPasswordScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
@@ -34,6 +36,21 @@ class App : Application() {
             )
         }
 
+        fun showResetPassword() {
+            r.removeAll()
+            r.resetPasswordScreen()
+        }
+
+        fun showStub(message: String) {
+            r.removeAll()
+            r.stubScreen(message = message) { showHome() }
+        }
+
+        fun showConfirmEmail(email: String) {
+            r.removeAll()
+            r.confirmEmailScreen(email)
+        }
+
         showAuth = { tab ->
             r.removeAll()
             r.authScreen(
@@ -52,6 +69,12 @@ class App : Application() {
         Navigator.showLogin = {
             showAuth(AuthTab.LOGIN) }
         Navigator.showPatient = ::showPatient
+        Navigator.showResetPassword = ::showResetPassword
+        Navigator.showStub = ::showStub
+        Navigator.showRegister = {
+            showAuth(AuthTab.REGISTER)
+        }
+        Navigator.showConfirmEmail = ::showConfirmEmail
 
         if (Session.isLoggedIn) showPatient() else showHome()
     }
