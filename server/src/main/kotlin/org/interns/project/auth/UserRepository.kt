@@ -1,5 +1,6 @@
 package org.interns.project.auth
 
+import org.interns.project.users.model.User
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -14,7 +15,8 @@ open class UserRepository {
                     id = it[UsersTable.id],
                     login = it[UsersTable.login],
                     passwordHash = it[UsersTable.passwordHash],
-                    role = it[UsersTable.role]
+                    role = it[UsersTable.role],
+                    email = it[UsersTable.email]
                 )
             }
             .singleOrNull()

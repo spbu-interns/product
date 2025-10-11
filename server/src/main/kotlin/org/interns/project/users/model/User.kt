@@ -14,6 +14,6 @@ data class User(
     val phoneNumber: String? = null,
     val isActive: Boolean = true,
     val clinicId: Long? = null,
-    val createdAt: Instant?,
-    val updatedAt: Instant?
+    val createdAt: Instant? = null,
+    val updatedAt: Instant? = null
 )
