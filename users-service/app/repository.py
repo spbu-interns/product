@@ -3,6 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from passlib.hash import bcrypt
 from .models import UserIn, RegistrationIn
+from sqlalchemy import or_
 from datetime import datetime, timedelta
 import secrets, hashlib
 
@@ -102,6 +103,14 @@ def list_users(s: Session, role: Optional[str]=None) -> List[Dict]:
         """)).mappings().all()
     return [dict(r) for r in rows]
 
+def find_auth_by_login_or_email(s: Session, v: str):
+    r = s.execute(text("""
+        select id, role, password_hash, is_active
+        from users
+        where login = :v or email = :v
+        limit 1
+    """), {"v": v}).mappings().first()
+    return dict(r) if r else None
 
 def _gen_token_and_hash() -> tuple[str, str]:
     raw = secrets.token_urlsafe(32)   # отдать пользователю

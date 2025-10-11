@@ -40,6 +40,16 @@ class UserOut(BaseModel):
     password_changed_at: datetime 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+class LoginIn(BaseModel):
+    login_or_email: str = Field(min_length=3, max_length=100)
+    password: str = Field(min_length=6)
+
+class ApiLoginResponse(BaseModel):
+    success: bool
+    role: Optional[str] = None
+    error: Optional[str] = None
+    token: Optional[str] = None
     
 class EmailStartVerificationIn(BaseModel):
     email: EmailStr

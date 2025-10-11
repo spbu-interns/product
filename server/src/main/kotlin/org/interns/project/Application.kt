@@ -8,7 +8,6 @@ import io.ktor.serialization.jackson.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.interns.project.auth.authRoutes
 import org.interns.project.config.SecurityConfig
 
 const val SERVER_PORT = 8000
@@ -37,6 +36,5 @@ fun Application.module() {
         get("/") {
             call.respondText("Ktor: ${Greeting().greet()}")
         }
-        authRoutes()
     }
 }
