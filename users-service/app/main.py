@@ -9,7 +9,9 @@ from .models import (
     UserIn, UserOut,
     EmailStartVerificationIn, EmailVerifyIn,
     PasswordForgotIn, PasswordResetIn, RegistrationIn,
-    LoginIn, ApiLoginResponse
+    LoginIn, ApiLoginResponse,
+    ComplaintIn, ComplaintOut, ComplaintPatch,
+    NoteIn, NoteOut, NotePatch
 )
 from . import repository as repo
 from .mailer import MailSettings, Mailer, verification_email_link, reset_email_link
@@ -192,3 +194,87 @@ def _map_integrity(e: IntegrityError) -> HTTPException:
         return HTTPException(status_code=400, detail="missing required field")
     # по умолчанию
     return HTTPException(status_code=400, detail="integrity error")
+
+# ===== Complaints =====
+
+@app.post("/patients/{patient_id}/complaints", response_model=ComplaintOut, status_code=201)
+def create_complaint(patient_id: int, c: ComplaintIn):
+    s = get_session()
+    try:
+        # (опционально) можно проверить, что patient_id существует и это CLIENT
+        r = repo.create_complaint(s, patient_id, c)
+        return r
+    finally:
+        s.close()
+
+@app.get("/patients/{patient_id}/complaints", response_model=List[ComplaintOut])
+def list_complaints(patient_id: int, status: Optional[str] = Query(None)):
+    s = get_session()
+    try:
+        return repo.list_complaints(s, patient_id, status)
+    finally:
+        s.close()
+
+@app.patch("/complaints/{complaint_id}", response_model=ComplaintOut)
+def patch_complaint(complaint_id: int, p: ComplaintPatch):
+    s = get_session()
+    try:
+        r = repo.patch_complaint(s, complaint_id, p)
+        if not r:
+            raise HTTPException(404, "complaint not found or nothing to update")
+        return r
+    finally:
+        s.close()
+
+@app.delete("/complaints/{complaint_id}", status_code=204)
+def delete_complaint(complaint_id: int):
+    s = get_session()
+    try:
+        ok = repo.delete_complaint(s, complaint_id)
+        if not ok:
+            raise HTTPException(404, "complaint not found")
+        return
+    finally:
+        s.close()
+
+# ===== Doctor Notes =====
+
+@app.post("/patients/{patient_id}/notes", response_model=NoteOut, status_code=201)
+def create_note(patient_id: int, n: NoteIn):
+    s = get_session()
+    try:
+        # (опционально) проверить, что doctor_id существует и role == DOCTOR
+        r = repo.create_note(s, patient_id, n)
+        return r
+    finally:
+        s.close()
+
+@app.get("/patients/{patient_id}/notes", response_model=List[NoteOut])
+def list_notes(patient_id: int, include_internal: bool = Query(True)):
+    s = get_session()
+    try:
+        return repo.list_notes(s, patient_id, include_internal)
+    finally:
+        s.close()
+
+@app.patch("/notes/{note_id}", response_model=NoteOut)
+def patch_note(note_id: int, p: NotePatch):
+    s = get_session()
+    try:
+        r = repo.patch_note(s, note_id, p)
+        if not r:
+            raise HTTPException(404, "note not found or nothing to update")
+        return r
+    finally:
+        s.close()
+
+@app.delete("/notes/{note_id}", status_code=204)
+def delete_note(note_id: int):
+    s = get_session()
+    try:
+        ok = repo.delete_note(s, note_id)
+        if not ok:
+            raise HTTPException(404, "note not found")
+        return
+    finally:
+        s.close()

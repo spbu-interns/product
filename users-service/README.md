@@ -88,7 +88,7 @@ docker compose down
 ```bash
 docker compose down -v
 ```
-## 🔄 Обновление схемы БД после правок в `sql/001_schema.sql` и применение `sql/004_email_tokens.sql`
+## 🔄 Обновление схемы БД после правок в `sql/001_schema.sql` и применение `sql/004_email_tokens.sql`, `sql/005_patient_complaints_notes.sql`
 ```bash
 docker compose down -v
 ```
