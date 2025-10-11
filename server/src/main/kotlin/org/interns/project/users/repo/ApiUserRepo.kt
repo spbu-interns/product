@@ -15,6 +15,8 @@ import org.interns.project.users.model.UserInDto
 import org.interns.project.users.model.UserOutDto
 import org.interns.project.users.model.UserCreateRequest
 import java.time.Instant
+import org.interns.project.users.dto.ApiResponse
+import org.interns.project.users.model.LoginRequest
 
 class ApiUserRepo(
     private val baseUrl: String = "http://127.0.0.1:8000",
@@ -91,6 +93,8 @@ class ApiUserRepo(
                 throw IllegalStateException("409 Conflict: email or login already exists")
             HttpStatusCode.BadRequest ->
                 throw IllegalArgumentException("400 Bad request: ${resp.bodyAsText()}")
+            HttpStatusCode.Unauthorized ->
+                throw IllegalArgumentException("401 Unauthorized: invalid credentials")
             else ->
                 throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
         }
@@ -118,4 +122,12 @@ class ApiUserRepo(
 
     suspend fun findByLogin(login: String): User? =
         doGet("/users/by-login/${urlEncode(login)}") { it.body<UserOutDto>().let(::fromOutDto) }
+
+    suspend fun login(loginOrEmail: String, password: String): ApiResponse {
+        return doPost(
+            path = "/auth/login",
+            body = LoginRequest(loginOrEmail, password),
+            successCodes = setOf(HttpStatusCode.OK)
+        ) { resp -> resp.body<ApiResponse>() }
+    }
 }

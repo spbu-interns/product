@@ -8,9 +8,11 @@ from .db import get_session
 from .models import (
     UserIn, UserOut,
     EmailStartVerificationIn, EmailVerifyIn,
-    PasswordForgotIn, PasswordResetIn, RegistrationIn
+    PasswordForgotIn, PasswordResetIn, RegistrationIn,
+    LoginIn, ApiLoginResponse
 )
 from . import repository as repo
+from passlib.hash import bcrypt
 
 app = FastAPI(title="Users DB API")
 
@@ -89,6 +91,16 @@ def register(reg: RegistrationIn):
     finally:
         s.close()
 
+@app.post("/auth/login", response_model=ApiLoginResponse)
+def auth_login(req: LoginIn):
+    s = get_session()
+    try:
+        u = repo.find_auth_by_login_or_email(s, req.login_or_email)
+        if (not u) or (not u["is_active"]) or (not bcrypt.verify(req.password, u["password_hash"])):
+            raise HTTPException(status_code=401, detail="invalid login or password")
+        return ApiLoginResponse(success=True, role=u["role"])
+    finally:
+        s.close()
 
 @app.post("/auth/email/start")
 def start_email_verification(body: EmailStartVerificationIn):
