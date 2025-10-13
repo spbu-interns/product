@@ -193,3 +193,105 @@ def consume_password_reset(s: Session, raw_token: str, new_password: str) -> boo
 def find_user_id_by_email(s: Session, email: str) -> Optional[int]:
     r = s.execute(text("select id from users where email=:e"), {"e": email}).first()
     return r[0] if r else None
+
+
+# ---------- Complaints ----------
+
+def create_complaint(s: Session, patient_id: int, c) -> Dict:
+    r = s.execute(text("""
+        insert into patient_complaints (patient_id, title, body)
+        values (:pid, :t, :b)
+        returning id, patient_id, title, body, status, created_at, updated_at
+    """), {"pid": patient_id, "t": c.title, "b": c.body}).mappings().first()
+    s.commit()
+    return dict(r)
+
+def list_complaints(s: Session, patient_id: int, status: Optional[str] = None) -> List[Dict]:
+    if status:
+        rows = s.execute(text("""
+            select id, patient_id, title, body, status, created_at, updated_at
+            from patient_complaints
+            where patient_id = :pid and status = :st
+            order by id desc
+        """), {"pid": patient_id, "st": status}).mappings().all()
+    else:
+        rows = s.execute(text("""
+            select id, patient_id, title, body, status, created_at, updated_at
+            from patient_complaints
+            where patient_id = :pid
+            order by id desc
+        """), {"pid": patient_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+def patch_complaint(s: Session, complaint_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"id": complaint_id}
+    if p.title is not None:
+        sets.append("title = :t")
+        params["t"] = p.title
+    if p.body is not None:
+        sets.append("body = :b")
+        params["b"] = p.body
+    if p.status is not None:
+        sets.append("status = :st")
+        params["st"] = p.status
+    if not sets:
+        return None
+    sql = f"update patient_complaints set {', '.join(sets)} where id = :id returning id, patient_id, title, body, status, created_at, updated_at"
+    r = s.execute(text(sql), params).mappings().first()
+    s.commit()
+    return dict(r) if r else None
+
+def delete_complaint(s: Session, complaint_id: int) -> bool:
+    r = s.execute(text("delete from patient_complaints where id = :id"), {"id": complaint_id})
+    s.commit()
+    return r.rowcount > 0
+
+# ---------- Doctor Notes ----------
+
+def create_note(s: Session, patient_id: int, n) -> Dict:
+    r = s.execute(text("""
+        insert into doctor_notes (patient_id, doctor_id, note, visibility)
+        values (:pid, :did, :nt, :vis)
+        returning id, patient_id, doctor_id, note, visibility, created_at, updated_at
+    """), {"pid": patient_id, "did": n.doctor_id, "nt": n.note, "vis": n.visibility}).mappings().first()
+    s.commit()
+    return dict(r)
+
+def list_notes(s: Session, patient_id: int, include_internal: bool = True) -> List[Dict]:
+    if include_internal:
+        rows = s.execute(text("""
+            select id, patient_id, doctor_id, note, visibility, created_at, updated_at
+            from doctor_notes
+            where patient_id = :pid
+            order by id desc
+        """), {"pid": patient_id}).mappings().all()
+    else:
+        rows = s.execute(text("""
+            select id, patient_id, doctor_id, note, visibility, created_at, updated_at
+            from doctor_notes
+            where patient_id = :pid and visibility = 'PATIENT'
+            order by id desc
+        """), {"pid": patient_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+def patch_note(s: Session, note_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"id": note_id}
+    if p.note is not None:
+        sets.append("note = :nt")
+        params["nt"] = p.note
+    if p.visibility is not None:
+        sets.append("visibility = :vis")
+        params["vis"] = p.visibility
+    if not sets:
+        return None
+    sql = f"update doctor_notes set {', '.join(sets)} where id = :id returning id, patient_id, doctor_id, note, visibility, created_at, updated_at"
+    r = s.execute(text(sql), params).mappings().first()
+    s.commit()
+    return dict(r) if r else None
+
+def delete_note(s: Session, note_id: int) -> bool:
+    r = s.execute(text("delete from doctor_notes where id = :id"), {"id": note_id})
+    s.commit()
+    return r.rowcount > 0

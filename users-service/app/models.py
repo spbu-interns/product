@@ -1,5 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
+from typing import Literal
 
 class UserIn(BaseModel):
     email: EmailStr
@@ -63,3 +64,44 @@ class PasswordForgotIn(BaseModel):
 class PasswordResetIn(BaseModel):
     token: str
     new_password: str = Field(min_length=6)
+
+# ---------- Complaints & Notes ----------
+
+ComplaintStatus = Literal["OPEN", "IN_PROGRESS", "CLOSED"]
+NoteVisibility = Literal["INTERNAL", "PATIENT"]
+
+class ComplaintIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1)
+
+class ComplaintOut(BaseModel):
+    id: int
+    patient_id: int
+    title: str
+    body: str
+    status: ComplaintStatus
+    created_at: datetime
+    updated_at: datetime
+
+class ComplaintPatch(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    body: Optional[str] = Field(default=None, min_length=1)
+    status: Optional[ComplaintStatus] = None
+
+class NoteIn(BaseModel):
+    doctor_id: int
+    note: str = Field(min_length=1)
+    visibility: NoteVisibility = "INTERNAL"
+
+class NoteOut(BaseModel):
+    id: int
+    patient_id: int
+    doctor_id: int
+    note: str
+    visibility: NoteVisibility
+    created_at: datetime
+    updated_at: datetime
+
+class NotePatch(BaseModel):
+    note: Optional[str] = Field(default=None, min_length=1)
+    visibility: Optional[NoteVisibility] = None
