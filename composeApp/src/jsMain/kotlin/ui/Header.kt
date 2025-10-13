@@ -28,10 +28,10 @@ fun Container.headerBar(
                 val homeClass = "topnav_link" + if (active == NavTab.HOME) " is-active" else ""
                 val findClass = "topnav_link" + if (active == NavTab.FIND) " is-active" else ""
 
-                link("Home", "#", className = homeClass).onClick {
+                link("Главная", "#", className = homeClass).onClick {
                     it.preventDefault(); Navigator.showHome()
                 }
-                link("Find Doctors", "#", className = findClass).onClick {
+                link("Найти врача", "#", className = findClass).onClick {
                     it.preventDefault(); Navigator.showFind()
                 }
             }
@@ -39,18 +39,21 @@ fun Container.headerBar(
             when (mode) {
                 HeaderMode.PUBLIC -> {
                     div(className = "topnav_auth") {
-                        link("Patient Login", url = "#", className = "link-ghost").onClick { it.preventDefault(); Navigator.showLogin() }
-                        link("Doctor Login", url = "#", className = "link-ghost").onClick { it.preventDefault(); Navigator.showLogin() }
-                        button("Admin", className = "btn-primary-sm").onClick { /*админ*/}
+                        button("Вход", className = "btn btn-primary").onClick {
+                            Navigator.showLogin()
+                        }
+                        button("Регистрация", className = "btn-ghost-sm").onClick {
+                            Navigator.showRegister()
+                        }
                     }
                 }
 
                 HeaderMode.PATIENT -> {
                     div(className = "topnav_auth") {
-                        button("Account", className = "btn-ghost-sm").onClick {
+                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
                             Navigator.showPatient()
                         }
-                        button("Logout", className = "btn-logout-sm").onClick {
+                        button("Выйти", className = "btn-logout-sm").onClick {
                             onLogout?.invoke() ?: run { Navigator.showHome() }
                         }
                     }
