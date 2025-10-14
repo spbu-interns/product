@@ -1,5 +1,6 @@
 package ui
 
+import api.AuthApiClient
 import io.kvision.core.Container
 import io.kvision.form.text.Text
 import io.kvision.html.Button
@@ -10,6 +11,8 @@ import io.kvision.html.h3
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 fun Container.resetPasswordScreen() = vPanel(spacing = 16) {
     headerBar(mode = HeaderMode.PUBLIC, active = NavTab.NONE)
@@ -38,7 +41,21 @@ fun Container.resetPasswordScreen() = vPanel(spacing = 16) {
             onClick {
                 val email = emailField.value ?: ""
                 if (EMAIL_REGEX.matches(email)) {
-                    Navigator.showStub("Ссылка отправлена на $email")
+                    this.disabled = true
+                    
+                    GlobalScope.launch {
+                        val authClient = AuthApiClient()
+                        val result = authClient.requestPasswordReset(email)
+                        
+                        result.fold(
+                            onSuccess = {
+                                Navigator.showStub("Ссылка отправлена на $email")
+                            },
+                            onFailure = { e ->
+                                Navigator.showStub("Если учетная запись с таким email существует, на него будет отправлена ссылка для восстановления пароля")
+                            }
+                        )
+                    }
                 } else {
                     error.content = "Некорректный email"
                     return@onClick

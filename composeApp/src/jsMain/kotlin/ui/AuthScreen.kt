@@ -1,5 +1,6 @@
 package ui
 
+import api.AuthApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.core.onEvent
@@ -15,6 +16,10 @@ import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.interns.project.dto.LoginRequest
+import org.interns.project.dto.RegisterRequest
 
 enum class AuthTab { LOGIN, REGISTER }
 
@@ -118,12 +123,41 @@ fun Container.authScreen(
                     content.add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
                         width = 100.perc
                         onClick {
-                            val emailOk = EMAIL_REGEX.matches(emailField.value ?: "")
-                            val passOk = PASSWORD_REGEX.matches(passField.value ?: "")
+                            val email = emailField.value ?: ""
+                            val password = passField.value ?: ""
+                            val accountType = accountType.value ?: "Пациент"
+
+                            val emailOk = EMAIL_REGEX.matches(email)
+                            val passOk = PASSWORD_REGEX.matches(password)
+
                             when {
                                 !emailOk -> error.content = "Некорректный email"
                                 !passOk -> error.content = "Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру"
-                                else -> { error.content = ""; onLogin() }
+                                else -> {
+                                    error.content = ""
+                                    this.disabled = true
+
+                                    GlobalScope.launch {
+                                        val authClient = AuthApiClient()
+                                        val result = authClient.login(
+                                            LoginRequest(
+                                                email = email,
+                                                password = password,
+                                                accountType = accountType
+                                            )
+                                        )
+
+                                        result.fold(
+                                            onSuccess = {
+                                                onLogin()
+                                            },
+                                            onFailure = { e ->
+                                                error.content = e.message ?: "Ошибка входа"
+                                                this@apply.disabled = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     })
@@ -185,14 +219,48 @@ fun Container.authScreen(
                         width = 100.perc
                         onClick {
                             val email = (emailField.value ?: "").trim()
-                            val emailOk = EMAIL_REGEX.matches(emailField.value ?: "")
-                            val passOk = PASSWORD_REGEX.matches(passField.value ?: "")
-                            val same = (passField.value ?: "") == (pass2Field.value ?: "")
+                            val password = passField.value ?: ""
+                            val password2 = pass2Field.value ?: ""
+                            val accountType = accountType.value ?: "Пациент"
+
+                            val emailOk = EMAIL_REGEX.matches(email)
+                            val passOk = PASSWORD_REGEX.matches(password)
+                            val same = password == password2
+
                             when {
                                 !emailOk -> error.content = "Некорректный email"
                                 !passOk -> error.content = "Пароль: 8–71 символ, латиница, минимум 1 цифра"
                                 !same   -> error.content = "Пароли не совпадают"
-                                else -> { error.content = ""; Navigator.showConfirmEmail("$email") }
+                                else -> {
+                                    error.content = ""
+                                    this.disabled = true
+
+                                    GlobalScope.launch {
+                                        val authClient = AuthApiClient()
+                                        val result = authClient.register(
+                                            RegisterRequest(
+                                                email = email,
+                                                password = password,
+                                                accountType = accountType
+                                            )
+                                        )
+
+                                        result.fold(
+                                            onSuccess = { response ->
+                                                if (response.success) {
+                                                    Navigator.showConfirmEmail(email)
+                                                } else {
+                                                    error.content = response.message ?: "Ошибка регистрации"
+                                                    this@apply.disabled = false
+                                                }
+                                            },
+                                            onFailure = { e ->
+                                                error.content = e.message ?: "Ошибка регистрации"
+                                                this@apply.disabled = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
