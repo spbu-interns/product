@@ -44,15 +44,30 @@ class AuthController(
                 try {
                     val mappedRole = mapRoleToDbRole(apiRequest.accountType)
                     println("📝 Mapped role: ${apiRequest.accountType} -> $mappedRole")
-                    
+
                     val apiResponse = apiUserRepo.login(
                         loginOrEmail = apiRequest.email,
                         password = apiRequest.password
                     )
-                    
+                    val user = apiUserRepo.findByEmail(apiRequest.email)
+
+                    val loginResponse = org.interns.project.dto.LoginResponse(
+                        token = apiResponse.token ?: "",
+                        userId = user!!.id,
+                        email = user.email,
+                        accountType = mappedRole,
+                        firstName = user.firstName,
+                        lastName = user.lastName
+                    )
+
+                    println("🔵 Response: ${loginResponse.userId}")
+                    println("🔵 Response body: ${loginResponse.email}")
                     call.respond(
                         HttpStatusCode.OK,
-                        apiResponse
+                        ApiResponse(
+                            success = true,
+                            data = loginResponse
+                        )
                     )
                 } catch (e: Exception) {
                     println("❌ Login failed: ${e.message}")

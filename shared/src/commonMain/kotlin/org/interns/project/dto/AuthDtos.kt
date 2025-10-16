@@ -22,7 +22,7 @@ data class LoginRequest(
 @Serializable
 data class LoginResponse(
     @SerialName("token")
-    val token: String,
+    val token: String?,
     
     @SerialName("user_id")
     val userId: Long,
