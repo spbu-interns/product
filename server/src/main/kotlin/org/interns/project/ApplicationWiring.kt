@@ -11,7 +11,7 @@ import org.interns.project.security.token.EmailVerificationRepo
 import org.interns.project.security.token.PasswordResetRepo
 import org.interns.project.config.SecurityConfig
 
-fun Application.installEmailFeatures() {
+fun Application.installEmailFeatures() : Pair<EmailVerificationService, PasswordResetService>{
     val cfg = environment.config
 
     val mailer: Mailer = SmtpMailer(
@@ -46,7 +46,7 @@ fun Application.installEmailFeatures() {
         bcryptCost = SecurityConfig.bcryptCost
     )
 
-    routing {
-        fastApiCompatRoutes(verificationSvc, passwordResetSvc)
-    }
+
+    return Pair(verificationSvc, passwordResetSvc)
 }
+
