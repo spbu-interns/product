@@ -122,6 +122,31 @@
 .record.title    { font-weight: 700; }
 .record.subtitle { color:#64748b; font-size: 14px; }
 
+.text-underline { text-decoration: underline; }
+
+.toolbar .btn {
+    background-color: #ffffff;
+    color: #0d6efd;
+    border: 1px solid #0d6efd;
+    transition: all 0.2s ease-in-out;
+    font-weight: bold;
+}
+
+.toolbar .btn:hover {
+    background-color: #e8f0ff;
+}
+
+.toolbar .btn-primary {
+    background-color: #0d6efd;
+    color: #ffffff;
+    border: 1px solid #0d6efd;
+}
+
+.text-underline { text-decoration: underline; }
+
+.toolbar { margin-top: 24px; margin-bottom: 24px; }
+
+
 /* Responsive */
 @media (max-width: 1024px) {
   .account.grid { grid-template-columns: 1fr; }
