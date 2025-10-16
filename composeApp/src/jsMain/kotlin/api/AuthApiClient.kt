@@ -21,7 +21,7 @@ class AuthApiClient {
                 val loginResponse = response.body<ApiResponse<LoginResponse>>()
                 if (loginResponse.success) {
                     loginResponse.data?.let { loginData ->
-                        ApiConfig.setToken(loginData.token)
+                        //ApiConfig.setToken(loginData.token) потом
                         Result.success(loginData)
                     } ?: Result.failure(Exception("No login data returned"))
                 } else {
