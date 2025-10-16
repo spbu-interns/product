@@ -28,25 +28,27 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:0.55.0")
     implementation("org.postgresql:postgresql:42.7.7")
 
+    implementation("io.ktor:ktor-server-cors:2.3.12")
     implementation("io.ktor:ktor-client-core:2.3.12")
     implementation("io.ktor:ktor-client-cio:2.3.12")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:2.3.12")
-    implementation("io.ktor:ktor-serialization-jackson-jvm:2.3.12")
     implementation("io.ktor:ktor-server-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
     implementation("io.ktor:ktor-serialization-jackson:2.3.12")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("com.auth0:java-jwt:4.4.0")
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("com.sun.mail:jakarta.mail:2.0.1")
+    implementation("org.mindrot:jbcrypt:0.4")
 
     testImplementation("org.testcontainers:junit-jupiter:1.19.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
     testImplementation("io.ktor:ktor-client-mock:2.3.12")
     testImplementation("io.ktor:ktor-client-content-negotiation:2.3.12")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 }
