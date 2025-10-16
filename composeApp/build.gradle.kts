@@ -20,6 +20,9 @@ kotlin {
                 implementation(project(":shared"))
 
                 implementation("io.kvision:kvision:9.1.1")
+                implementation("io.kvision:kvision-toastify:9.1.1")
+                implementation("io.kvision:kvision-i18n:9.1.1")
+
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 

@@ -1,6 +1,7 @@
 ﻿package ui
 
 import io.kvision.core.Container
+import io.kvision.core.onClick
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
@@ -33,10 +34,18 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
 
                 nav {
                     ul(className = "side menu") {
-                        li(className = "side_item is-active") { span("Overview"); span("\uD83D\uDC64", className = "side icon") }
+                        li(className = "side_item is-active") {
+                            span("Overview")
+                            span("\uD83D\uDC64", className = "side icon")
+                            onClick { Navigator.showPatient() }
+                        }
                         li(className = "side_item") { span("Appointments"); span("\uD83D\uDCC5", className = "side icon") }
                         li(className = "side_item") { span("Medical Records"); span("\uD83D\uDCC4", className = "side icon") }
-                        li(className = "side_item") { span("My Profile"); span("\uD83D\uDCDD", className = "side icon") }
+                        li(className = "side_item") {
+                            span("My Records")
+                            span("\uD83D\uDCDD", className = "side icon")
+                            onClick { Navigator.showMyRecords() }
+                        }
                     }
                 }
 

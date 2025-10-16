@@ -9,4 +9,6 @@ object Navigator {
     var showResetPassword: () -> Unit = {}
     var showRegister: () -> Unit = {}
     var showConfirmEmail: (String) -> Unit = {}
+    var showMyRecords: () -> Unit = {}
+    var showRecordEditor: (String) -> Unit = {}
 }
