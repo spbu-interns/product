@@ -1,9 +1,12 @@
 package org.interns.project.users
 
-import kotlin.test.*
 import kotlinx.coroutines.runBlocking
 import org.interns.project.users.model.UserInDto
 import org.interns.project.users.repo.ApiUserRepo
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import org.junit.jupiter.api.assertNotNull
 
 class RepoLoginIntegrationTest {
 
@@ -24,6 +27,7 @@ class RepoLoginIntegrationTest {
             val res = repo.login(login, password)
             assertTrue(res.success)
             assertEquals("CLIENT", res.role)
+            assertNotNull(res.token)
         } finally {
             repo.close()
         }
