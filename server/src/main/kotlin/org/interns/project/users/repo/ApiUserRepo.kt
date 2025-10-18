@@ -16,6 +16,7 @@ import org.interns.project.users.model.UserOutDto
 import org.interns.project.users.model.UserCreateRequest
 import java.time.Instant
 import org.interns.project.users.dto.ApiResponse
+import org.interns.project.security.token.JwtService
 
 class ApiUserRepo(
     private val baseUrl: String = "http://127.0.0.1:8000",
@@ -128,16 +129,32 @@ class ApiUserRepo(
         doGet("/users/by-login/${urlEncode(login)}") { it.body<UserOutDto>().let(::fromOutDto) }
 
     suspend fun login(loginOrEmail: String, password: String): ApiResponse {
-        val body = mapOf(
-            "login_or_email" to loginOrEmail,
-            "password" to password
-        )
-        
-        return doPost(
+        val apiResp: ApiResponse = doPost(
             path = "/auth/login",
-            body = body,
+            body = mapOf("login_or_email" to loginOrEmail, "password" to password),
             successCodes = setOf(HttpStatusCode.OK)
         ) { resp -> resp.body<ApiResponse>() }
+
+        if (!apiResp.success) return apiResp
+
+        val user = if ('@' in loginOrEmail) {
+            findByEmail(loginOrEmail)
+        } else {
+            findByLogin(loginOrEmail)
+        }
+        val subject = (user!!.id).toString()
+        val login   = user.login
+        val role    = apiResp.role
+        val email   = user.email
+
+        val token = JwtService.issue(
+            subject = subject,
+            login   = login,
+            role    = role,
+            email   = email
+        )
+
+        return apiResp.copy(token = token)
     }
 
     suspend fun createUser(request: UserCreateRequest): Long {
