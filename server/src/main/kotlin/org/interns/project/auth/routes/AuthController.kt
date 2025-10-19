@@ -1,13 +1,11 @@
 package org.interns.project.auth.routes
 
-import at.favre.lib.crypto.bcrypt.BCrypt
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.interns.project.auth.reset.PasswordResetService
 import org.interns.project.auth.verification.EmailVerificationService
-import org.interns.project.config.SecurityConfig
 import org.interns.project.dto.ApiResponse
 import org.interns.project.users.model.User
 import org.interns.project.users.repo.ApiUserRepo

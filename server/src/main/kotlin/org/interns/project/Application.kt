@@ -1,17 +1,20 @@
 package org.interns.project
 
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.cors.routing.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.application.log
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import org.interns.project.auth.routes.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
-import org.interns.project.config.SecurityConfig
+import org.interns.project.config.AppConfig
 import org.interns.project.users.repo.ApiUserRepo
 import org.jetbrains.exposed.sql.Database
 
@@ -26,24 +29,14 @@ fun main() {
 }
 
 fun Application.module() {
-    SecurityConfig.initConfig(environment)
-    log.info("bcryptCost = ${SecurityConfig.bcryptCost}")
-
-    //временные меры
-    val dbHost = System.getenv("DB_HOST") ?: "localhost"
-    val dbPort = System.getenv("DB_PORT") ?: "5432"
-    val dbName = System.getenv("DB_NAME") ?: "usersdb"
-    val dbUser = System.getenv("DB_USER") ?: "app"
-    val dbPassword = System.getenv("DB_PASSWORD") ?: "secret"
-    
-    val jdbcUrl = "jdbc:postgresql://$dbHost:$dbPort/$dbName"
+    val jdbcUrl = "jdbc:postgresql://${AppConfig.dbHost}:${AppConfig.dbPort}/${AppConfig.dbName}"
     log.info("Connecting to database at $jdbcUrl")
-    
+
     Database.connect(
         url = jdbcUrl,
         driver = "org.postgresql.Driver",
-        user = dbUser,
-        password = dbPassword
+        user = AppConfig.dbUser,
+        password = AppConfig.dbPassword
     )
     log.info("Database connection established")
 
@@ -67,7 +60,7 @@ fun Application.module() {
 
     val (verificationService, passwordResetService) = installEmailFeatures()
     val apiUserRepo = ApiUserRepo()
-    
+
     val authController = AuthController(
         apiUserRepo = apiUserRepo,
         verificationService = verificationService,
@@ -78,9 +71,9 @@ fun Application.module() {
         get("/") {
             call.respondText("Ktor: ${Greeting().greet()}")
         }
-        
+
         authController.registerRoutes(this)
-        
+
         fastApiCompatRoutes(verificationService, passwordResetService)
     }
 }
