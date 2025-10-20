@@ -1,4 +1,5 @@
 import io.kvision.Application
+import io.kvision.i18n.I18n
 import io.kvision.panel.root
 import ui.Navigator
 import ui.stubScreen
@@ -8,10 +9,14 @@ import ui.Session
 import ui.patientScreen
 import ui.authScreen
 import ui.confirmEmailScreen
+import ui.doctorScreen
+import ui.myRecordsScreen
+import ui.recordEditorScreen
 import ui.resetPasswordScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
+        I18n.language = "en"
         val r = root("kvapp")
 
         var showAuth: (AuthTab) -> Unit = {}
@@ -34,6 +39,31 @@ class App : Application() {
                     showHome()
                 }
             )
+        }
+
+        fun showDoctor() {
+            r.removeAll()
+            r.doctorScreen(
+                onLogout = {
+                    Session.isLoggedIn = true
+                    showHome()
+                }
+            )
+        }
+
+        fun showMyRecords() {
+            r.removeAll()
+            r.myRecordsScreen(
+                onLogout = {
+                    Session.isLoggedIn = false
+                    showHome()
+                }
+            )
+        }
+
+        fun showRecordEditor(id: String) {
+            r.removeAll()
+            r.recordEditorScreen(recordId = id) { showMyRecords() }
         }
 
         fun showResetPassword() {
@@ -75,7 +105,11 @@ class App : Application() {
             showAuth(AuthTab.REGISTER)
         }
         Navigator.showConfirmEmail = ::showConfirmEmail
+        Navigator.showMyRecords = ::showMyRecords
+        Navigator.showRecordEditor = ::showRecordEditor
+        Navigator.showDoctor = ::showDoctor
 
-        if (Session.isLoggedIn) showPatient() else showHome()
+        //if (Session.isLoggedIn) showPatient() else showHome()
+        showDoctor()
     }
 }

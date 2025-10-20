@@ -25,34 +25,42 @@
 
 .auth-content { margin-top: 12px; }
 
+.auth-content .form-group {
+    margin-bottom: 16px;
+}
+
+.auth-content .input-with-eye {
+    margin-bottom: 16px;
+}
+
+.auth-content .form-control {
+    height: 44px;
+    line-height: 44px;
+    box-sizing: border-box;
+}
+
 .input-with-eye {
   position: relative;
 }
 
 .input-with-eye .form-control {
-  padding-right: 48px;
-  height: 44px;
-  line-height: 44px;
-  box-sizing: border-box;
+  padding-right: 44px;
 }
 
 .input-with-eye .eye-toggle {
-  position: absolute;
-  right: 8px;
+    position: absolute;
+    right: 8px;
 
-  top: 0;
-  bottom: 0;
-  margin: auto 0;
+    top: calc(50% + 1px);
+    transform: translateY(-30%);
 
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 8px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 8px;
 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  transform: translateY(15px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-logout-sm {
