@@ -46,8 +46,6 @@ def exists_by_login(s: Session, login: str) -> bool:
 def insert_user(s: Session, user) -> Dict:
     if user.role not in ("CLIENT", "DOCTOR", "ADMIN"):
         raise ValueError("invalid role")
-    if user.role == "DOCTOR" and (not user.first_name or not user.last_name):
-        raise ValueError("doctor must have first_name and last_name")
 
     pwd_hash = bcrypt.hash(user.password)
     r = s.execute(text("""
