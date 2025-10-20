@@ -26,7 +26,7 @@ class AuthController(
     private fun mapRoleToDbRole(role: String): String {
         return when (role) {
             "Пациент" -> "CLIENT"
-            "Врач" -> "DOCTOR"
+            "Медицинский работник" -> "DOCTOR"
             "Администратор" -> "ADMIN"
             else -> role
         }

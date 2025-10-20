@@ -19,10 +19,7 @@ create table if not exists users (
   created_at     timestamp not null default now(),
   updated_at     timestamp not null default now(),
   -- валидные роли
-  constraint users_role_chk check (role in ('CLIENT','DOCTOR','ADMIN')),
-  -- для DOCTOR имя/фамилия обязательны
-  constraint users_doctor_name_chk
-    check (role <> 'DOCTOR' or (first_name is not null and last_name is not null))
+  constraint users_role_chk check (role in ('CLIENT','DOCTOR','ADMIN'))
 );
 
 -- триггер auto-updated updated_at чтоб обновлять поле updated_at при каждом изменении чего то для данного юзера
