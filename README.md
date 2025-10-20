@@ -17,13 +17,15 @@
 
 ## 🚀 Запуск
 
-### Desktop (JVM)
-```bash
-./gradlew :composeApp:run      # macOS/Linux
-.\gradlew.bat :composeApp:run  # Windows
-```
-
 ### Server
+
+Для запуска лучше запустить соответствующий ОС скрипт:
+
+`scripts/run-server.sh` для  macOS/Linux
+
+`scripts/run-server.ps1` для  Windows
+
+Но все так же можно запустить командами
 ```bash
 ./gradlew :server:run          # macOS/Linux
 .\gradlew.bat :server:run      # Windows

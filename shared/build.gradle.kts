@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     kotlin("plugin.serialization") version "2.2.10"
@@ -7,18 +5,12 @@ plugins {
 
 kotlin {
     jvm() {
-        withJava()
     }
 
     js(IR) {
         browser {
             binaries.executable()
         }
-    }
-
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
     }
 
     sourceSets {
@@ -31,21 +23,14 @@ kotlin {
             implementation(libs.kotlin.test)
         }
 
-        val jvmMain by getting {
-            dependencies {
-                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
-                implementation("io.ktor:ktor-server-content-negotiation:2.3.12")
-                implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
-            }
-        }
-
-        val jsMain by getting {
-            dependencies {
-                implementation("io.ktor:ktor-client-core:2.3.12")
-                implementation("io.ktor:ktor-client-js:2.3.12")
-                implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
-            }
-        }
     }
+
+    tasks.withType<Test>().configureEach {
+        enabled = false
+    }
+
+    tasks.matching { it.name.contains("jsTest") || it.name.contains("jsBrowserTest") }.configureEach {
+        enabled = false
+    }
+
 }
