@@ -16,6 +16,8 @@ import org.interns.project.users.model.UserOutDto
 import org.interns.project.users.model.UserCreateRequest
 import java.time.Instant
 import org.interns.project.users.dto.ApiResponse
+import org.interns.project.security.token.JwtService
+import org.interns.project.users.model.*
 
 class ApiUserRepo(
     private val baseUrl: String = "http://127.0.0.1:8000",
@@ -104,6 +106,43 @@ class ApiUserRepo(
         }
     }
 
+    private suspend fun <T> doPatch(
+        path: String,
+        body: Any?,
+        parse: suspend (HttpResponse) -> T
+    ): T {
+        val resp = client.patch("$baseUrl$path") {
+            contentType(ContentType.Application.Json)
+            setBody(body ?: emptyMap<String, Any>())
+        }
+        println("🟣 PATCH $baseUrl$path -> ${resp.status}")
+        println("🟣 Body: ${body.toString()}")
+        println("🟣 Resp: ${resp.bodyAsText()}")
+        return when (resp.status) {
+            HttpStatusCode.OK -> parse(resp)
+            HttpStatusCode.UnprocessableEntity ->
+                throw IllegalArgumentException("422 Unprocessable Entity: ${resp.bodyAsText()}")
+            HttpStatusCode.BadRequest ->
+                throw IllegalArgumentException("400 Bad request: ${resp.bodyAsText()}")
+            HttpStatusCode.Unauthorized ->
+                throw IllegalArgumentException("401 Unauthorized")
+            HttpStatusCode.NotFound ->
+                throw IllegalArgumentException("404 Not Found")
+            else ->
+                throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+    }
+
+    private suspend fun doDelete(path: String): Boolean {
+        val resp = client.delete("$baseUrl$path")
+        println("🔴 DELETE $baseUrl$path -> ${resp.status}")
+        return when (resp.status) {
+            HttpStatusCode.NoContent -> true
+            HttpStatusCode.NotFound -> false
+            else -> throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+    }
+
     suspend fun saveByApi(input: UserInDto): User {
         val dto = UserCreateRequest(
             email = input.email,
@@ -128,16 +167,32 @@ class ApiUserRepo(
         doGet("/users/by-login/${urlEncode(login)}") { it.body<UserOutDto>().let(::fromOutDto) }
 
     suspend fun login(loginOrEmail: String, password: String): ApiResponse {
-        val body = mapOf(
-            "login_or_email" to loginOrEmail,
-            "password" to password
-        )
-        
-        return doPost(
+        val apiResp: ApiResponse = doPost(
             path = "/auth/login",
-            body = body,
+            body = mapOf("login_or_email" to loginOrEmail, "password" to password),
             successCodes = setOf(HttpStatusCode.OK)
         ) { resp -> resp.body<ApiResponse>() }
+
+        if (!apiResp.success) return apiResp
+
+        val user = if ('@' in loginOrEmail) {
+            findByEmail(loginOrEmail)
+        } else {
+            findByLogin(loginOrEmail)
+        }
+        val subject = (user!!.id).toString()
+        val login   = user.login
+        val role    = apiResp.role
+        val email   = user.email
+
+        val token = JwtService.issue(
+            subject = subject,
+            login   = login,
+            role    = role,
+            email   = email
+        )
+
+        return apiResp.copy(token = token)
     }
 
     suspend fun createUser(request: UserCreateRequest): Long {
@@ -151,8 +206,59 @@ class ApiUserRepo(
             clinicId = request.clinicId?.toInt(),
             isActive = request.isActive?: true
         )
-        
+
         val user = saveByApi(userInDto)
         return user.id
     }
+
+    // ===== ДЛЯ ЖАЛОБ ПАЦИЕНТА =====
+    // POST /patients/{id}/complaints
+    suspend fun createComplaint(patientId: Long, input: ComplaintIn): ComplaintOut =
+        doPost("/patients/$patientId/complaints", input) { it.body() }
+
+    // GET /patients/{id}/complaints?status=OPEN|IN_PROGRESS|CLOSED
+    suspend fun listComplaints(patientId: Long, status: ComplaintStatus? = null): List<ComplaintOut> {
+        val resp = client.get("$baseUrl/patients/$patientId/complaints") {
+            status?.let { parameter("status", it.name) }
+        }
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    // PATCH /complaints/{id}
+    suspend fun patchComplaint(complaintId: Long, patch: ComplaintPatch): ComplaintOut =
+        doPatch("/complaints/$complaintId", patch) { it.body() }
+
+    // DELETE /complaints/{id}
+    suspend fun deleteComplaint(complaintId: Long): Boolean =
+        doDelete("/complaints/$complaintId")
+
+
+
+    //===== ДЛЯ ЗАПИСЕЙ ВРАЧЕЙ ====
+    // POST /patients/{id}/notes
+    suspend fun createNote(patientId: Long, input: NoteIn): NoteOut =
+        doPost("/patients/$patientId/notes", input) { it.body() }
+
+    // GET /patients/{id}/notes?include_internal=true|false
+    suspend fun listNotes(patientId: Long, includeInternal: Boolean = true): List<NoteOut> {
+        val resp = client.get("$baseUrl/patients/$patientId/notes") {
+            parameter("include_internal", includeInternal)
+        }
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    // PATCH /notes/{id}
+    suspend fun patchNote(noteId: Long, patch: NotePatch): NoteOut =
+        doPatch("/notes/$noteId", patch) { it.body() }
+
+    // DELETE /notes/{id}
+    suspend fun deleteNote(noteId: Long): Boolean =
+        doDelete("/notes/$noteId")
+
 }

@@ -50,7 +50,6 @@ class ApiLoginResponse(BaseModel):
     success: bool
     role: Optional[str] = None
     error: Optional[str] = None
-    token: Optional[str] = None
     
 class EmailStartVerificationIn(BaseModel):
     email: EmailStr
