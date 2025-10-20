@@ -86,9 +86,9 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                 fun Button?.setActive(active: Boolean) {
                     this?.let {
                         if (active) {
-                            it.addCssClass("btn-primary"); it.removeCssClass("btn")
+                            it.addCssClass("btn-toolbar-active")
                         } else {
-                            it.addCssClass("btn"); it.removeCssClass("btn-primary")
+                            it.removeCssClass("btn-toolbar-active")
                         }
                     }
                 }
@@ -120,15 +120,15 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                             fontWeight = FontWeight.NORMAL
                         }
                         hPanel(spacing = 8) {
-                            btnBold = button("B", className = "btn").apply {
+                            btnBold = button("B", className = "btn-toolbar").apply {
                                 fontWeight = FontWeight.BOLD
                                 onClick { applyCmd("bold") }
                             }
-                            btnItalic = button("I", className = "btn").apply {
+                            btnItalic = button("I", className = "btn-toolbar").apply {
                                 fontStyle = FontStyle.ITALIC
                                 onClick { applyCmd("italic") }
                             }
-                            btnUnderline = button("U", className = "btn text-underline").apply {
+                            btnUnderline = button("U", className = "btn-toolbar text-underline").apply {
                                 onClick { applyCmd("underline") }
                             }
                         }
@@ -143,6 +143,7 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     input = { syncToolbar() }
                 }
                 document.addEventListener("selectionchange", { syncToolbar() })
+                syncToolbar()
 
                 hPanel(spacing = 8) {
                     button("Save", className = "btn-primary").onClick {
