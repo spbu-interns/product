@@ -278,18 +278,3 @@ def delete_note(note_id: int):
         return
     finally:
         s.close()
-
-from fastapi import Body
-
-@app.post("/admin/sql")
-def run_sql(raw: str = Body(..., embed=True)):
-    s = get_session()
-    try:
-        s.execute(text(raw))
-        s.commit()
-        return {"status": "ok"}
-    except Exception as e:
-        s.rollback()
-        return {"error": str(e)}
-    finally:
-        s.close()
