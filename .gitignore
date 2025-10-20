@@ -82,3 +82,4 @@ yarn-error.log*
 kotlin-js-store/
 
 users-service/.env
+/server/.env

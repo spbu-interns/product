@@ -51,4 +51,6 @@ dependencies {
     testImplementation("io.ktor:ktor-client-content-negotiation:2.3.12")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
 }
