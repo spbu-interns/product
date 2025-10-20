@@ -7,7 +7,7 @@ import io.kvision.html.image
 import io.kvision.html.link
 import io.kvision.html.nav
 
-enum class HeaderMode { PUBLIC, PATIENT }
+enum class HeaderMode { PUBLIC, PATIENT, DOCTOR }
 enum class NavTab { NONE, HOME, FIND }
 
 fun Container.headerBar(
@@ -52,6 +52,17 @@ fun Container.headerBar(
                     div(className = "topnav_auth") {
                         button("Личный кабинет", className = "btn-ghost-sm").onClick {
                             Navigator.showPatient()
+                        }
+                        button("Выйти", className = "btn-logout-sm").onClick {
+                            onLogout?.invoke() ?: run { Navigator.showHome() }
+                        }
+                    }
+                }
+
+                HeaderMode.DOCTOR -> {
+                    div(className = "topnav_auth") {
+                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                            Navigator.showDoctor()
                         }
                         button("Выйти", className = "btn-logout-sm").onClick {
                             onLogout?.invoke() ?: run { Navigator.showHome() }

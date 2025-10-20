@@ -9,6 +9,7 @@ import ui.Session
 import ui.patientScreen
 import ui.authScreen
 import ui.confirmEmailScreen
+import ui.doctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
 import ui.resetPasswordScreen
@@ -35,6 +36,16 @@ class App : Application() {
             r.patientScreen(
                 onLogout = {
                     Session.isLoggedIn = false
+                    showHome()
+                }
+            )
+        }
+
+        fun showDoctor() {
+            r.removeAll()
+            r.doctorScreen(
+                onLogout = {
+                    Session.isLoggedIn = true
                     showHome()
                 }
             )
@@ -96,7 +107,9 @@ class App : Application() {
         Navigator.showConfirmEmail = ::showConfirmEmail
         Navigator.showMyRecords = ::showMyRecords
         Navigator.showRecordEditor = ::showRecordEditor
+        Navigator.showDoctor = ::showDoctor
 
-         if (Session.isLoggedIn) showPatient() else showHome()
+        //if (Session.isLoggedIn) showPatient() else showHome()
+        showDoctor()
     }
 }
