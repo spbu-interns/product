@@ -17,6 +17,7 @@ import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
 import org.interns.project.users.repo.ApiUserRepo
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.transactions.transaction
 
 const val SERVER_PORT = 8000
 
@@ -38,7 +39,8 @@ fun Application.module() {
         user = AppConfig.dbUser,
         password = AppConfig.dbPassword
     )
-    log.info("Database connection established")
+    transaction { exec("select 1") {} }
+    log.info("Database connection established (user=${AppConfig.dbUser})")
 
     install(CORS) {
         anyHost()

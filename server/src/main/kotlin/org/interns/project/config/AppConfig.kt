@@ -44,9 +44,14 @@ object AppConfig {
     val baseUrl by lazy { envStr("APP_BASE_URL") }
 
     // db
-    val dbHost by lazy { envStr("DB_HOST") }
-    val dbPort by lazy { envInt("DB_PORT") }
-    val dbName by lazy { envStr("DB_NAME") }
-    val dbUser by lazy { envStr("DB_USER") }
-    val dbPassword by lazy { envStr("DB_PASSWORD") }
+    val dbHost by lazy { envStr("DB_HOST", envStr("POSTGRES_HOST", "localhost")) }
+    val dbPort by lazy { (envStr("DB_PORT", envStr("POSTGRES_PORT", "5432"))).toInt() }
+    val dbName by lazy { envStr("DB_NAME", envStr("POSTGRES_DB", "usersdb")) }
+    val dbUser by lazy { envStr("DB_USER", envStr("POSTGRES_USER", "app")) }
+    val dbPassword by lazy { envStr("DB_PASSWORD", envStr("POSTGRES_PASSWORD")) }
+
+    val jwtSecret by lazy { envStr("JWT_SECRET") }
+    val jwtIssuer by lazy { envStr("JWT_ISSUER", "org.interns.project") }
+    val jwtAudience by lazy { envStr("JWT_AUDIENCE", "users") }
+    val jwtExpiresMin by lazy { envInt("JWT_EXPIRES_MIN", 60) }
 }
