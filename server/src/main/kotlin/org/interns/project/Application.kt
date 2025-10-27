@@ -1,5 +1,6 @@
 package org.interns.project
 
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -15,6 +16,7 @@ import kotlinx.serialization.json.Json
 import org.interns.project.auth.routes.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
+import org.interns.project.patient.PatientDataController
 import org.interns.project.users.repo.ApiUserRepo
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -44,12 +46,23 @@ fun Application.module() {
 
     install(CORS) {
         anyHost()
+        allowCredentials = true
         allowHeader("Content-Type")
         allowMethod(io.ktor.http.HttpMethod.Options)
         allowMethod(io.ktor.http.HttpMethod.Get)
         allowMethod(io.ktor.http.HttpMethod.Post)
         allowMethod(io.ktor.http.HttpMethod.Put)
         allowMethod(io.ktor.http.HttpMethod.Delete)
+        allowMethod(io.ktor.http.HttpMethod.Patch)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.Accept)
+        allowHeader(HttpHeaders.AcceptLanguage)
+        allowHeader(HttpHeaders.Origin)
+        allowHeader("X-Requested-With")
+        allowHeader("X-Csrf-Token")
+        allowNonSimpleContentTypes = true
+        exposeHeader(HttpHeaders.Location)
     }
 
     install(ContentNegotiation) {
@@ -68,6 +81,7 @@ fun Application.module() {
         verificationService = verificationService,
         passwordResetService = passwordResetService
     )
+    val patientDataController = PatientDataController(apiUserRepo)
 
     routing {
         get("/") {
@@ -75,6 +89,7 @@ fun Application.module() {
         }
 
         authController.registerRoutes(this)
+        patientDataController.registerRoutes(this)
 
         fastApiCompatRoutes(verificationService, passwordResetService)
     }
