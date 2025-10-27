@@ -1,6 +1,7 @@
 package ui
 
 import api.AuthApiClient
+import i18n.t
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.core.onEvent
@@ -34,15 +35,13 @@ fun Container.authScreen(
         width = 520.px
         addCssClass("mx-auto")
 
-
-
         var current = initial
 
         var renderForm: () -> Unit = {}
         var updateTabs: () -> Unit = {}
 
-        val loginTab  = Span("Вход", className = "auth-tab")
-        val registerTab = Span("Регистрация", className = "auth-tab")
+        val loginTab  = Span(t("auth.loginTab"), className = "auth-tab")
+        val registerTab = Span(t("auth.registerTab"), className = "auth-tab")
 
         loginTab.onClick {
             current = AuthTab.LOGIN
@@ -79,17 +78,17 @@ fun Container.authScreen(
                 AuthTab.LOGIN -> {
                     val accountType = Select(
                         options = listOf(
-                            "Пациент" to "Пациент",
-                            "Медицинский работник" to "Медицинский работник"
+                            "Пациент" to t("auth.accountType.patient"),
+                            "Медицинский работник" to t("auth.accountType.doctor")
                         ),
-                        label = "Тип аккаунта"
+                        label = t("auth.accountType.label")
                     ).apply { width = 100.perc}
 
-                    val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
+                    val emailField = Text(label = t("auth.email"), type = InputType.EMAIL).apply {
                         width = 100.perc
                     }
                     var passVisible = false
-                    val passField = Text(label = "Пароль", type = InputType.PASSWORD).apply {
+                    val passField = Text(label = t("auth.password"), type = InputType.PASSWORD).apply {
                         width = 100.perc
                     }
                     val passRow = hPanel(spacing = 8, className = "input-with-eye") {
@@ -110,7 +109,7 @@ fun Container.authScreen(
                     content.add(passRow)
 
                     content.add(div(className = "aux-row") {
-                        add(Link("Забыли пароль?", "#", className = "forgot-link").apply {
+                        add(Link(t("auth.forgotPassword"), "#", className = "forgot-link").apply {
                             onClick {
                                 it.preventDefault()
                                 Navigator.showResetPassword()
@@ -120,7 +119,7 @@ fun Container.authScreen(
 
                     content.add(error)
 
-                    content.add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
+                    content.add(Button(t("auth.login.submit"), style = ButtonStyle.PRIMARY).apply {
                         width = 100.perc
                         onClick {
                             val email = emailField.value ?: ""
@@ -131,8 +130,8 @@ fun Container.authScreen(
                             val passOk = PASSWORD_REGEX.matches(password)
 
                             when {
-                                !emailOk -> error.content = "Некорректный email"
-                                !passOk -> error.content = "Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру"
+                                !emailOk -> error.content = t("auth.error.invalidEmail")
+                                !passOk -> error.content = t("auth.error.invalidPassword")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -152,7 +151,7 @@ fun Container.authScreen(
                                                 onLogin()
                                             },
                                             onFailure = { e ->
-                                                error.content = e.message ?: "Ошибка входа"
+                                                error.content = e.message ?: t("auth.error.login")
                                                 this@apply.disabled = false
                                             }
                                         )
@@ -166,21 +165,21 @@ fun Container.authScreen(
                 AuthTab.REGISTER -> {
                     val accountType = Select(
                         options = listOf(
-                            "Пациент" to "Пациент",
-                            "Медицинский работник" to "Медицинский работник"
+                            "Пациент" to t("auth.accountType.patient"),
+                            "Медицинский работник" to t("auth.accountType.doctor")
                         ),
-                        label = "Тип аккаунта"
+                        label = t("auth.accountType.label")
                     ).apply { width = 100.perc}
 
-                    val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
+                    val emailField = Text(label = t("auth.email"), type = InputType.EMAIL).apply {
                         width = 100.perc
                     }
                     var passVisible = false
                     var pass2Visible = false
-                    val passField = Text(label = "Пароль", type = InputType.PASSWORD).apply {
+                    val passField = Text(label = t("auth.password"), type = InputType.PASSWORD).apply {
                         width = 100.perc
                     }
-                    val pass2Field = Text(label = "Подтверждение пароля", type = InputType.PASSWORD).apply {
+                    val pass2Field = Text(label = t("auth.passwordConfirm"), type = InputType.PASSWORD).apply {
                         width = 100.perc
                     }
                     val passRow = hPanel(spacing = 8, className = "input-with-eye") {
@@ -215,7 +214,7 @@ fun Container.authScreen(
                     content.add(error)
 
                     var codeRequsted = false
-                    val registerButton = Button("Зарегистрироваться", style = ButtonStyle.PRIMARY).apply {
+                    val registerButton = Button(t("auth.register.submit"), style = ButtonStyle.PRIMARY).apply {
                         width = 100.perc
                         onClick {
                             val email = (emailField.value ?: "").trim()
@@ -228,9 +227,9 @@ fun Container.authScreen(
                             val same = password == password2
 
                             when {
-                                !emailOk -> error.content = "Некорректный email"
-                                !passOk -> error.content = "Пароль: 8–71 символ, латиница, минимум 1 цифра"
-                                !same   -> error.content = "Пароли не совпадают"
+                                !emailOk -> error.content = t("auth.error.invalidEmail")
+                                !passOk -> error.content = t("auth.error.invalidPassword")
+                                !same   -> error.content = t("auth.error.passwordMismatch")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -250,12 +249,12 @@ fun Container.authScreen(
                                                 if (response.success) {
                                                     Navigator.showConfirmEmail(email)
                                                 } else {
-                                                    error.content = response.message ?: "Ошибка регистрации"
+                                                    error.content = response.message ?: t("auth.error.registration")
                                                     this@apply.disabled = false
                                                 }
                                             },
                                             onFailure = { e ->
-                                                error.content = e.message ?: "Ошибка регистрации"
+                                                error.content = e.message ?: t("auth.error.registration")
                                                 this@apply.disabled = false
                                             }
                                         )

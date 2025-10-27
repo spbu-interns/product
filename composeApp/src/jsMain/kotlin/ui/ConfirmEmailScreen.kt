@@ -1,6 +1,7 @@
 package ui
 
 import api.AuthApiClient
+import i18n.t
 import io.kvision.core.Container
 import io.kvision.form.text.Text
 import io.kvision.html.Button
@@ -23,14 +24,14 @@ fun Container.confirmEmailScreen(email: String) {
         width = 520.px
         addCssClass("mx-auto")
 
-        h3("Подтверждение электронной почты")
+        h3(t("confirm.title"))
         
-        p("Ссылка для подтверждения электронной почты была отправлена на адрес: $email")
-        p("Перейдите по ней, чтобы завершить регистрацию.")
+        p(t("confirm.sent").replace("{email}", email))
+        p(t("confirm.instructions"))
         
-        p("Введите код подтверждения, который был отправлен на вашу почту:")
+        p(t("confirm.prompt"))
         
-        val codeField = Text(label = "Код подтверждения").apply {
+        val codeField = Text(label = t("confirm.codeLabel")).apply {
             width = 100.perc
         }
         
@@ -43,12 +44,12 @@ fun Container.confirmEmailScreen(email: String) {
             add(error)
         }
         
-        add(Button("Подтвердить", style = ButtonStyle.PRIMARY).apply {
+        add(Button(t("confirm.submit"), style = ButtonStyle.PRIMARY).apply {
             width = 100.perc
             onClick {
                 val code = codeField.value ?: ""
                 if (code.isBlank()) {
-                    error.content = "Введите код подтверждения"
+                    error.content = t("confirm.error.required")
                     return@onClick
                 }
                 
@@ -61,14 +62,14 @@ fun Container.confirmEmailScreen(email: String) {
                     result.fold(
                         onSuccess = { response ->
                             if (response.success) {
-                                Navigator.showStub("Email успешно подтвержден! Теперь вы можете войти в систему.")
+                                Navigator.showStub(t("confirm.success"))
                             } else {
-                                error.content = response.message ?: "Ошибка подтверждения email"
+                                error.content = response.message ?: t("confirm.error.generic")
                                 this@apply.disabled = false
                             }
                         },
                         onFailure = { e ->
-                            error.content = e.message ?: "Ошибка подтверждения email"
+                            error.content = e.message ?: t("confirm.error.generic")
                             this@apply.disabled = false
                         }
                     )

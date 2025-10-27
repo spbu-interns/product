@@ -1,5 +1,7 @@
 ﻿package ui
 
+import i18n.Localization
+import i18n.t
 import io.kvision.core.Container
 import io.kvision.html.button
 import io.kvision.html.div
@@ -28,21 +30,27 @@ fun Container.headerBar(
                 val homeClass = "topnav_link" + if (active == NavTab.HOME) " is-active" else ""
                 val findClass = "topnav_link" + if (active == NavTab.FIND) " is-active" else ""
 
-                link("Главная", "#", className = homeClass).onClick {
+                link(t("header.home"), "#", className = homeClass).onClick {
                     it.preventDefault(); Navigator.showHome()
                 }
-                link("Найти врача", "#", className = findClass).onClick {
+                link(t("header.find"), "#", className = findClass).onClick {
                     it.preventDefault(); Navigator.showFind()
+                }
+            }
+
+            div(className = "topnav_right") {
+                button(t("header.languageToggle"), className = "btn-ghost-sm language-toggle").onClick {
+                    Localization.toggleLanguage()
                 }
             }
 
             when (mode) {
                 HeaderMode.PUBLIC -> {
                     div(className = "topnav_auth") {
-                        button("Вход", className = "btn btn-primary").onClick {
+                        button(t("header.login"), className = "btn btn-primary").onClick {
                             Navigator.showLogin()
                         }
-                        button("Регистрация", className = "btn-ghost-sm").onClick {
+                        button(t("header.register"), className = "btn-ghost-sm").onClick {
                             Navigator.showRegister()
                         }
                     }
@@ -50,10 +58,10 @@ fun Container.headerBar(
 
                 HeaderMode.PATIENT -> {
                     div(className = "topnav_auth") {
-                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                        button(t("header.dashboard"), className = "btn-ghost-sm").onClick {
                             Navigator.showPatient()
                         }
-                        button("Выйти", className = "btn-logout-sm").onClick {
+                        button(t("header.logout"), className = "btn-logout-sm").onClick {
                             onLogout?.invoke() ?: run { Navigator.showHome() }
                         }
                     }
@@ -61,10 +69,10 @@ fun Container.headerBar(
 
                 HeaderMode.DOCTOR -> {
                     div(className = "topnav_auth") {
-                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                        button(t("header.dashboard"), className = "btn-ghost-sm").onClick {
                             Navigator.showDoctor()
                         }
-                        button("Выйти", className = "btn-logout-sm").onClick {
+                        button(t("header.logout"), className = "btn-logout-sm").onClick {
                             onLogout?.invoke() ?: run { Navigator.showHome() }
                         }
                     }

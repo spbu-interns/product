@@ -1,5 +1,6 @@
 ﻿package ui
 
+import i18n.t
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.html.button
@@ -28,65 +29,65 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         div(className = "doctor grid") {
             div(className = "sidebar card doctor-sidebar") {
                 div(className = "avatar circle doctor-avatar") { +"SJ" }
-                h3("Dr. Sarah Johnson", className = "account name")
-                span("Cardiologist", className = "doctor-specialty")
+                h3(t("doctor.name"), className = "account name")
+                span(t("doctor.specialty"), className = "doctor-specialty")
 
                 div(className = "doctor-tags") {
-                    span("New York, USA", className = "doctor-tag")
-                    span("15 Years Experience", className = "doctor-tag")
+                    span(t("doctor.location"), className = "doctor-tag")
+                    span(t("doctor.experienceTag"), className = "doctor-tag")
                 }
 
                 nav {
                     ul(className = "side menu") {
                         li(className = "side_item is-active") {
-                            span("Overview")
+                            span(t("doctor.menu.overview"))
                             span("\uD83D\uDCC8", className = "side icon")
                         }
                         li(className = "side_item") {
-                            span("Schedule")
+                            span(t("doctor.menu.schedule"))
                             span("\uD83D\uDCC5", className = "side icon")
-                            onClick { Navigator.showStub("Расписание в разработке") }
+                            onClick { Navigator.showStub(t("doctor.stub.schedule")) }
                         }
                         li(className = "side_item") {
-                            span("Patients")
+                            span(t("doctor.menu.patients"))
                             span("\uD83D\uDC65", className = "side icon")
-                            onClick { Navigator.showStub("Список пациентов в разработке") }
+                            onClick { Navigator.showStub(t("doctor.stub.patients")) }
                         }
                         li(className = "side_item") {
-                            span("My Records")
+                            span(t("doctor.menu.records"))
                             span("\uD83D\uDCDD", className = "side icon")
-                            onClick { Navigator.showStub("Профиль в разработке") }
+                            onClick { Navigator.showStub(t("doctor.stub.profile")) }
                         }
                     }
                 }
 
                 div(className = "side button")
-                button("Create Appointment", className = "btn-primary-lg").onClick {
-                    Navigator.showStub("Создание приема скоро будет доступно")
+                button(t("doctor.action.createAppointment"), className = "btn-primary-lg").onClick {
+                    Navigator.showStub(t("stub.inDevelopment"))
                 }
             }
 
             div(className = "doctor-main column") {
                 div(className = "doctor-header") {
                     div {
-                        h1("Dashboard Overview", className = "doctor-title")
-                        span("Today: September 14, 2025", className = "doctor-date")
+                        h1(t("doctor.dashboard.title"), className = "doctor-title")
+                        span(t("doctor.dashboard.date"), className = "doctor-date")
                     }
                     div(className = "doctor-status") {
-                        span("Patients today: 4", className = "doctor-status-pill")
+                        span(t("dashboard.patientsToday"), className = "doctor-status-pill")
                     }
                 }
 
                 div(className = "doctor-metrics grid") {
-                    doctorMetric("4", "Today", "Appointments")
-                    doctorMetric("127", "Patients", "Active in Care")
-                    doctorMetric("4.9", "Rating", "Avg. Feedback")
-                    doctorMetric("15", "Years", "Experience")
+                    doctorMetric("4", t("doctor.metrics.today"), t("doctor.metrics.today.subtitle"))
+                    doctorMetric("127", t("doctor.metrics.patients"), t("doctor.metrics.patients.subtitle"))
+                    doctorMetric("4.9", t("doctor.metrics.rating"), t("doctor.metrics.rating.subtitle"))
+                    doctorMetric("15", t("doctor.metrics.experience"), t("doctor.metrics.experience.subtitle"))
                 }
 
                 div(className = "doctor-columns") {
                     div(className = "card block doctor-appointments") {
-                        h4("Today's Appointments", className = "block title")
+                        h4(t("doctor.appointments.title"), className = "block title")
                         div(className = "doctor-appointment-list") {
                             doctorAppointment(
                                 initials = "JS",
@@ -117,7 +118,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
                     div(className = "doctor-aside") {
                         div(className = "card block doctor-recent-patients") {
-                            h4("Recent Patients", className = "block title")
+                            h4(t("doctor.recent.title"), className = "block title")
                             div(className = "doctor-patient-list") {
                                 doctorRecentPatient("JS", "John Smith", "Hypertension", "Active")
                                 doctorRecentPatient("SW", "Sarah Wilson", "Diabetes", "Active")
@@ -163,6 +164,11 @@ private fun Container.doctorAppointment(
         "cancelled" -> "status danger"
         else -> "status neutral"
     }
+    val statusLabel = when (status.lowercase()) {
+        "confirmed" -> t("doctor.status.confirmed")
+        "pending" -> t("doctor.status.pending")
+        else -> status
+    }
 
     div(className = "doctor-appointment") {
         div(className = "doctor-appointment-avatar") { +initials }
@@ -170,7 +176,7 @@ private fun Container.doctorAppointment(
             span(name, className = "doctor-appointment-name")
             span(notes, className = "doctor-appointment-notes")
         }
-        span(status, className = statusClass)
+        span(statusLabel, className = statusClass)
     }
 }
 

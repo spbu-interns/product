@@ -10,12 +10,6 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
-external object localStorage {
-    fun getItem(key: String): String?
-    fun setItem(key: String, value: String)
-    fun removeItem(key: String)
-}
-
 object ApiConfig {
     const val BASE_URL = "http://localhost:8000"
 
@@ -29,7 +23,32 @@ object ApiConfig {
     }
 
     const val TOKEN_STORAGE_KEY = "auth_token"
+    private const val LANGUAGE_STORAGE_KEY = "ui_language"
 
+    private fun storage(): dynamic = js(
+        """
+        (typeof globalThis !== 'undefined' && globalThis.localStorage)
+            ? globalThis.localStorage
+            : (typeof window !== 'undefined' && window.localStorage)
+                ? window.localStorage
+                : null
+        """
+    )
+
+    private fun getItem(key: String): String? {
+        val store = storage()
+        return if (store != null) store.getItem(key) as String? else null
+    }
+
+    private fun setItem(key: String, value: String) {
+        val store = storage()
+        store?.setItem(key, value)
+    }
+
+    private fun removeItem(key: String) {
+        val store = storage()
+        store?.removeItem(key)
+    }
     val httpClient = HttpClient(Js) {
         install(ContentNegotiation) {
             json(
@@ -53,14 +72,20 @@ object ApiConfig {
     }
 
     fun getToken(): String? =
-        localStorage.getItem(TOKEN_STORAGE_KEY)
+        getItem(TOKEN_STORAGE_KEY)
 
     fun setToken(token: String) =
-        localStorage.setItem(TOKEN_STORAGE_KEY, token)
+        setItem(TOKEN_STORAGE_KEY, token)
 
     fun clearToken() =
-        localStorage.removeItem(TOKEN_STORAGE_KEY)
+        removeItem(TOKEN_STORAGE_KEY)
 
     fun isAuthenticated(): Boolean =
         getToken() != null
+
+    fun getLanguagePreference(): String? =
+        getItem(LANGUAGE_STORAGE_KEY)
+
+    fun setLanguagePreference(language: String) =
+        setItem(LANGUAGE_STORAGE_KEY, language)
 }

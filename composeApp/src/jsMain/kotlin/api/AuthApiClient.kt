@@ -1,7 +1,15 @@
 package api
 
+import api.ApiConfig.Endpoints.EMAIL_START_VERIFICATION
+import api.ApiConfig.Endpoints.EMAIL_VERIFY
+import api.ApiConfig.Endpoints.LOGIN
+import api.ApiConfig.Endpoints.PASSWORD_FORGOT
+import api.ApiConfig.Endpoints.PASSWORD_RESET
+import api.ApiConfig.Endpoints.REGISTER
+import i18n.t
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,25 +18,29 @@ import org.interns.project.dto.*
 class AuthApiClient {
     private val client = ApiConfig.httpClient
 
+    private fun httpError(response: HttpResponse): Exception {
+        return Exception(t("api.error.http").replace("{code}", response.status.value.toString()))
+    }
+
+    private fun HttpRequestBuilder.jsonBody(payload: Any) {
+        headers { append(HttpHeaders.ContentType, ContentType.Application.Json.toString()) }
+        setBody(payload)
+    }
+
     suspend fun login(request: LoginRequest): Result<LoginResponse> = withContext(Dispatchers.Default) {
         try {
-            val response = client.post(ApiConfig.Endpoints.LOGIN) {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
+            val response = client.post(LOGIN) { jsonBody(request) }
 
             if (response.status.isSuccess()) {
                 val loginResponse = response.body<ApiResponse<LoginResponse>>()
                 if (loginResponse.success) {
-                    loginResponse.data?.let { loginData ->
-                        //ApiConfig.setToken(loginData.token) потом
-                        Result.success(loginData)
-                    } ?: Result.failure(Exception("No login data returned"))
+                    loginResponse.data?.let { Result.success(it) } ?:
+                    Result.failure(Exception(t("auth.error.login")))
                 } else {
-                    Result.failure(Exception(loginResponse.error ?: "Login failed"))
+                    Result.failure(Exception(loginResponse.error ?: t("auth.error/login")))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                Result.failure(httpError(response))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -37,22 +49,18 @@ class AuthApiClient {
 
     suspend fun register(request: RegisterRequest): Result<RegisterResponse> = withContext(Dispatchers.Default) {
         try {
-            val response = client.post(ApiConfig.Endpoints.REGISTER) {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
+            val response = client.post(REGISTER) {jsonBody(request) }
 
             if (response.status.isSuccess()) {
                 val registerResponse = response.body<ApiResponse<RegisterResponse>>()
                 if (registerResponse.success) {
-                    registerResponse.data?.let {
-                        Result.success(it)
-                    } ?: Result.failure(Exception("No registration data returned"))
+                    registerResponse.data?.let { Result.success(it) } ?:
+                    Result.failure(Exception(t("auth.error.registration")))
                 } else {
-                    Result.failure(Exception(registerResponse.error ?: "Registration failed"))
+                    Result.failure(Exception(registerResponse.error ?: t("auth.error.registration")))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                Result.failure(httpError(response))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -61,15 +69,14 @@ class AuthApiClient {
 
     suspend fun startEmailVerification(email: String): Result<Boolean> = withContext(Dispatchers.Default) {
         try {
-            val response = client.post(ApiConfig.Endpoints.EMAIL_START_VERIFICATION) {
-                contentType(ContentType.Application.Json)
-                setBody(mapOf("email" to email))
+            val response = client.post(EMAIL_START_VERIFICATION) {
+                jsonBody(mapOf("email" to email))
             }
 
             if (response.status.isSuccess()) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                Result.failure(httpError(response))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -78,9 +85,8 @@ class AuthApiClient {
 
     suspend fun verifyEmail(token: String): Result<VerifyEmailResponse> = withContext(Dispatchers.Default) {
         try {
-            val response = client.post(ApiConfig.Endpoints.EMAIL_VERIFY) {
-                contentType(ContentType.Application.Json)
-                setBody(VerifyEmailRequest(token))
+            val response = client.post(EMAIL_VERIFY) {
+                jsonBody(VerifyEmailRequest(token))
             }
 
             if (response.status.isSuccess()) {
@@ -88,12 +94,12 @@ class AuthApiClient {
                 if (verifyResponse.success) {
                     verifyResponse.data?.let {
                         Result.success(it)
-                    } ?: Result.failure(Exception("No verification data returned"))
+                    } ?: Result.failure(Exception(t("confirm.error.generic")))
                 } else {
-                    Result.failure(Exception(verifyResponse.error ?: "Email verification failed"))
+                    Result.failure(Exception(verifyResponse.error ?: t("confirm.error.generic")))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                Result.failure(httpError(response))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -102,9 +108,8 @@ class AuthApiClient {
 
     suspend fun requestPasswordReset(email: String): Result<RequestPasswordResetResponse> = withContext(Dispatchers.Default) {
         try {
-            val response = client.post(ApiConfig.Endpoints.PASSWORD_FORGOT) {
-                contentType(ContentType.Application.Json)
-                setBody(RequestPasswordResetRequest(email))
+            val response = client.post(PASSWORD_FORGOT) {
+                jsonBody(RequestPasswordResetRequest(email))
             }
 
             if (response.status.isSuccess()) {
@@ -112,12 +117,12 @@ class AuthApiClient {
                 if (resetResponse.success) {
                     resetResponse.data?.let {
                         Result.success(it)
-                    } ?: Result.failure(Exception("No reset request data returned"))
+                    } ?: Result.failure(Exception(t("resetPassword.stub.info")))
                 } else {
-                    Result.failure(Exception(resetResponse.error ?: "Password reset request failed"))
+                    Result.failure(Exception(resetResponse.error ?: t("resetPassword.stub.info")))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                Result.failure(httpError(response))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -126,9 +131,8 @@ class AuthApiClient {
 
     suspend fun resetPassword(token: String, newPassword: String): Result<ResetPasswordResponse> = withContext(Dispatchers.Default) {
         try {
-            val response = client.post(ApiConfig.Endpoints.PASSWORD_RESET) {
-                contentType(ContentType.Application.Json)
-                setBody(ResetPasswordRequest(token, newPassword))
+            val response = client.post(PASSWORD_RESET) {
+                jsonBody(ResetPasswordRequest(token, newPassword))
             }
 
             if (response.status.isSuccess()) {
@@ -136,12 +140,12 @@ class AuthApiClient {
                 if (resetResponse.success) {
                     resetResponse.data?.let {
                         Result.success(it)
-                    } ?: Result.failure(Exception("No reset data returned"))
+                    } ?: Result.failure(Exception(t("resetPassword.stub.info")))
                 } else {
-                    Result.failure(Exception(resetResponse.error ?: "Password reset failed"))
+                    Result.failure(Exception(resetResponse.error ?: t("resetPassword.stub.info")))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                Result.failure(httpError(response))
             }
         } catch (e: Exception) {
             Result.failure(e)

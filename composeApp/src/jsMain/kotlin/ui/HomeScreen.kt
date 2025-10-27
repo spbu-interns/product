@@ -1,5 +1,6 @@
 package ui
 
+import i18n.t
 import io.kvision.core.AlignItems
 import io.kvision.core.Container
 import io.kvision.core.style
@@ -20,8 +21,8 @@ fun Container.homeScreen() {
 
     div(className = "hero") {
         div(className = "hero_content container") {
-            h1("Find the Right Doctor for You", className = "hero_title")
-            p("Connect with qualified healthcare professionals. Search by specialty, location, or ratings to find the perfect doctor for your needs.", className = "hero_subtitle")
+            h1(t("home.hero.title"), className = "hero_title")
+            p(t("home.hero.subtitle"), className = "hero_subtitle")
 
             div(className = "searchbar") {
                 div(className = "searchbar_icon") {
@@ -29,10 +30,10 @@ fun Container.homeScreen() {
                 }
                 val search = text {
                     type = InputType.SEARCH
-                    placeholder = "Find a doctor by specialty, location, or rating"
+                    placeholder = t("home.search.placeholder")
                     addCssClass("searchbar_input")
                 }
-                button("Find Doctor", className = "searchbar_button").onClick {
+                button(t("home.search.button"), className = "searchbar_button").onClick {
                     console.log("Search: ${search.value}")
                 }
             }
@@ -40,43 +41,43 @@ fun Container.homeScreen() {
     }
 
     div(className = "container") {
-        h2("Featured Specialties", className = "section_title")
-        p("Browse doctors by medical specialty", className = "section_subtitle")
+        h2(t("home.section.featured"), className = "section_title")
+        p(t("home.section.browse"), className = "section_subtitle")
 
         div(className = "specialties_grid") {
             specialtyCard(
-                title = "Cardiology",
-                subtitle = "Heart and cardiovascular care",
+                title = t("home.specialties.cardiology.title"),
+                subtitle = t("home.specialties.cardiology.subtitle"),
                 icon = "❤",
                 imagePath = "images/cardiology.jpg"
             )
             specialtyCard(
-                title = "Pediatrics",
-                subtitle = "Children’s health and development",
+                title = t("home.specialties.pediatrics.title"),
+                subtitle = t("home.specialties.pediatrics.subtitle"),
                 icon = "👶",
                 imagePath = "images/pediatrics.jpg"
             )
             specialtyCard(
-                title = "Neurology",
-                subtitle = "Brain and nervous system care",
+                title = t("home.specialties.neurology.title"),
+                subtitle = t("home.specialties.neurology.subtitle"),
                 icon = "🧠",
                 imagePath = "images/neurology.jpg"
             )
             specialtyCard(
-                title = "Ophthalmology",
-                subtitle = "Eye and vision care",
+                title = t("home.specialties.ophthalmology.title"),
+                subtitle = t("home.specialties.ophthalmology.subtitle"),
                 icon = "👁️",
                 imagePath = "images/ophthalmology.jpg"
             )
             specialtyCard(
-                title = "Orthopedics",
-                subtitle = "Bone and joint care",
+                title = t("home.specialties.orthopedics.title"),
+                subtitle = t("home.specialties.orthopedics.subtitle"),
                 icon = "🦴",
                 imagePath = "images/orthopedics.jpg"
             )
             specialtyCard(
-                title = "General Medicine",
-                subtitle = "Primary healthcare services",
+                title = t("home.specialties.general.title"),
+                subtitle = t("home.specialties.general.subtitle"),
                 icon = "🩺",
                 imagePath = "images/general.jpg"
             )

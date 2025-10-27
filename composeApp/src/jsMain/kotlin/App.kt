@@ -1,6 +1,7 @@
 import io.kvision.Application
-import io.kvision.i18n.I18n
 import io.kvision.panel.root
+import i18n.t
+import i18n.Localization
 import ui.Navigator
 import ui.stubScreen
 import ui.homeScreen
@@ -16,22 +17,28 @@ import ui.resetPasswordScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
-        I18n.language = "en"
         val r = root("kvapp")
 
-        var showAuth: (AuthTab) -> Unit = {}
+        var currentRenderer: () -> Unit = {}
 
         fun showHome() {
+            currentRenderer = ::showHome
             r.removeAll()
             r.homeScreen()
         }
 
-        fun showFind() {
+        fun showStub(messageProvider: () -> String) {
+            currentRenderer = { showStub(messageProvider) }
             r.removeAll()
-            r.stubScreen(message = "В разработке") { showHome() }
+            r.stubScreen(message = messageProvider()) { showHome() }
+        }
+
+        fun showFind() {
+            showStub { t("stub.inDevelopment") }
         }
 
         fun showPatient() {
+            currentRenderer = ::showPatient
             r.removeAll()
             r.patientScreen(
                 onLogout = {
@@ -42,6 +49,7 @@ class App : Application() {
         }
 
         fun showDoctor() {
+            currentRenderer = ::showDoctor
             r.removeAll()
             r.doctorScreen(
                 onLogout = {
@@ -52,6 +60,7 @@ class App : Application() {
         }
 
         fun showMyRecords() {
+            currentRenderer = ::showMyRecords
             r.removeAll()
             r.myRecordsScreen(
                 onLogout = {
@@ -62,33 +71,33 @@ class App : Application() {
         }
 
         fun showRecordEditor(id: String) {
+            currentRenderer = { showRecordEditor(id) }
             r.removeAll()
             r.recordEditorScreen(recordId = id) { showMyRecords() }
         }
 
         fun showResetPassword() {
+            currentRenderer = ::showResetPassword
             r.removeAll()
             r.resetPasswordScreen()
         }
 
-        fun showStub(message: String) {
-            r.removeAll()
-            r.stubScreen(message = message) { showHome() }
-        }
-
         fun showConfirmEmail(email: String) {
+            currentRenderer = { showConfirmEmail(email) }
             r.removeAll()
             r.confirmEmailScreen(email)
         }
 
-        showAuth = { tab ->
+        fun showAuth(tab: AuthTab) {
+            currentRenderer = { showAuth(tab) }
             r.removeAll()
             r.authScreen(
                 initial = tab,
                 onLogin = {
                     Session.isLoggedIn = true
                     showPatient() },
-                onRegister = { Session.isLoggedIn = true
+                onRegister = {
+                    Session.isLoggedIn = true
                     showPatient() },
                 onGoHome = { showHome() }
             )
@@ -96,20 +105,20 @@ class App : Application() {
 
         Navigator.showHome = ::showHome
         Navigator.showFind = ::showFind
-        Navigator.showLogin = {
-            showAuth(AuthTab.LOGIN) }
+        Navigator.showLogin = { showAuth(AuthTab.LOGIN)}
         Navigator.showPatient = ::showPatient
         Navigator.showResetPassword = ::showResetPassword
-        Navigator.showStub = ::showStub
-        Navigator.showRegister = {
-            showAuth(AuthTab.REGISTER)
+        Navigator.showStub = { message: String ->
+            showStub { message }
         }
+        Navigator.showRegister = { showAuth(AuthTab.REGISTER) }
         Navigator.showConfirmEmail = ::showConfirmEmail
         Navigator.showMyRecords = ::showMyRecords
         Navigator.showRecordEditor = ::showRecordEditor
         Navigator.showDoctor = ::showDoctor
 
-        //if (Session.isLoggedIn) showPatient() else showHome()
-        showDoctor()
+        Localization.addLanguageChangeListener { currentRenderer() }
+
+        if (Session.isLoggedIn) showPatient() else showHome()
     }
 }
