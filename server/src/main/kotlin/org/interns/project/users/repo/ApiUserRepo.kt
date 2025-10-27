@@ -20,7 +20,7 @@ import org.interns.project.security.token.JwtService
 import org.interns.project.users.model.*
 
 class ApiUserRepo(
-    private val baseUrl: String = "http://127.0.0.1:8000",
+    private val baseUrl: String = "http://127.0.0.1:8001",
     private val client: HttpClient = defaultClient()
 ) {
     companion object {

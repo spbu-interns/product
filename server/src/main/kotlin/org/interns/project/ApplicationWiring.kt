@@ -12,8 +12,6 @@ import org.interns.project.security.token.EmailVerificationRepo
 import org.interns.project.security.token.PasswordResetRepo
 
 fun Application.installEmailFeatures(): Pair<EmailVerificationService, PasswordResetService> {
-
-fun Application.installEmailFeatures(): Pair<EmailVerificationService, PasswordResetService> {
     val mailer: Mailer = SmtpMailer(
         host = AppConfig.mailHost,
         port = AppConfig.mailPort,
