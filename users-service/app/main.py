@@ -278,3 +278,150 @@ def delete_note(note_id: int):
         return
     finally:
         s.close()
+        
+        
+# ===== NEW: Domain v2 routes =====
+from .models import (
+    ClientIn, ClientOut,
+    DoctorIn, DoctorOut,
+    AdminIn, AdminOut,
+    SlotIn, SlotOut,
+    AppointmentIn, AppointmentOut,
+    MedicalRecordIn, MedicalRecordOut,
+    MedicalDocumentIn, MedicalDocumentOut,
+    DoctorReviewIn, DoctorReviewOut,
+)
+
+# --- Clients ---
+@app.post("/clients", response_model=ClientOut, status_code=201)
+def api_create_client(body: ClientIn):
+    s = get_session()
+    try:
+        return repo.create_client(s, body)
+    finally:
+        s.close()
+
+@app.get("/clients/by-user/{user_id}", response_model=ClientOut | None)
+def api_get_client_by_user(user_id: int):
+    s = get_session()
+    try:
+        return repo.get_client_by_user_id(s, user_id)
+    finally:
+        s.close()
+
+# --- Doctors ---
+@app.post("/doctors", response_model=DoctorOut, status_code=201)
+def api_create_doctor(body: DoctorIn):
+    s = get_session()
+    try:
+        return repo.create_doctor(s, body)
+    finally:
+        s.close()
+
+@app.get("/doctors/by-user/{user_id}", response_model=DoctorOut | None)
+def api_get_doctor_by_user(user_id: int):
+    s = get_session()
+    try:
+        return repo.get_doctor_by_user_id(s, user_id)
+    finally:
+        s.close()
+
+# --- Client complaints (совместимость: принимаем patient_user_id) ---
+@app.post("/v2/patients/{patient_user_id}/complaints", status_code=201)
+def api_create_client_complaint(patient_user_id: int, c: ComplaintIn):
+    s = get_session()
+    try:
+        r = repo.create_client_complaint_by_user(s, patient_user_id, c)
+        if not r:
+            raise HTTPException(404, "client not found for given user")
+        return r
+    finally:
+        s.close()
+
+@app.get("/v2/patients/{patient_user_id}/complaints")
+def api_list_client_complaints(patient_user_id: int):
+    s = get_session()
+    try:
+        return repo.list_client_complaints_by_user(s, patient_user_id)
+    finally:
+        s.close()
+
+# --- Slots ---
+@app.post("/doctors/{doctor_id}/slots", response_model=SlotOut, status_code=201)
+def api_create_slot(doctor_id: int, body: SlotIn):
+    if body.doctor_id != doctor_id:
+        raise HTTPException(400, "doctor_id mismatch")
+    s = get_session()
+    try:
+        return repo.create_slot(s, body)
+    finally:
+        s.close()
+
+@app.get("/doctors/{doctor_id}/slots", response_model=List[SlotOut])
+def api_list_slots(doctor_id: int):
+    s = get_session()
+    try:
+        return repo.list_slots_for_doctor(s, doctor_id)
+    finally:
+        s.close()
+
+# --- Appointments ---
+@app.post("/appointments", response_model=AppointmentOut, status_code=201)
+def api_book_appointment(body: AppointmentIn):
+    s = get_session()
+    try:
+        r = repo.book_appointment(s, body)
+        if not r:
+            raise HTTPException(400, "slot not available")
+        return r
+    finally:
+        s.close()
+
+@app.get("/clients/{client_id}/appointments", response_model=List[AppointmentOut])
+def api_list_appointments_for_client(client_id: int):
+    s = get_session()
+    try:
+        return repo.list_appointments_for_client(s, client_id)
+    finally:
+        s.close()
+
+# --- Medical records / documents ---
+@app.post("/records", response_model=MedicalRecordOut, status_code=201)
+def api_create_medical_record(body: MedicalRecordIn):
+    s = get_session()
+    try:
+        return repo.create_medical_record(s, body)
+    finally:
+        s.close()
+
+@app.post("/records/{record_id}/documents", response_model=MedicalDocumentOut, status_code=201)
+def api_add_medical_document(record_id: int, body: MedicalDocumentIn):
+    if body.record_id != record_id:
+        raise HTTPException(400, "record_id mismatch")
+    s = get_session()
+    try:
+        return repo.add_medical_document(s, body)
+    finally:
+        s.close()
+
+# --- Doctor reviews ---
+@app.post("/doctors/{doctor_id}/reviews", response_model=DoctorReviewOut, status_code=201)
+def api_create_review(doctor_id: int, body: DoctorReviewIn):
+    if body.doctor_id != doctor_id:
+        raise HTTPException(400, "doctor_id mismatch")
+    s = get_session()
+    try:
+        r = repo.create_doctor_review(s, body)
+        if not r:
+            raise HTTPException(400, "duplicate review or invalid ref")
+        return r
+    finally:
+        s.close()
+
+@app.get("/doctors/{doctor_id}/reviews", response_model=List[DoctorReviewOut])
+def api_list_reviews(doctor_id: int):
+    s = get_session()
+    try:
+        return repo.list_doctor_reviews(s, doctor_id)
+    finally:
+        s.close()
