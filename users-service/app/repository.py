@@ -293,3 +293,150 @@ def delete_note(s: Session, note_id: int) -> bool:
     r = s.execute(text("delete from doctor_notes where id = :id"), {"id": note_id})
     s.commit()
     return r.rowcount > 0
+
+
+# ===== Helpers: map user_id -> client_id =====
+def _client_id_by_user_id(s: Session, user_id: int) -> Optional[int]:
+    r = s.execute(text("select id from clients where user_id=:u"), {"u": user_id}).first()
+    return r[0] if r else None
+
+# ===== Clients =====
+def create_client(s: Session, body) -> Dict:
+    r = s.execute(text("""
+        insert into clients(user_id, blood_type, height, weight,
+                            emergency_contact_name, emergency_contact_number,
+                            address, snils, passport, dms_oms)
+        values (:uid,:bt,:h,:w,:ecn,:ecn2,:addr,:snils,:pass,:dms)
+        returning *
+    """), {
+        "uid": body.user_id, "bt": body.blood_type, "h": body.height, "w": body.weight,
+        "ecn": body.emergency_contact_name, "ecn2": body.emergency_contact_number,
+        "addr": body.address, "snils": body.snils, "pass": body.passport, "dms": body.dms_oms
+    }).mappings().first()
+    s.commit()
+    return dict(r)
+
+def get_client_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
+    r = s.execute(text("select * from clients where user_id=:u"), {"u": user_id}).mappings().first()
+    return dict(r) if r else None
+
+# ===== Doctors =====
+def create_doctor(s: Session, body) -> Dict:
+    r = s.execute(text("""
+        insert into doctors(user_id, clinic_id, profession, info, is_confirmed, rating, experience, price)
+        values (:uid,:cid,:prof,:info,:conf,:rt,:exp,:price)
+        returning *
+    """), {
+        "uid": body.user_id, "cid": body.clinic_id, "prof": body.profession, "info": body.info,
+        "conf": body.is_confirmed, "rt": body.rating, "exp": body.experience, "price": body.price
+    }).mappings().first()
+    s.commit()
+    return dict(r)
+
+def get_doctor_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
+    r = s.execute(text("select * from doctors where user_id=:u"), {"u": user_id}).mappings().first()
+    return dict(r) if r else None
+
+# ===== Complaints (новая таблица: client_complaints) =====
+def create_client_complaint_by_user(s: Session, patient_user_id: int, c) -> Optional[Dict]:
+    cid = _client_id_by_user_id(s, patient_user_id)
+    if cid is None:
+        return None
+    r = s.execute(text("""
+        insert into client_complaints (client_id, title, description)
+        values (:cid, :t, :d)
+        returning *
+    """), {"cid": cid, "t": c.title, "d": c.body}).mappings().first()
+    s.commit()
+    return dict(r)
+
+def list_client_complaints_by_user(s: Session, patient_user_id: int) -> List[Dict]:
+    cid = _client_id_by_user_id(s, patient_user_id)
+    if cid is None:
+        return []
+    rows = s.execute(text("""
+        select * from client_complaints
+        where client_id=:cid
+        order by id desc
+    """), {"cid": cid}).mappings().all()
+    return [dict(r) for r in rows]
+
+# ===== Slots =====
+def create_slot(s: Session, body) -> Dict:
+    r = s.execute(text("""
+        insert into appointment_slots(doctor_id, start_time, end_time)
+        values (:did,:st,:et)
+        returning *
+    """), {"did": body.doctor_id, "st": body.start_time, "et": body.end_time}).mappings().first()
+    s.commit()
+    return dict(r)
+
+def list_slots_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
+    rows = s.execute(text("""
+        select * from appointment_slots where doctor_id=:d order by start_time
+    """), {"d": doctor_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+# ===== Appointments =====
+def book_appointment(s: Session, body) -> Optional[Dict]:
+    # простая защита: слот свободен?
+    slot = s.execute(text("select is_booked from appointment_slots where id=:id"), {"id": body.slot_id}).first()
+    if not slot or slot[0]:
+        return None
+    r = s.execute(text("""
+        insert into appointments(slot_id, client_id, comments)
+        values (:sid,:cid,:com)
+        returning *
+    """), {"sid": body.slot_id, "cid": body.client_id, "com": body.comments}).mappings().first()
+    s.execute(text("update appointment_slots set is_booked=true where id=:id"), {"id": body.slot_id})
+    s.commit()
+    return dict(r)
+
+def list_appointments_for_client(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(text("select * from appointments where client_id=:c order by id desc"),
+                     {"c": client_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+# ===== Medical records / documents =====
+def create_medical_record(s: Session, body) -> Dict:
+    r = s.execute(text("""
+        insert into medical_records(client_id, doctor_id, appointment_id, diagnosis, symptoms, treatment, recommendations)
+        values (:cid,:did,:aid,:dg,:sym,:tr,:rec)
+        returning *
+    """), {
+        "cid": body.client_id, "did": body.doctor_id, "aid": body.appointment_id,
+        "dg": body.diagnosis, "sym": body.symptoms, "tr": body.treatment, "rec": body.recommendations
+    }).mappings().first()
+    s.commit()
+    return dict(r)
+
+def add_medical_document(s: Session, body) -> Dict:
+    r = s.execute(text("""
+        insert into medical_documents(record_id, client_id, filename, file_url, file_type, encrypted)
+        values (:rid,:cid,:fn,:url,:ft,:enc)
+        returning *
+    """), {
+        "rid": body.record_id, "cid": body.client_id, "fn": body.filename,
+        "url": body.file_url, "ft": body.file_type, "enc": body.encrypted
+    }).mappings().first()
+    s.commit()
+    return dict(r)
+
+# ===== Reviews =====
+def create_doctor_review(s: Session, body) -> Optional[Dict]:
+    try:
+        r = s.execute(text("""
+            insert into doctor_reviews(doctor_id, client_id, rating, comment)
+            values (:did,:cid,:rt,:cmt)
+            returning *
+        """), {"did": body.doctor_id, "cid": body.client_id, "rt": body.rating, "cmt": body.comment}).mappings().first()
+        s.commit()
+        return dict(r)
+    except Exception:
+        s.rollback()
+        return None
+
+def list_doctor_reviews(s: Session, doctor_id: int) -> List[Dict]:
+    rows = s.execute(text("select * from doctor_reviews where doctor_id=:d order by id desc"),
+                     {"d": doctor_id}).mappings().all()
+    return [dict(r) for r in rows]

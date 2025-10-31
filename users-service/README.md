@@ -32,8 +32,8 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 API будет доступен на:
-	•	Swagger ui → http://127.0.0.1:8000/docs
-	•	Redoc → http://127.0.0.1:8000/redoc
+	•	Swagger ui → http://127.0.0.1:8001/docs
+	•	Redoc → http://127.0.0.1:8001/redoc
 
 ⸻
 
@@ -89,6 +89,7 @@ docker compose down
 docker compose down -v
 ```
 ## 🔄 Обновление схемы БД после правок в `sql/001_schema.sql` и применение `sql/004_email_tokens.sql`, `sql/005_patient_complaints_notes.sql`
+### Способ 1 — **снос данных и полная инициализация заново** (простое, **удаляет все данные**)
 ```bash
 docker compose down -v
 ```
@@ -96,6 +97,7 @@ docker compose down -v
 ```bash
 docker compose up -d
 ```
+
 ### ⚠️
 - Пароли хранятся как bcrypt-хэши (не в открытом виде).
 - Начальные данные загружаются из sql/002_seed.sql.
