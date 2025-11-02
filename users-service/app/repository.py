@@ -11,26 +11,27 @@ import secrets, hashlib
 EMAIL_TOKEN_TTL_MIN = 30
 RESET_TOKEN_TTL_MIN = 30
 
+# В НАЧАЛЕ ФАЙЛА (после импортов) — общий список колонок, чтобы не дублировать:
+_USER_COLS = """
+id,email,login,role,
+first_name,last_name,patronymic,phone_number,clinic_id,
+name,surname,date_of_birth,avatar,gender,
+is_active,email_verified_at,password_changed_at,created_at,updated_at
+"""
 
 def _rowmap(r) -> Dict:
     return dict(r) if r else None
 
 def find_by_email(s: Session, email: str) -> Optional[Dict]:
-    r = s.execute(text("""
-        select id,email,login,role,first_name,last_name,patronymic,
-               phone_number,clinic_id,is_active,
-               email_verified_at, password_changed_at,
-               created_at, updated_at
+    r = s.execute(text(f"""
+        select {_USER_COLS}
         from users where email=:e
     """), {"e": email}).mappings().first()
     return _rowmap(r)
 
 def find_by_login(s: Session, login: str) -> Optional[Dict]:
-    r = s.execute(text("""
-        select id,email,login,role,first_name,last_name,patronymic,
-               phone_number,clinic_id,is_active,
-               email_verified_at, password_changed_at,
-               created_at, updated_at
+    r = s.execute(text(f"""
+        select {_USER_COLS}
         from users where login=:l
     """), {"l": login}).mappings().first()
     return _rowmap(r)
@@ -46,17 +47,13 @@ def exists_by_login(s: Session, login: str) -> bool:
 def insert_user(s: Session, user) -> Dict:
     if user.role not in ("CLIENT", "DOCTOR", "ADMIN"):
         raise ValueError("invalid role")
-
     pwd_hash = bcrypt.hash(user.password)
-    r = s.execute(text("""
+    r = s.execute(text(f"""
         insert into users (email,login,password_hash,role,
                            first_name,last_name,patronymic,phone_number,
                            clinic_id,is_active)
         values (:e,:l,:p,:r,:fn,:ln,:pn,:ph,:cid,:ia)
-        returning id,email,login,role,first_name,last_name,patronymic,
-                  phone_number,clinic_id,is_active,
-                  email_verified_at, password_changed_at,
-                  created_at, updated_at
+        returning {_USER_COLS}
     """), {
         "e": user.email, "l": user.login, "p": pwd_hash, "r": user.role,
         "fn": user.first_name, "ln": user.last_name, "pn": user.patronymic,
@@ -68,11 +65,10 @@ def insert_user(s: Session, user) -> Dict:
 
 def register_user(s: Session, reg: RegistrationIn) -> Dict:
     pwd_hash = bcrypt.hash(reg.password)
-    r = s.execute(text("""
+    r = s.execute(text(f"""
         insert into users (email,login,password_hash,is_active)
         values (:e,:l,:p,:ia)
-        returning id,email,login,role,first_name,last_name,patronymic,
-                  phone_number,clinic_id,is_active,created_at,updated_at
+        returning {_USER_COLS}
     """), {
         "e": reg.email,
         "l": reg.username,
@@ -84,22 +80,58 @@ def register_user(s: Session, reg: RegistrationIn) -> Dict:
 
 def list_users(s: Session, role: Optional[str]=None) -> List[Dict]:
     if role:
-        rows = s.execute(text("""
-            select id,email,login,role,first_name,last_name,patronymic,
-                   phone_number,clinic_id,is_active,
-                   email_verified_at, password_changed_at,
-                   created_at, updated_at
+        rows = s.execute(text(f"""
+            select {_USER_COLS}
             from users where role=:r order by id
         """), {"r": role}).mappings().all()
     else:
-        rows = s.execute(text("""
-            select id,email,login,role,first_name,last_name,patronymic,
-                   phone_number,clinic_id,is_active,
-                   email_verified_at, password_changed_at,
-                   created_at, updated_at
+        rows = s.execute(text(f"""
+            select {_USER_COLS}
             from users order by id
         """)).mappings().all()
     return [dict(r) for r in rows]
+
+
+def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"id": user_id}
+
+    # совместимостьные поля
+    if p.first_name is not None:
+        sets.append("first_name = :first_name"); params["first_name"] = p.first_name
+    if p.last_name is not None:
+        sets.append("last_name = :last_name"); params["last_name"] = p.last_name
+    if p.patronymic is not None:
+        sets.append("patronymic = :patronymic"); params["patronymic"] = p.patronymic
+    if p.phone_number is not None:
+        sets.append("phone_number = :phone_number"); params["phone_number"] = p.phone_number
+    if p.clinic_id is not None:
+        sets.append("clinic_id = :clinic_id"); params["clinic_id"] = p.clinic_id
+
+    # НОВЫЕ поля профиля
+    if p.name is not None:
+        sets.append("name = :name"); params["name"] = p.name
+    if p.surname is not None:
+        sets.append("surname = :surname"); params["surname"] = p.surname
+    if p.date_of_birth is not None:
+        sets.append("date_of_birth = :dob"); params["dob"] = p.date_of_birth
+    if p.avatar is not None:
+        sets.append("avatar = :avatar"); params["avatar"] = p.avatar
+    if p.gender is not None:
+        sets.append("gender = :gender"); params["gender"] = p.gender
+
+    if not sets:
+        return None
+
+    sql = f"""
+        update users
+        set {', '.join(sets)}
+        where id = :id
+        returning {_USER_COLS}
+    """
+    r = s.execute(text(sql), params).mappings().first()
+    s.commit()
+    return dict(r) if r else None
 
 def find_auth_by_login_or_email(s: Session, v: str):
     r = s.execute(text("""
