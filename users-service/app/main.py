@@ -11,7 +11,8 @@ from .models import (
     PasswordForgotIn, PasswordResetIn, RegistrationIn,
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
-    NoteIn, NoteOut, NotePatch
+    NoteIn, NoteOut, NotePatch,
+    UserProfilePatch
 )
 from . import repository as repo
 from .mailer import MailSettings, Mailer, verification_email_link, reset_email_link
@@ -32,6 +33,22 @@ def get_users(role: Optional[str] = Query(None)):
     s = get_session()
     try:
         return repo.list_users(s, role)
+    finally:
+        s.close()
+
+@app.patch("/users/{user_id}/profile", response_model=UserOut)
+def patch_user_profile(user_id: int, p: UserProfilePatch):
+    s = get_session()
+    try:
+        try:
+            r = repo.update_user_profile(s, user_id, p)
+            if not r:
+                # либо не найден, либо нечего обновлять
+                raise HTTPException(404, "user not found or nothing to update")
+            return r
+        except IntegrityError as e:
+            s.rollback()
+            raise _map_integrity(e)
     finally:
         s.close()
 
