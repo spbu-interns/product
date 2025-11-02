@@ -31,16 +31,42 @@ class UserOut(BaseModel):
     email: EmailStr
     login: str
     role: str
+
+    # старые поля (совместимость)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone_number: Optional[str] = None
     clinic_id: Optional[int] = None
+
+    # НОВЫЕ поля профиля
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    avatar: Optional[str] = None
+    gender: Optional[Gender] = None
+
     is_active: bool
     email_verified_at: Optional[datetime] = None
-    password_changed_at: datetime 
+    password_changed_at: datetime
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    
+#частичного обновления профиля (PATCH):
+class UserProfilePatch(BaseModel):
+    # старые полям для совместимости — если нужно поддерживать
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone_number: Optional[str] = None
+    clinic_id: Optional[int] = None
+
+    # НОВЫЕ поля профиля по ТЗ
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    avatar: Optional[str] = None
+    gender: Optional[Gender] = None
 
 class LoginIn(BaseModel):
     login_or_email: str = Field(min_length=3, max_length=100)
@@ -223,3 +249,5 @@ class DoctorReviewOut(DoctorReviewIn):
     id: int
     created_at: datetime
     updated_at: datetime
+    
+Gender = Literal["MALE", "FEMALE"]
