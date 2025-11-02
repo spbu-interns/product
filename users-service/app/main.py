@@ -51,6 +51,18 @@ def patch_user_profile(user_id: int, p: UserProfilePatch):
             raise _map_integrity(e)
     finally:
         s.close()
+        
+# --- User profile (read) ---
+@app.get("/users/{user_id}/profile", response_model=UserOut)
+def api_get_user_profile(user_id: int):
+    s = get_session()
+    try:
+        u = repo.get_user_profile(s, user_id)
+        if not u:
+            raise HTTPException(404, "user not found")
+        return u
+    finally:
+        s.close()
 
 @app.get("/users/by-email/{email}", response_model=Optional[UserOut])
 def find_by_email(email: str):

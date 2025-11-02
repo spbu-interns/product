@@ -1,6 +1,9 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from typing import Literal
+from datetime import datetime, date
+
+Gender = Literal["MALE", "FEMALE"]
 
 class UserIn(BaseModel):
     email: EmailStr
@@ -250,4 +253,4 @@ class DoctorReviewOut(DoctorReviewIn):
     created_at: datetime
     updated_at: datetime
     
-Gender = Literal["MALE", "FEMALE"]
+

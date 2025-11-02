@@ -133,6 +133,22 @@ def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     s.commit()
     return dict(r) if r else None
 
+# --- User profile by id ---
+def get_user_profile(s: Session, user_id: int) -> Optional[Dict]:
+    r = s.execute(text("""
+        select
+            id, email, login, role,
+            first_name, last_name, patronymic,
+            phone_number, clinic_id,
+            name, surname, date_of_birth, avatar, gender,
+            is_active, email_verified_at, password_changed_at,
+            created_at, updated_at
+        from users
+        where id = :id
+        limit 1
+    """), {"id": user_id}).mappings().first()
+    return dict(r) if r else None
+
 def find_auth_by_login_or_email(s: Session, v: str):
     r = s.execute(text("""
         select id, role, password_hash, is_active
