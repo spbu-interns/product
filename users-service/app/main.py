@@ -2,8 +2,6 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 from psycopg2 import errors as pgerr
-from fastapi import HTTPException
-from sqlalchemy import text
 from .db import get_session
 from .models import (
     UserIn, UserOut,
@@ -143,9 +141,6 @@ def start_email_verification(body: EmailStartVerificationIn, bt: BackgroundTasks
             raise HTTPException(404, "user not found")
         raw_token = repo.start_email_verification(s, uid)
 
-        subj, html, text = verification_email_link(body.email, raw_token, settings.APP_BASE_URL)
-        bt.add_task(mailer.send, to=body.email, subject=subj, html=html, text=text)
-
         return {"token": raw_token, "message": "verification link sent to email"}
     finally:
         s.close()
@@ -183,14 +178,6 @@ def password_forgot(body: PasswordForgotIn, bt: BackgroundTasks):
             raise HTTPException(404, "user not found")
 
         raw = repo.start_password_reset(s, uid)
-
-        subj, html, text = reset_email_link(
-            to=body.email,
-            token=raw,
-            base_url=settings.APP_BASE_URL,
-            ttl_minutes=RESET_TOKEN_TTL_MIN
-        )
-        bt.add_task(mailer.send, to=body.email, subject=subj, html=html, text=text)
 
         return {"token": raw, "message": "reset link sent to email"}
     finally:

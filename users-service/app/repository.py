@@ -3,7 +3,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from passlib.hash import bcrypt
 from .models import UserIn, RegistrationIn
-from sqlalchemy import or_
 from datetime import datetime, timedelta
 import secrets, hashlib
 

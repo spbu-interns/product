@@ -24,9 +24,6 @@ class RegistrationIn(BaseModel):
     password: str = Field(min_length=6)                  # -> bcrypt hash
     email: EmailStr
     is_active: Optional[bool] = True
-
-from typing import Optional
-from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 
 class UserOut(BaseModel):
