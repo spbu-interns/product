@@ -55,8 +55,6 @@ class UserIn(BaseModel):
     clinic_id: Optional[int] = None
     is_active: Optional[bool] = True
 
-from pydantic import BaseModel, EmailStr, Field
-
 class UserOut(BaseModel):
     id: int
     email: EmailStr
@@ -161,9 +159,6 @@ class NoteOut(BaseModel):
 class NotePatch(BaseModel):
     note: Optional[str] = Field(default=None, min_length=1)
     visibility: Optional[NoteVisibility] = None
-    
-# ====== NEW: Domain v2 models ======
-from datetime import datetime
 
 # --- Clients / Doctors / Admins ---
 class ClientIn(BaseModel):
