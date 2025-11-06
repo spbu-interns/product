@@ -107,17 +107,16 @@ def insert_user(user: UserIn):
 
 @app.post("/register", response_model=UserOut, status_code=201)
 def register(reg: RegistrationIn):
-    """
-    Соответствует требованиям "исчерпывающих полей регистрации":
-    id (выдаёт БД), username, password, email, is_active, created_at/updated_at задаются БД.
-    """
     s = get_session()
     try:
         try:
-            return repo.register_user(s, reg)
-        except IntegrityError:
+            return repo.register_user_with_role(s, reg)
+        except IntegrityError as e:
             s.rollback()
-            raise HTTPException(status_code=409, detail="email or login already exists")
+            raise _map_integrity(e)
+        except ValueError as ve:
+            s.rollback()
+            raise HTTPException(status_code=400, detail=str(ve))
     finally:
         s.close()
 

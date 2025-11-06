@@ -487,3 +487,87 @@ def list_doctor_reviews(s: Session, doctor_id: int) -> List[Dict]:
     rows = s.execute(text("select * from doctor_reviews where doctor_id=:d order by id desc"),
                      {"d": doctor_id}).mappings().all()
     return [dict(r) for r in rows]
+
+
+# ===== New Registration =====
+def create_admin(s: Session, body) -> Dict:
+    r = s.execute(text("""
+        insert into admins(user_id, clinic_id, position)
+        values (:uid,:cid,:pos)
+        returning *
+    """), {"uid": body["user_id"], "cid": body["clinic_id"], "pos": body.get("position")}).mappings().first()
+    return dict(r)
+
+def register_user_with_role(s: Session, reg) -> Dict:
+    # одна транзакция
+    try:
+        pwd_hash = bcrypt.hash(reg.password)
+        user = s.execute(text(f"""
+            insert into users (email,login,password_hash,is_active,role)
+            values (:e,:l,:p,:ia,:role)
+            returning {_USER_COLS}
+        """), {
+            "e": reg.email,
+            "l": reg.username,
+            "p": pwd_hash,
+            "ia": True if reg.is_active is None else reg.is_active,
+            "role": reg.role
+        }).mappings().first()
+
+        uid = user["id"]
+
+        if reg.role == "CLIENT":
+            data = (reg.client or type("X", (), {})())
+            s.execute(text("""
+              insert into clients(user_id, blood_type, height, weight,
+                                  emergency_contact_name, emergency_contact_number,
+                                  address, snils, passport, dms_oms)
+              values (:uid,:bt,:h,:w,:ecn,:ecn2,:addr,:snils,:pass,:dms)
+            """), {
+              "uid": uid,
+              "bt": getattr(data, "blood_type", None),
+              "h": getattr(data, "height", None),
+              "w": getattr(data, "weight", None),
+              "ecn": getattr(data, "emergency_contact_name", None),
+              "ecn2": getattr(data, "emergency_contact_number", None),
+              "addr": getattr(data, "address", None),
+              "snils": getattr(data, "snils", None),
+              "pass": getattr(data, "passport", None),
+              "dms": getattr(data, "dms_oms", None),
+            })
+
+        elif reg.role == "DOCTOR":
+            if not reg.doctor or not reg.doctor.profession:
+                raise ValueError("doctor.profession is required")
+            s.execute(text("""
+              insert into doctors(user_id, clinic_id, profession, info, is_confirmed, rating, experience, price)
+              values (:uid,:cid,:prof,:info,:conf,:rt,:exp,:price)
+            """), {
+              "uid": uid,
+              "cid": reg.doctor.clinic_id,
+              "prof": reg.doctor.profession,
+              "info": reg.doctor.info,
+              "conf": reg.doctor.is_confirmed or False,
+              "rt": reg.doctor.rating or 0.0,
+              "exp": reg.doctor.experience,
+              "price": reg.doctor.price
+            })
+
+        elif reg.role == "ADMIN":
+            if not reg.admin or not reg.admin.clinic_id:
+                raise ValueError("admin.clinic_id is required")
+            s.execute(text("""
+              insert into admins(user_id, clinic_id, position)
+              values (:uid,:cid,:pos)
+            """), {
+              "uid": uid,
+              "cid": reg.admin.clinic_id,
+              "pos": reg.admin.position
+            })
+
+        s.commit()
+        return dict(user)
+
+    except Exception:
+        s.rollback()
+        raise

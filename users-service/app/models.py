@@ -5,6 +5,44 @@ from datetime import datetime, date
 
 Gender = Literal["MALE", "FEMALE"]
 
+Role = Literal["CLIENT", "DOCTOR", "ADMIN"]
+
+class ClientRegData(BaseModel):
+    blood_type: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_number: Optional[str] = None
+    address: Optional[str] = None
+    snils: Optional[str] = None
+    passport: Optional[str] = None
+    dms_oms: Optional[str] = None
+
+class DoctorRegData(BaseModel):
+    clinic_id: Optional[int] = None
+    profession: str
+    info: Optional[str] = None
+    is_confirmed: Optional[bool] = False
+    rating: Optional[float] = 0.0
+    experience: Optional[int] = None
+    price: Optional[float] = None
+
+class AdminRegData(BaseModel):
+    clinic_id: int
+    position: Optional[str] = None
+
+class RegistrationIn(BaseModel):
+    username: str = Field(min_length=3, max_length=100)  # -> users.login
+    password: str = Field(min_length=6)
+    email: EmailStr
+    role: Role
+    is_active: Optional[bool] = True
+
+    # по роли — один из блоков
+    client: Optional[ClientRegData] = None
+    doctor: Optional[DoctorRegData] = None
+    admin:  Optional[AdminRegData]  = None
+
 class UserIn(BaseModel):
     email: EmailStr
     login: str = Field(min_length=3, max_length=100)
@@ -17,13 +55,6 @@ class UserIn(BaseModel):
     clinic_id: Optional[int] = None
     is_active: Optional[bool] = True
 
-class RegistrationIn(BaseModel):
-    # соответствие «исчерпывающим полям регистрации»
-    # id приходит/возвращается с сервера, в запросе не нужен
-    username: str = Field(min_length=3, max_length=100)  # -> users.login
-    password: str = Field(min_length=6)                  # -> bcrypt hash
-    email: EmailStr
-    is_active: Optional[bool] = True
 from pydantic import BaseModel, EmailStr, Field
 
 class UserOut(BaseModel):
