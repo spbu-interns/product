@@ -26,6 +26,11 @@ object ApiConfig {
         const val PASSWORD_FORGOT = "$BASE_URL/api/auth/password/forgot"
         const val PASSWORD_RESET = "$BASE_URL/api/auth/password/reset"
         const val EMAIL_START_VERIFICATION = "$BASE_URL/api/auth/email/start"
+
+        fun patientComplaints(patientId: Long) = "$BASE_URL/api/patient/$patientId/complaints"
+        fun patientComplaint(complaintId: Long) = "$BASE_URL/api/patient/complaints/$complaintId"
+        fun patientNotes(patientId: Long) = "$BASE_URL/api/patient/$patientId/notes"
+        fun patientNote(noteId: Long) = "$BASE_URL/api/patient/notes/$noteId"
     }
 
     const val TOKEN_STORAGE_KEY = "auth_token"
@@ -49,6 +54,9 @@ object ApiConfig {
         defaultRequest {
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)
+            ApiConfig.getToken()?.let { token ->
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
         }
     }
 

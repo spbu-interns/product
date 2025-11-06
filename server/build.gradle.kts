@@ -11,7 +11,10 @@ application {
     mainClass.set("org.interns.project.ApplicationKt")
 
     val isDevelopment: Boolean = project.ext.has("development")
-    applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
+    applicationDefaultJvmArgs = listOf(
+        "-Dio.ktor.development=$isDevelopment",
+        "-Dfile.encoding=UTF-8"
+    )
 }
 
 dependencies {

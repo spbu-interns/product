@@ -11,12 +11,12 @@ import io.kvision.html.h3
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
 fun Container.resetPasswordScreen() = vPanel(spacing = 16) {
     headerBar(mode = HeaderMode.PUBLIC, active = NavTab.NONE)
-
+    val uiScope = MainScope()
     vPanel(spacing = 16) {
         width = 520.px
         addCssClass("mx-auto")
@@ -42,11 +42,11 @@ fun Container.resetPasswordScreen() = vPanel(spacing = 16) {
                 val email = emailField.value ?: ""
                 if (EMAIL_REGEX.matches(email)) {
                     this.disabled = true
-                    
-                    GlobalScope.launch {
+
+                    uiScope.launch {
                         val authClient = AuthApiClient()
                         val result = authClient.requestPasswordReset(email)
-                        
+
                         result.fold(
                             onSuccess = {
                                 Navigator.showStub("Ссылка отправлена на $email")

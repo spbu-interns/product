@@ -1,8 +1,7 @@
 package ui
 
-import io.kvision.core.AlignItems
+import api.ApiConfig
 import io.kvision.core.Container
-import io.kvision.core.style
 import io.kvision.form.text.text
 import io.kvision.html.*
 import io.kvision.panel.hPanel
@@ -13,7 +12,8 @@ fun Container.homeScreen() {
         mode = if (Session.isLoggedIn) HeaderMode.PATIENT else HeaderMode.PUBLIC,
         active = NavTab.HOME,
         onLogout = {
-            Session.isLoggedIn = false
+            ApiConfig.clearToken()
+            Session.clear()
             Navigator.showHome()
         }
     )
@@ -89,7 +89,29 @@ fun Container.homeScreen() {
     }
 }
 
-object Session { var isLoggedIn = false }
+object Session {
+    var isLoggedIn: Boolean = false
+    var token: String? = null
+    var userId: Long? = null
+    var email: String? = null
+    var accountType: String? = null
+
+    fun setSession(token: String?, userId: Long?, email: String?, accountType: String?) {
+        this.token = token
+        this.userId = userId
+        this.email = email
+        this.accountType = accountType
+        this.isLoggedIn = true
+    }
+
+    fun clear() {
+        isLoggedIn = false
+        token = null
+        userId = null
+        email = null
+        accountType = null
+    }
+}
 
 private fun Container.specialtyCard(
     title: String,

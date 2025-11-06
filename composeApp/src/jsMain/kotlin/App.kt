@@ -1,3 +1,4 @@
+import api.ApiConfig
 import io.kvision.Application
 import io.kvision.i18n.I18n
 import io.kvision.panel.root
@@ -35,7 +36,8 @@ class App : Application() {
             r.removeAll()
             r.patientScreen(
                 onLogout = {
-                    Session.isLoggedIn = false
+                    ApiConfig.clearToken()
+                    Session.clear()
                     showHome()
                 }
             )
@@ -55,7 +57,8 @@ class App : Application() {
             r.removeAll()
             r.myRecordsScreen(
                 onLogout = {
-                    Session.isLoggedIn = false
+                    ApiConfig.clearToken()
+                    Session.clear()
                     showHome()
                 }
             )

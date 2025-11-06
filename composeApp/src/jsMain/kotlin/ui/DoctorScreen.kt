@@ -1,5 +1,6 @@
 ﻿package ui
 
+import api.ApiConfig
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.html.button
@@ -19,7 +20,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         mode = HeaderMode.DOCTOR,
         active = NavTab.NONE,
         onLogout = {
-            Session.isLoggedIn = false
+            ApiConfig.clearToken()
+            Session.clear()
             onLogout()
         }
     )

@@ -1,5 +1,6 @@
 ﻿package ui
 
+import api.ApiConfig
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.html.button
@@ -12,7 +13,6 @@ import io.kvision.html.nav
 import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.html.ul
-import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
@@ -20,7 +20,8 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
         mode = HeaderMode.PATIENT,
         active = NavTab.NONE,
         onLogout = {
-            Session.isLoggedIn = false
+            ApiConfig.clearToken()
+            Session.clear()
             Navigator.showHome()
         }
     )

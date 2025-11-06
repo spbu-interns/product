@@ -12,13 +12,12 @@ import io.kvision.html.p
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import org.interns.project.dto.VerifyEmailRequest
 
 fun Container.confirmEmailScreen(email: String) {
     headerBar(mode = HeaderMode.PUBLIC, active = NavTab.NONE)
-
+    val uiScope = MainScope()
     vPanel(spacing = 16) {
         width = 520.px
         addCssClass("mx-auto")
@@ -53,8 +52,8 @@ fun Container.confirmEmailScreen(email: String) {
                 }
                 
                 this.disabled = true
-                
-                GlobalScope.launch {
+
+                uiScope.launch {
                     val authClient = AuthApiClient()
                     val result = authClient.verifyEmail(code)
                     
