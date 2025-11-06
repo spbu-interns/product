@@ -1,6 +1,47 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from typing import Literal
+from datetime import datetime, date
+
+Gender = Literal["MALE", "FEMALE"]
+
+Role = Literal["CLIENT", "DOCTOR", "ADMIN"]
+
+class ClientRegData(BaseModel):
+    blood_type: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_number: Optional[str] = None
+    address: Optional[str] = None
+    snils: Optional[str] = None
+    passport: Optional[str] = None
+    dms_oms: Optional[str] = None
+
+class DoctorRegData(BaseModel):
+    clinic_id: Optional[int] = None
+    profession: str
+    info: Optional[str] = None
+    is_confirmed: Optional[bool] = False
+    rating: Optional[float] = 0.0
+    experience: Optional[int] = None
+    price: Optional[float] = None
+
+class AdminRegData(BaseModel):
+    clinic_id: int
+    position: Optional[str] = None
+
+class RegistrationIn(BaseModel):
+    username: str = Field(min_length=3, max_length=100)  # -> users.login
+    password: str = Field(min_length=6)
+    email: EmailStr
+    role: Role
+    is_active: Optional[bool] = True
+
+    # по роли — один из блоков
+    client: Optional[ClientRegData] = None
+    doctor: Optional[DoctorRegData] = None
+    admin:  Optional[AdminRegData]  = None
 
 class UserIn(BaseModel):
     email: EmailStr
@@ -14,33 +55,47 @@ class UserIn(BaseModel):
     clinic_id: Optional[int] = None
     is_active: Optional[bool] = True
 
-class RegistrationIn(BaseModel):
-    # соответствие «исчерпывающим полям регистрации»
-    # id приходит/возвращается с сервера, в запросе не нужен
-    username: str = Field(min_length=3, max_length=100)  # -> users.login
-    password: str = Field(min_length=6)                  # -> bcrypt hash
-    email: EmailStr
-    is_active: Optional[bool] = True
-
-from typing import Optional
-from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
-
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     login: str
     role: str
+
+    # старые поля (совместимость)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone_number: Optional[str] = None
     clinic_id: Optional[int] = None
+
+    # НОВЫЕ поля профиля
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    avatar: Optional[str] = None
+    gender: Optional[Gender] = None
+
     is_active: bool
     email_verified_at: Optional[datetime] = None
-    password_changed_at: datetime 
+    password_changed_at: datetime
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    
+#частичного обновления профиля (PATCH):
+class UserProfilePatch(BaseModel):
+    # старые полям для совместимости — если нужно поддерживать
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone_number: Optional[str] = None
+    clinic_id: Optional[int] = None
+
+    # НОВЫЕ поля профиля по ТЗ
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    avatar: Optional[str] = None
+    gender: Optional[Gender] = None
 
 class LoginIn(BaseModel):
     login_or_email: str = Field(min_length=3, max_length=100)
@@ -104,9 +159,6 @@ class NoteOut(BaseModel):
 class NotePatch(BaseModel):
     note: Optional[str] = Field(default=None, min_length=1)
     visibility: Optional[NoteVisibility] = None
-    
-# ====== NEW: Domain v2 models ======
-from datetime import datetime
 
 # --- Clients / Doctors / Admins ---
 class ClientIn(BaseModel):
@@ -223,3 +275,5 @@ class DoctorReviewOut(DoctorReviewIn):
     id: int
     created_at: datetime
     updated_at: datetime
+    
+

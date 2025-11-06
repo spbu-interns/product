@@ -2,8 +2,6 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 from psycopg2 import errors as pgerr
-from fastapi import HTTPException
-from sqlalchemy import text
 from .db import get_session
 from .models import (
     UserIn, UserOut,
@@ -11,7 +9,8 @@ from .models import (
     PasswordForgotIn, PasswordResetIn, RegistrationIn,
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
-    NoteIn, NoteOut, NotePatch
+    NoteIn, NoteOut, NotePatch,
+    UserProfilePatch
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
@@ -28,6 +27,34 @@ def get_users(role: Optional[str] = Query(None)):
     s = get_session()
     try:
         return repo.list_users(s, role)
+    finally:
+        s.close()
+
+@app.patch("/users/{user_id}/profile", response_model=UserOut)
+def patch_user_profile(user_id: int, p: UserProfilePatch):
+    s = get_session()
+    try:
+        try:
+            r = repo.update_user_profile(s, user_id, p)
+            if not r:
+                # либо не найден, либо нечего обновлять
+                raise HTTPException(404, "user not found or nothing to update")
+            return r
+        except IntegrityError as e:
+            s.rollback()
+            raise _map_integrity(e)
+    finally:
+        s.close()
+        
+# --- User profile (read) ---
+@app.get("/users/{user_id}/profile", response_model=UserOut)
+def api_get_user_profile(user_id: int):
+    s = get_session()
+    try:
+        u = repo.get_user_profile(s, user_id)
+        if not u:
+            raise HTTPException(404, "user not found")
+        return u
     finally:
         s.close()
 
@@ -80,17 +107,16 @@ def insert_user(user: UserIn):
 
 @app.post("/register", response_model=UserOut, status_code=201)
 def register(reg: RegistrationIn):
-    """
-    Соответствует требованиям "исчерпывающих полей регистрации":
-    id (выдаёт БД), username, password, email, is_active, created_at/updated_at задаются БД.
-    """
     s = get_session()
     try:
         try:
-            return repo.register_user(s, reg)
-        except IntegrityError:
+            return repo.register_user_with_role(s, reg)
+        except IntegrityError as e:
             s.rollback()
-            raise HTTPException(status_code=409, detail="email or login already exists")
+            raise _map_integrity(e)
+        except ValueError as ve:
+            s.rollback()
+            raise HTTPException(status_code=400, detail=str(ve))
     finally:
         s.close()
 
@@ -113,9 +139,6 @@ def start_email_verification(body: EmailStartVerificationIn, bt: BackgroundTasks
         if not uid:
             raise HTTPException(404, "user not found")
         raw_token = repo.start_email_verification(s, uid)
-
-        subj, html, text = verification_email_link(body.email, raw_token, settings.APP_BASE_URL)
-        bt.add_task(mailer.send, to=body.email, subject=subj, html=html, text=text)
 
         return {"token": raw_token, "message": "verification link sent to email"}
     finally:
@@ -154,14 +177,6 @@ def password_forgot(body: PasswordForgotIn, bt: BackgroundTasks):
             raise HTTPException(404, "user not found")
 
         raw = repo.start_password_reset(s, uid)
-
-        subj, html, text = reset_email_link(
-            to=body.email,
-            token=raw,
-            base_url=settings.APP_BASE_URL,
-            ttl_minutes=RESET_TOKEN_TTL_MIN
-        )
-        bt.add_task(mailer.send, to=body.email, subject=subj, html=html, text=text)
 
         return {"token": raw, "message": "reset link sent to email"}
     finally:
