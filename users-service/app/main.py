@@ -15,14 +15,10 @@ from .models import (
     UserProfilePatch
 )
 from . import repository as repo
-from .mailer import MailSettings, Mailer, verification_email_link, reset_email_link
 from .repository import RESET_TOKEN_TTL_MIN
 from passlib.hash import bcrypt
 
 app = FastAPI(title="Users DB API")
-
-settings = MailSettings()
-mailer = Mailer(settings)
 
 @app.get("/health")
 def health():
