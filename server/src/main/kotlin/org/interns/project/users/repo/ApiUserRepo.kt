@@ -49,6 +49,8 @@ class ApiUserRepo(
         val created = try { d.createdAt?.let(Instant::parse) } catch (_: Exception) { null }
         val updated = try { d.updatedAt?.let(Instant::parse) } catch (_: Exception) { null }
         val dob = try { d.dateOfBirth?.let(LocalDate::parse) } catch (_: Exception) { null }
+        val emailVerified = try { d.emailVerifiedAt?.let(Instant::parse) } catch (_: Exception) { null }
+        val passwordChanged = try { d.passwordChangedAt?.let(Instant::parse) } catch (_: Exception) { null }
 
         return User(
             id = d.id,
@@ -58,8 +60,10 @@ class ApiUserRepo(
             role = d.role,
 
             // поддерживаем и старые, и новые поля
-            firstName = d.firstName ,
-            lastName = d.lastName ,
+            firstName = d.firstName ?: d.name,
+            lastName = d.lastName ?: d.surname,
+            name = d.name ?: d.firstName,
+            surname = d.surname ?: d.lastName,
             patronymic = d.patronymic,
             phoneNumber = d.phoneNumber,
             clinicId = d.clinicId,
@@ -70,7 +74,9 @@ class ApiUserRepo(
 
             isActive = d.isActive,
             createdAt = created,
-            updatedAt = updated
+            updatedAt = updated,
+            emailVerifiedAt = emailVerified,
+            passwordChangedAt = passwordChanged
         )
     }
 
@@ -218,6 +224,17 @@ class ApiUserRepo(
     suspend fun findByLogin(login: String): User? =
         doGet("/users/by-login/${urlEncode(login)}") { it.body<UserOutDto>().let(::fromOutDto) }
 
+    suspend fun listUsers(role: String? = null): List<User> {
+        val resp = client.get("$baseUrl/users") {
+            role?.takeIf { it.isNotBlank() }?.let { parameter("role", it) }
+        }
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        val payload = resp.body<List<UserOutDto>>()
+        return payload.map(::fromOutDto)
+    }
+
     suspend fun login(loginOrEmail: String, password: String): ApiResponse {
         val apiResp: ApiResponse = doPost(
             path = "/auth/login",
@@ -256,7 +273,7 @@ class ApiUserRepo(
             firstName = request.firstName,
             lastName = request.lastName,
             clinicId = request.clinicId?.toInt(),
-            isActive = request.isActive?: true
+            isActive = request.isActive
         )
 
         val user = saveByApi(userInDto)
@@ -268,6 +285,16 @@ class ApiUserRepo(
         doGet("/users/$userId/profile") { resp ->
             resp.body<UserOutDto>().let(::fromOutDto)
         }
+
+    suspend fun findClientByUserId(userId: Long): ClientOut? {
+        val path = "/clients/by-user/$userId"
+        val resp = client.get("$baseUrl$path")
+        return when (resp.status) {
+            HttpStatusCode.OK -> resp.body()
+            HttpStatusCode.NotFound -> null
+            else -> throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+    }
 
     // PATCH /users/{id}/profile — частичное обновление профиля
     suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): User =
