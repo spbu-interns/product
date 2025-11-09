@@ -13,7 +13,7 @@ RESET_TOKEN_TTL_MIN = 30
 # В НАЧАЛЕ ФАЙЛА (после импортов) — общий список колонок, чтобы не дублировать:
 _USER_COLS = """
 id,email,login,role,
-first_name,last_name,patronymic,phone_number,clinic_id,
+patronymic,phone_number,clinic_id,
 name,surname,date_of_birth,avatar,gender,
 is_active,email_verified_at,password_changed_at,created_at,updated_at
 """
@@ -49,13 +49,13 @@ def insert_user(s: Session, user) -> Dict:
     pwd_hash = bcrypt.hash(user.password)
     r = s.execute(text(f"""
         insert into users (email,login,password_hash,role,
-                           first_name,last_name,patronymic,phone_number,
+                           name,surname,patronymic,phone_number,
                            clinic_id,is_active)
-        values (:e,:l,:p,:r,:fn,:ln,:pn,:ph,:cid,:ia)
+        values (:e,:l,:p,:r,:name,:surname,:pn,:ph,:cid,:ia)
         returning {_USER_COLS}
     """), {
         "e": user.email, "l": user.login, "p": pwd_hash, "r": user.role,
-        "fn": user.first_name, "ln": user.last_name, "pn": user.patronymic,
+        "name": user.name, "surname": user.surname, "pn": user.patronymic,
         "ph": user.phone_number, "cid": user.clinic_id,
         "ia": True if user.is_active is None else user.is_active,
     }).mappings().first()
@@ -95,19 +95,12 @@ def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     sets = []
     params = {"id": user_id}
 
-    # совместимостьные поля
-    if p.first_name is not None:
-        sets.append("first_name = :first_name"); params["first_name"] = p.first_name
-    if p.last_name is not None:
-        sets.append("last_name = :last_name"); params["last_name"] = p.last_name
-    if p.patronymic is not None:
-        sets.append("patronymic = :patronymic"); params["patronymic"] = p.patronymic
+    # поля, реально существующие в users
     if p.phone_number is not None:
         sets.append("phone_number = :phone_number"); params["phone_number"] = p.phone_number
     if p.clinic_id is not None:
         sets.append("clinic_id = :clinic_id"); params["clinic_id"] = p.clinic_id
 
-    # НОВЫЕ поля профиля
     if p.name is not None:
         sets.append("name = :name"); params["name"] = p.name
     if p.surname is not None:
@@ -122,26 +115,41 @@ def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     if not sets:
         return None
 
-    sql = f"""
+    sets.append("updated_at = now()")
+
+    # роль для зеркалирования clinic_id
+    role_row = s.execute(text("select role from users where id = :id"), {"id": user_id}).first()
+    role = role_row[0] if role_row else None
+
+    r = s.execute(text(f"""
         update users
         set {', '.join(sets)}
         where id = :id
         returning {_USER_COLS}
-    """
-    r = s.execute(text(sql), params).mappings().first()
+    """), params).mappings().first()
+
+    # --- синк clinic_id в doctors/admins (если прислали clinic_id) ---
+    if p.clinic_id is not None:
+        if role == "DOCTOR":
+            s.execute(text("""
+                update doctors
+                set clinic_id = :cid, updated_at = now()
+                where user_id = :uid
+            """), {"cid": p.clinic_id, "uid": user_id})
+        elif role == "ADMIN":
+            s.execute(text("""
+                update admins
+                set clinic_id = :cid, updated_at = now()
+                where user_id = :uid
+            """), {"cid": p.clinic_id, "uid": user_id})
+
     s.commit()
     return dict(r) if r else None
 
 # --- User profile by id ---
 def get_user_profile(s: Session, user_id: int) -> Optional[Dict]:
-    r = s.execute(text("""
-        select
-            id, email, login, role,
-            first_name, last_name, patronymic,
-            phone_number, clinic_id,
-            name, surname, date_of_birth, avatar, gender,
-            is_active, email_verified_at, password_changed_at,
-            created_at, updated_at
+    r = s.execute(text(f"""
+        select {_USER_COLS}
         from users
         where id = :id
         limit 1

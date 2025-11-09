@@ -4,24 +4,31 @@ create table if not exists clinics (
   name varchar(255) not null
 );
 
-create table if not exists users (
-  id             bigserial primary key,
-  email          varchar(255) unique not null,
-  login          varchar(100) unique not null,
-  password_hash  varchar(255) not null,
-  role           varchar(20)  not null default 'CLIENT',
-  first_name     varchar(100),
-  last_name      varchar(100),
-  patronymic     varchar(100),
-  phone_number   varchar(20),
-  clinic_id      bigint references clinics(id),
-  is_active      boolean not null default true,
-  created_at     timestamp not null default now(),
-  updated_at     timestamp not null default now(),
-  -- валидные роли
-  constraint users_role_chk check (role in ('CLIENT','DOCTOR','ADMIN'))
-);
+CREATE TABLE users (
+  id             BIGSERIAL PRIMARY KEY,
+  email          VARCHAR(255) UNIQUE NOT NULL,
+  login          VARCHAR(100) UNIQUE NOT NULL,
+  password_hash  VARCHAR(255) NOT NULL,
+  role           VARCHAR(20)  NOT NULL DEFAULT 'CLIENT'
+                 CHECK (role IN ('CLIENT','DOCTOR','ADMIN')),
+  -- Только новые поля ФИО:
+  name           VARCHAR(100),
+  surname        VARCHAR(100),
+  patronymic     VARCHAR(100),
+  date_of_birth  DATE,
+  phone_number   VARCHAR(20),
+  avatar         TEXT,
+  gender         VARCHAR(20) CHECK (gender IN ('MALE','FEMALE')),
+  clinic_id      BIGINT REFERENCES clinics(id),
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE,
 
+  -- если используешь email верификацию/сброс пароля:
+  email_verified_at    TIMESTAMP,
+  password_changed_at  TIMESTAMP NOT NULL DEFAULT now(),
+
+  created_at     TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMP NOT NULL DEFAULT now()
+);
 -- триггер auto-updated updated_at чтоб обновлять поле updated_at при каждом изменении чего то для данного юзера
 create or replace function set_updated_at()
 returns trigger language plpgsql as $$

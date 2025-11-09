@@ -48,8 +48,8 @@ class UserIn(BaseModel):
     login: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=6)
     role: str = "CLIENT"  # CLIENT | DOCTOR | ADMIN
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    name: Optional[str] = None        # NEW
+    surname: Optional[str] = None     # NEW
     patronymic: Optional[str] = None
     phone_number: Optional[str] = None
     clinic_id: Optional[int] = None
@@ -60,10 +60,7 @@ class UserOut(BaseModel):
     email: EmailStr
     login: str
     role: str
-
-    # старые поля (совместимость)
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    # (убрали first_name/last_name)
     patronymic: Optional[str] = None
     phone_number: Optional[str] = None
     clinic_id: Optional[int] = None
@@ -81,16 +78,13 @@ class UserOut(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
-#частичного обновления профиля (PATCH):
+
 class UserProfilePatch(BaseModel):
-    # старые полям для совместимости — если нужно поддерживать
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    patronymic: Optional[str] = None
+    # старые совместимые поля убрали
     phone_number: Optional[str] = None
     clinic_id: Optional[int] = None
 
-    # НОВЫЕ поля профиля по ТЗ
+    # НОВЫЕ поля профиля
     name: Optional[str] = None
     surname: Optional[str] = None
     date_of_birth: Optional[date] = None
