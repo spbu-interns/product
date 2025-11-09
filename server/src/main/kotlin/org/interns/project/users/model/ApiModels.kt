@@ -16,15 +16,44 @@ data class UserInDto(
 )
 
 @Serializable
+data class UserProfilePatch(
+    // старые поля для совместимости
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null,
+    val patronymic: String? = null,
+    @SerialName("phone_number") val phoneNumber: String? = null,
+    @SerialName("clinic_id") val clinicId: Long? = null,
+
+    // строкой в формате YYYY-MM-DD, fastapi сам превратит в date
+    @SerialName("date_of_birth") val dateOfBirth: String? = null,
+    val avatar: String? = null,
+    val gender: String? = null // MALE или FEMALE
+)
+
+@Serializable
 data class UserOutDto(
-    val id: Long? = null,
+    val id: Long,
     val email: String,
     val login: String,
     val role: String,
+
+    // старые поля (совместимость)
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
+    val patronymic: String? = null,
+    @SerialName("phone_number") val phoneNumber: String? = null,
     @SerialName("clinic_id") val clinicId: Long? = null,
+
+    // новые поля профиля
+    val name: String? = null,
+    val surname: String? = null,
+    @SerialName("date_of_birth") val dateOfBirth: String? = null, // YYYY-MM-DD
+    val avatar: String? = null,
+    val gender: String? = null, // MALE/FEMALE
+
     @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("email_verified_at") val emailVerifiedAt: String? = null,
+    @SerialName("password_changed_at") val passwordChangedAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )
@@ -33,4 +62,61 @@ data class UserOutDto(
 data class LoginRequest(
     @SerialName("login_or_email") val loginOrEmail: String,
     val password: String
+)
+
+@Serializable
+data class ClientRegData(
+    @SerialName("blood_type") val bloodType: String? = null,
+    val height: Double? = null,
+    val weight: Double? = null,
+    @SerialName("emergency_contact_name") val emergencyContactName: String? = null,
+    @SerialName("emergency_contact_number") val emergencyContactNumber: String? = null,
+    val address: String? = null,
+    val snils: String? = null,
+    val passport: String? = null,
+    @SerialName("dms_oms") val dmsOms: String? = null
+)
+
+@Serializable
+data class DoctorRegData(
+    @SerialName("clinic_id") val clinicId: Long? = null,
+    val profession: String,
+    val info: String? = null,
+    @SerialName("is_confirmed") val isConfirmed: Boolean? = null,
+    val rating: Double? = null,
+    val experience: Int? = null,
+    val price: Double? = null
+)
+
+@Serializable
+data class AdminRegData(
+    @SerialName("clinic_id") val clinicId: Long? = null,
+    val position: String? = null
+)
+
+@Serializable
+data class RegistrationRequest(
+    val username: String? = null,
+    val password: String,
+    val email: String,
+    val role: String,
+    @SerialName("is_active") val isActive: Boolean = true,
+    val client: ClientRegData? = null,
+    val doctor: DoctorRegData? = null,
+    val admin: AdminRegData? = null
+)
+
+@Serializable
+data class DoctorOut(
+    val id: Long,
+    @SerialName("user_id") val userId: Long,
+    @SerialName("clinic_id") val clinicId: Long? = null,
+    val profession: String,
+    val info: String? = null,
+    @SerialName("is_confirmed") val isConfirmed: Boolean? = null,
+    val rating: Double? = null,
+    val experience: Int? = null,
+    val price: Double? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
 )
