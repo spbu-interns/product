@@ -10,6 +10,7 @@ import ui.Session
 import ui.patientScreen
 import ui.authScreen
 import ui.confirmEmailScreen
+import ui.doctorPatientScreen
 import ui.doctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
@@ -50,6 +51,19 @@ class App : Application() {
                     Session.isLoggedIn = true
                     showHome()
                 }
+            )
+        }
+
+        fun showDoctorPatient(patientId: Long) {
+            r.removeAll()
+            r.doctorPatientScreen(
+                patientId = patientId,
+                onLogout = {
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    showHome()
+                },
+                onBack = { showDoctor() }
             )
         }
 
@@ -111,8 +125,8 @@ class App : Application() {
         Navigator.showMyRecords = ::showMyRecords
         Navigator.showRecordEditor = ::showRecordEditor
         Navigator.showDoctor = ::showDoctor
+        Navigator.showDoctorPatient = ::showDoctorPatient
 
-        //if (Session.isLoggedIn) showPatient() else showHome()
-        showDoctor()
+        showDoctorPatient(101)
     }
 }
