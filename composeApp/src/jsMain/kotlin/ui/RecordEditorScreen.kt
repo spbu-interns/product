@@ -1,71 +1,63 @@
 package ui
 
+import api.ApiConfig
+import api.PatientApiClient
 import io.kvision.core.*
-import io.kvision.form.select.select
 import io.kvision.form.text.text
 import io.kvision.html.Button
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
-import io.kvision.html.h3
-import io.kvision.html.li
-import io.kvision.html.nav
-import io.kvision.html.p
 import io.kvision.html.span
-import io.kvision.html.ul
 import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
 import io.kvision.utils.perc
 import io.kvision.utils.px
+import io.kvision.html.Div
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import ui.components.patientSidebar
+import ui.components.SidebarTab
+import org.interns.project.dto.ComplaintPatchRequest
+import org.interns.project.dto.ComplaintResponse
+
 
 fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(spacing = 12) {
-    headerBar(mode = HeaderMode.PATIENT, active = NavTab.NONE)
+    val uiScope = MainScope()
+    headerBar(mode = HeaderMode.PATIENT, active = NavTab.NONE, onLogout = {
+        ApiConfig.clearToken()
+        Session.clear()
+        Navigator.showHome()
+        uiScope.cancel()
+    })
 
-    val rec = RecordsStore.byId(recordId)
-    if (rec == null) {
-        div(className = "card block") { +"Record not found" }
+    val patientId = Session.userId
+    val complaintId = recordId.toLongOrNull()
+    if (patientId == null || complaintId == null) {
+        div(className = "card block") { +"Запись не найдена" }
         return@vPanel
     }
-
+    val apiClient = PatientApiClient()
     div(className = "account container") {
         div(className = "account grid") {
-
-            div(className = "sidebar card") {
-                div(className = "avatar circle") { +"NS" }
-                h3("Name Surname", className = "account name")
-                p("Patient ID: 12345", className = "account id")
-                nav {
-                    ul(className = "side menu") {
-                        li(className = "side_item") {
-                            span("Overview"); span("\uD83D\uDC64", className = "side icon"); onClick { Navigator.showPatient() }
-                        }
-                        li(className = "side_item") {
-                            span("Appointments"); span("\uD83D\uDCC5", className = "side icon")
-                        }
-                        li(className = "side_item") {
-                            span("Medical Records"); span("\uD83D\uDCC4", className = "side icon")
-                        }
-                        li(className = "side_item is-active") {
-                            span("My Records"); span("\uD83D\uDCDD", className = "side icon")
-                            onClick { Navigator.showMyRecords() }
-                        }
-                    }
-                }
-            }
+            patientSidebar(
+                patientId = patientId,
+                active = SidebarTab.MYRECORDS,
+                onOverview = { Navigator.showPatient() },
+                onAppointments = { /* TODO */ },
+                onMedicalRecords = { /* TODO */ },
+                onMyRecords = { Navigator.showMyRecords() },
+                onFindDoctor = { Navigator.showFind() }
+            )
 
             div(className = "main column") {
-                h1("Edit Record", className = "account title")
+                h1("Редактирование жалобы", className = "account title")
 
-                val topicInput = text(label = "Topic", value = rec.topic)
-                val specialtySelect = select(
-                    options = listOf(
-                        "Cardiology","Neurology","Pediatrics","Orthopedics","Ophthalmology","Other"
-                    ).map { it to it },
-                    label = "Specialty"
-                ).apply { value = rec.specialty }
+                val titleInput = text(label = "Заголовок")
 
                 val editor = div(className = "custom-editor", rich = true).apply {
                     width = 100.perc
@@ -76,7 +68,7 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     background = Background(Color.hex(0xFFFFFF))
                     overflowY = Overflow.AUTO
                     setAttribute("contenteditable", "true")
-                    content = rec.content ?: ""
+                    content = "Загрузка..."
                 }
 
                 var btnBold: Button? = null
@@ -109,14 +101,13 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                 }
 
                 div(className = "card block") {
-                    add(topicInput)
-                    add(specialtySelect)
+                    add(titleInput)
 
                     hPanel(className = "toolbar", spacing = 8) {
                         justifyContent = JustifyContent.SPACEBETWEEN
                         alignItems = AlignItems.CENTER
 
-                        span("Content", className = "kv-form-label").apply {
+                        span("Описание", className = "kv-form-label").apply {
                             fontWeight = FontWeight.NORMAL
                         }
                         hPanel(spacing = 8) {
@@ -137,34 +128,133 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     add(editor)
                 }
 
+                val errorLabel = span("").apply { addCssClass("text-danger") }
+                add(errorLabel)
+
                 editor.onEvent {
                     keyup = { _ -> syncToolbar() }
                     mouseup = { _ -> syncToolbar() }
                     input = { syncToolbar() }
                 }
-                document.addEventListener("selectionchange", { syncToolbar() })
+
+                val selectionHandler: (dynamic) -> Unit = { syncToolbar() }
+
+                document.addEventListener("selectionchange", selectionHandler)
                 syncToolbar()
 
+                val saveButton = button("Сохранить", className = "btn-primary")
+                val deleteButton = button("Удалить", className = "btn-danger")
+                val backButton = button("Назад", className = "btn")
+
                 hPanel(spacing = 8) {
-                    button("Save", className = "btn-primary").onClick {
-                        val html = editor.content ?: ""
-                        RecordsStore.update(
-                            id = rec.id,
-                            topic = topicInput.value?.trim().orEmpty(),
-                            specialty = specialtySelect.value ?: "Other",
-                            content = html
-                        )
-                        Toast.success("Saved")
-                        Navigator.showMyRecords()
-                    }
-                    button("Delete", className = "btn-danger").onClick {
-                        RecordsStore.delete(rec.id)
-                        Toast.danger("Deleted")
-                        Navigator.showMyRecords()
-                    }
-                    button("Back", className = "btn").onClick { onBack() }
+                    add(saveButton)
+                    add(deleteButton)
+                    add(backButton)
                 }
+
+                fun populateComplaint(complaint: ComplaintResponse) {
+                    titleInput.value = complaint.title
+                    setEditorHtml(editor, complaint.body)
+                }
+
+                fun loadComplaint() {
+                    uiScope.launch {
+                        val result = apiClient.listComplaints(patientId)
+                        result.fold(
+                            onSuccess = { list ->
+                                val found = list.firstOrNull { it.id == complaintId }
+                                if (found != null) {
+                                    populateComplaint(found)
+                                } else {
+                                    errorLabel.content = "Запись не найдена"
+                                }
+                            },
+                            onFailure = { error ->
+                                errorLabel.content = error.message ?: "Ошибка загрузки"
+                                Toast.danger(errorLabel.content ?: "Ошибка")
+                            }
+                        )
+                    }
+                }
+
+                saveButton.onClick {
+                    val title = titleInput.value?.trim().orEmpty()
+                    val body = getEditorHtml(editor)
+
+                    if (title.isBlank()) {
+                        errorLabel.content = "Введите заголовок"
+                        return@onClick
+                    }
+                    if (body.isBlank()) {
+                        errorLabel.content = "Заполните описание"
+                        return@onClick
+                    }
+                    errorLabel.content = ""
+                    saveButton.disabled = true
+
+                    uiScope.launch {
+                        val result = apiClient.updateComplaint(
+                            complaintId,
+                            ComplaintPatchRequest(title = title, body = body)
+                        )
+                        result.fold(
+                            onSuccess = { updated ->
+                                saveButton.disabled = false
+                                populateComplaint(updated)
+                                Toast.success("Сохранено")
+                                document.removeEventListener("selectionchange", selectionHandler)
+                                uiScope.cancel()
+                                Navigator.showMyRecords()
+                            },
+                            onFailure = { error ->
+                                saveButton.disabled = false
+                                errorLabel.content = error.message ?: "Не удалось сохранить"
+                                Toast.danger(errorLabel.content ?: "Ошибка")
+                            }
+                        )
+                    }
+                }
+
+                deleteButton.onClick {
+                    deleteButton.disabled = true
+                    uiScope.launch {
+                        val result = apiClient.deleteComplaint(complaintId)
+                        result.fold(
+                            onSuccess = { deleted ->
+                                deleteButton.disabled = false
+                                if (deleted) {
+                                    Toast.success("Жалоба удалена")
+                                    document.removeEventListener("selectionchange", selectionHandler)
+                                    uiScope.cancel()
+                                    Navigator.showMyRecords()
+                                } else {
+                                    errorLabel.content = "Жалоба не найдена"
+                                }
+                            },
+                            onFailure = { error ->
+                                deleteButton.disabled = false
+                                errorLabel.content = error.message ?: "Не удалось удалить"
+                                Toast.danger(errorLabel.content ?: "Ошибка")
+                            }
+                        )
+                    }
+                }
+
+                backButton.onClick {
+                    onBack()
+                    document.removeEventListener("selectionchange", selectionHandler)
+                    uiScope.cancel()
+                }
+
+                loadComplaint()
             }
         }
     }
+}
+
+private fun getEditorHtml(div: Div): String =
+    div.getElement()?.unsafeCast<org.w3c.dom.HTMLElement>()?.innerHTML?.trim().orEmpty()
+
+private fun setEditorHtml(div: Div, html: String) {
+    div.getElement()?.unsafeCast<org.w3c.dom.HTMLElement>()?.innerHTML = html
 }

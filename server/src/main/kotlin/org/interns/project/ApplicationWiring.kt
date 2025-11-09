@@ -1,5 +1,3 @@
-
-
 package org.interns.project
 
 import io.ktor.server.application.*
@@ -10,8 +8,6 @@ import org.interns.project.notifications.Mailer
 import org.interns.project.notifications.SmtpMailer
 import org.interns.project.security.token.EmailVerificationRepo
 import org.interns.project.security.token.PasswordResetRepo
-
-fun Application.installEmailFeatures(): Pair<EmailVerificationService, PasswordResetService> {
 
 fun Application.installEmailFeatures(): Pair<EmailVerificationService, PasswordResetService> {
     val mailer: Mailer = SmtpMailer(

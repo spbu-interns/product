@@ -12,7 +12,7 @@ class ComplaintsAndNotesIntegrationTest {
 
     @Test
     fun patientComplaint_crud_realServer() = runBlocking {
-        val repo = ApiUserRepo(baseUrl = "http://127.0.0.1:8000")
+        val repo = ApiUserRepo(baseUrl = "http://127.0.0.1:8001")
         try {
             val uniq = System.currentTimeMillis().toString()
             val email = "pc_$uniq@example.com"
@@ -55,7 +55,7 @@ class ComplaintsAndNotesIntegrationTest {
 
     @Test
     fun doctorNote_crud_realServer() = runBlocking {
-        val repo = ApiUserRepo(baseUrl = "http://127.0.0.1:8000")
+        val repo = ApiUserRepo(baseUrl = "http://127.0.0.1:8001")
         try {
             val uniq = System.currentTimeMillis().toString()
             val pEmail = "dn_p_$uniq@example.com"

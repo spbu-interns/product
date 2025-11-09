@@ -1,3 +1,4 @@
+import api.ApiConfig
 import io.kvision.Application
 import io.kvision.i18n.I18n
 import io.kvision.panel.root
@@ -9,6 +10,7 @@ import ui.Session
 import ui.patientScreen
 import ui.authScreen
 import ui.confirmEmailScreen
+import ui.doctorPatientScreen
 import ui.doctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
@@ -35,7 +37,8 @@ class App : Application() {
             r.removeAll()
             r.patientScreen(
                 onLogout = {
-                    Session.isLoggedIn = false
+                    ApiConfig.clearToken()
+                    Session.clear()
                     showHome()
                 }
             )
@@ -51,11 +54,25 @@ class App : Application() {
             )
         }
 
+        fun showDoctorPatient(patientId: Long) {
+            r.removeAll()
+            r.doctorPatientScreen(
+                patientId = patientId,
+                onLogout = {
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    showHome()
+                },
+                onBack = { showDoctor() }
+            )
+        }
+
         fun showMyRecords() {
             r.removeAll()
             r.myRecordsScreen(
                 onLogout = {
-                    Session.isLoggedIn = false
+                    ApiConfig.clearToken()
+                    Session.clear()
                     showHome()
                 }
             )
@@ -108,8 +125,8 @@ class App : Application() {
         Navigator.showMyRecords = ::showMyRecords
         Navigator.showRecordEditor = ::showRecordEditor
         Navigator.showDoctor = ::showDoctor
+        Navigator.showDoctorPatient = ::showDoctorPatient
 
-        //if (Session.isLoggedIn) showPatient() else showHome()
-        showDoctor()
+        showDoctorPatient(101)
     }
 }

@@ -7,15 +7,18 @@ import io.ktor.server.routing.*
 import org.interns.project.auth.reset.PasswordResetService
 import org.interns.project.auth.verification.EmailVerificationService
 import org.interns.project.dto.ApiResponse
+import org.interns.project.security.token.JwtService
 import org.interns.project.users.model.User
 import org.interns.project.users.repo.ApiUserRepo
 import java.util.*
+import org.slf4j.LoggerFactory
 
 class AuthController(
     private val apiUserRepo: ApiUserRepo,
     private val verificationService: EmailVerificationService,
     private val passwordResetService: PasswordResetService
 ) {
+    private val logger = LoggerFactory.getLogger(AuthController::class.java)
 
     private fun generateToken(user: User): String {
         return Base64.getEncoder().encodeToString(
@@ -48,10 +51,27 @@ class AuthController(
                         password = apiRequest.password
                     )
                     val user = apiUserRepo.findByEmail(apiRequest.email)
+                    if (user == null) {
+                        call.respond(
+                            HttpStatusCode.Unauthorized,
+                            ApiResponse<org.interns.project.dto.LoginResponse>(
+                                success = false,
+                                error = "Invalid email or password"
+                            )
+                        )
+                        return@post
+                    }
+                    val token = apiResponse.token?.takeIf { it.isNotBlank() }
+                        ?: JwtService.issue(
+                            subject = user.id.toString(),
+                            login = user.email,
+                            role = mappedRole,
+                            email = user.email
+                        )
 
                     val loginResponse = org.interns.project.dto.LoginResponse(
-                        token = apiResponse.token ?: "",
-                        userId = user!!.id,
+                        token = token,
+                        userId = user.id,
                         email = user.email,
                         accountType = mappedRole,
                         firstName = user.firstName,
@@ -92,11 +112,28 @@ class AuthController(
                 
                 try {
                     val userId = apiUserRepo.createUser(internalRequest)
-                    
-                    try {
+
+                    val emailSent = try {
                         verificationService.sendCodeByEmail(apiRequest.email)
                     } catch (emailError: Exception) {
-                        println("⚠️ Email sending failed: ${emailError.message}")
+                        logger.error(
+                            "event=verification_db_failed email={} errorType={} message={}",
+                            apiRequest.email,
+                            emailError::class.qualifiedName ?: emailError::class.simpleName,
+                            emailError.message,
+                            emailError
+                        )
+                        throw emailError
+                    }
+
+                    if (!emailSent) {
+                        logger.error(
+                            "event=smtp_send_failed email={} reason={} message={}",
+                            apiRequest.email,
+                            "verification_service_returned_false",
+                            "User not found or already verified"
+                        )
+                        throw IllegalStateException("Failed to send verification email")
                     }
 
 

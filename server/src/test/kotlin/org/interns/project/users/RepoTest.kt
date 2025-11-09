@@ -11,7 +11,7 @@ import org.interns.project.users.repo.ApiUserRepo
 class RepoTest {
     @Test
     fun saveAndFindByEmailAndLogin() = runBlocking {
-        val repo = ApiUserRepo("http://127.0.0.1:8000")
+        val repo = ApiUserRepo("http://127.0.0.1:8001")
         try {
             val userIn = UserInDto(
                 email = "saschavinnik06@mail.ru",

@@ -1,37 +1,57 @@
 package org.interns.project.config
 
+import io.github.cdimascio.dotenv.dotenv
+
 object AppConfig {
-    val mailHost: String = System.getenv("MAIL_SMTP_HOST")
-        ?: throw IllegalStateException("MAIL_SMTP_HOST is not set")
-    val mailPort: Int = System.getenv("MAIL_SMTP_PORT")?.toIntOrNull()
-        ?: throw IllegalStateException("MAIL_SMTP_PORT is not set")
-    val mailUsername: String = System.getenv("SMTP_USERNAME")
-        ?: throw IllegalStateException("SMTP_USERNAME is not set")
-    val mailPassword: String = System.getenv("SMTP_PASSWORD")
-        ?: throw IllegalStateException("SMTP_PASSWORD is not set")
-    val mailSsl: Boolean = System.getenv("MAIL_SMTP_SSL")?.toBoolean() ?: true
-    val mailStarttls: Boolean = System.getenv("MAIL_SMTP_STARTTLS")?.toBoolean() ?: false
-    val mailFrom: String = System.getenv("MAIL_FROM")
-        ?: throw IllegalStateException("MAIL_FROM is not set")
-    val mailReplyTo: String? = System.getenv("MAIL_REPLY_TO")
-    val mailConnectTimeout: Int = System.getenv("MAIL_SMTP_CONNECT_TIMEOUT_MS")?.toIntOrNull() ?: 8000
-    val mailWriteTimeout: Int = System.getenv("MAIL_SMTP_WRITE_TIMEOUT_MS")?.toIntOrNull() ?: 8000
-    val mailReadTimeout: Int = System.getenv("MAIL_SMTP_READ_TIMEOUT_MS")?.toIntOrNull() ?: 8000
+    private val env = dotenv {
+        filename = ".env"
+        ignoreIfMalformed = true
+        ignoreIfMissing = true
+    }
 
-    val tokenPepper: String = System.getenv("TOKEN_PEPPER")
-        ?: throw IllegalStateException("TOKEN_PEPPER is not set")
-    val bcryptCost: Int = System.getenv("BCRYPT_COST")?.toIntOrNull() ?: 12
-    val verificationTtlMinutes: Int = System.getenv("SECURITY_VERIFICATION_CODE_TTL_MINUTES")?.toIntOrNull() ?: 3
-    val verificationMaxAttempts: Int = System.getenv("SECURITY_VERIFICATION_CODE_MAX_ATTEMPTS")?.toIntOrNull() ?: 6
-    val passwordResetTtlMinutes: Int = System.getenv("SECURITY_PASSWORD_RESET_TTL_MINUTES")?.toIntOrNull() ?: 15
-    val passwordResetSessionTtlMinutes: Int = System.getenv("SECURITY_PASSWORD_RESET_SESSION_TTL_MINUTES")?.toIntOrNull() ?: 5
+    private fun envStr(key: String, default: String? = null): String =
+        System.getenv(key) ?: env[key] ?: default ?: error("$key is not set")
 
-    val baseUrl: String = System.getenv("APP_BASE_URL")
-        ?: throw IllegalStateException("APP_BASE_URL is not set")
+    private fun envInt(key: String, default: Int? = null): Int =
+        (System.getenv(key) ?: env[key])?.toIntOrNull() ?: default ?: error("$key is not set")
 
-    val dbHost: String = System.getenv("DB_HOST") ?: throw IllegalStateException("DB_HOST is not set")
-    val dbPort: Int = System.getenv("DB_PORT")?.toIntOrNull() ?: throw IllegalStateException("DB_PORT is not set")
-    val dbName: String = System.getenv("DB_NAME") ?: throw IllegalStateException("DB_NAME is not set")
-    val dbUser: String = System.getenv("DB_USER") ?: throw IllegalStateException("DB_USER is not set")
-    val dbPassword: String = System.getenv("DB_PASSWORD") ?: throw IllegalStateException("DB_PASSWORD is not set")
+    private fun envBool(key: String, default: Boolean): Boolean =
+        (System.getenv(key) ?: env[key])?.toBooleanStrictOrNull() ?: default
+
+    // mail
+    val mailHost by lazy { envStr("MAIL_SMTP_HOST") }
+    val mailPort by lazy { envInt("MAIL_SMTP_PORT") }
+    val mailUsername by lazy { envStr("SMTP_USERNAME") }
+    val mailPassword by lazy { envStr("SMTP_PASSWORD") }
+    val mailSsl by lazy { envBool("MAIL_SMTP_SSL", true) }
+    val mailStarttls by lazy { envBool("MAIL_SMTP_STARTTLS", false) }
+    val mailFrom by lazy { envStr("MAIL_FROM") }
+    val mailReplyTo by lazy { System.getenv("MAIL_REPLY_TO") ?: env["MAIL_REPLY_TO"] }
+
+    val mailConnectTimeout by lazy { envInt("MAIL_SMTP_CONNECT_TIMEOUT_MS", 8000) }
+    val mailWriteTimeout   by lazy { envInt("MAIL_SMTP_WRITE_TIMEOUT_MS", 8000) }
+    val mailReadTimeout   by lazy { envInt("MAIL_SMTP_READ_TIMEOUT_MS", 8000) }
+
+    // security
+    val tokenPepper by lazy { envStr("TOKEN_PEPPER") }
+    val bcryptCost by lazy { envInt("BCRYPT_COST", 12) }
+    val verificationTtlMinutes by lazy { envInt("SECURITY_VERIFICATION_CODE_TTL_MINUTES", 3) }
+    val verificationMaxAttempts by lazy { envInt("SECURITY_VERIFICATION_CODE_MAX_ATTEMPTS", 6) }
+    val passwordResetTtlMinutes by lazy { envInt("SECURITY_PASSWORD_RESET_TTL_MINUTES", 15) }
+    val passwordResetSessionTtlMinutes by lazy { envInt("SECURITY_PASSWORD_RESET_SESSION_TTL_MINUTES", 5) }
+
+    // app
+    val baseUrl by lazy { envStr("APP_BASE_URL") }
+
+    // db
+    val dbHost by lazy { envStr("DB_HOST", envStr("POSTGRES_HOST", "localhost")) }
+    val dbPort by lazy { (envStr("DB_PORT", envStr("POSTGRES_PORT", "5432"))).toInt() }
+    val dbName by lazy { envStr("DB_NAME", envStr("POSTGRES_DB", "usersdb")) }
+    val dbUser by lazy { envStr("DB_USER", envStr("POSTGRES_USER", "app")) }
+    val dbPassword by lazy { envStr("DB_PASSWORD", envStr("POSTGRES_PASSWORD")) }
+
+    val jwtSecret by lazy { envStr("JWT_SECRET") }
+    val jwtIssuer by lazy { envStr("JWT_ISSUER", "org.interns.project") }
+    val jwtAudience by lazy { envStr("JWT_AUDIENCE", "users") }
+    val jwtExpiresMin by lazy { envInt("JWT_EXPIRES_MIN", 60) }
 }

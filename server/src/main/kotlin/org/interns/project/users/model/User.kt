@@ -1,6 +1,7 @@
 package org.interns.project.users.model
 
 import java.time.Instant
+import java.time.LocalDate
 
 data class User(
     val id: Long,
@@ -15,5 +16,10 @@ data class User(
     val isActive: Boolean = true,
     val clinicId: Long? = null,
     val createdAt: Instant? = null,
-    val updatedAt: Instant? = null
+    val updatedAt: Instant? = null,
+
+    val dateOfBirth: LocalDate? = null,
+    val avatar: String? = null,
+    val gender: String? = null,
+
 )

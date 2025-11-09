@@ -22,6 +22,7 @@ class AuthApiClient {
                 if (loginResponse.success) {
                     loginResponse.data?.let { loginData ->
                         //ApiConfig.setToken(loginData.token) потом
+                        loginData.token?.let { ApiConfig.setToken(it) }
                         Result.success(loginData)
                     } ?: Result.failure(Exception("No login data returned"))
                 } else {
