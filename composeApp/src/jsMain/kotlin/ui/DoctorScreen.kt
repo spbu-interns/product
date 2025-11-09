@@ -52,7 +52,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                         li(className = "side_item") {
                             span("Patients")
                             span("\uD83D\uDC65", className = "side icon")
-                            onClick { Navigator.showStub("Список пациентов в разработке") }
+                            onClick { Navigator.showDoctorPatient(101) }
                         }
                         li(className = "side_item") {
                             span("My Records")
@@ -121,9 +121,9 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                         div(className = "card block doctor-recent-patients") {
                             h4("Recent Patients", className = "block title")
                             div(className = "doctor-patient-list") {
-                                doctorRecentPatient("JS", "John Smith", "Hypertension", "Active")
-                                doctorRecentPatient("SW", "Sarah Wilson", "Diabetes", "Active")
-                                doctorRecentPatient("MJ", "Mike Johnson", "Anxiety", "Follow-up")
+                                doctorRecentPatient("JS", "John Smith", "Hypertension", "Active", 101)
+                                doctorRecentPatient("SW", "Sarah Wilson", "Diabetes", "Active", 102)
+                                doctorRecentPatient("MJ", "Mike Johnson", "Anxiety", "Follow-up", 103)
                             }
                         }
 
@@ -180,7 +180,8 @@ private fun Container.doctorRecentPatient(
     initials: String,
     name: String,
     condition: String,
-    status: String
+    status: String,
+    patientId: Long
 ) {
     div(className = "doctor-patient-item") {
         div(className = "doctor-patient-avatar") { +initials }
@@ -189,6 +190,7 @@ private fun Container.doctorRecentPatient(
             span(condition, className = "doctor-patient-condition")
         }
         span(status, className = "status info")
+        onClick { Navigator.showDoctorPatient(patientId) }
     }
 }
 
