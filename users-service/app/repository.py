@@ -579,3 +579,114 @@ def register_user_with_role(s: Session, reg) -> Dict:
     except Exception:
         s.rollback()
         raise
+    
+def get_admin_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
+    r = s.execute(text("select * from admins where user_id=:u"), {"u": user_id}).mappings().first()
+    return dict(r) if r else None
+
+def patch_client_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"uid": user_id}
+
+    if p.blood_type is not None:
+        sets.append("blood_type = :blood_type"); params["blood_type"] = p.blood_type
+    if p.height is not None:
+        sets.append("height = :height"); params["height"] = p.height
+    if p.weight is not None:
+        sets.append("weight = :weight"); params["weight"] = p.weight
+    if p.emergency_contact_name is not None:
+        sets.append("emergency_contact_name = :ecn"); params["ecn"] = p.emergency_contact_name
+    if p.emergency_contact_number is not None:
+        sets.append("emergency_contact_number = :ecn2"); params["ecn2"] = p.emergency_contact_number
+    if p.address is not None:
+        sets.append("address = :addr"); params["addr"] = p.address
+    if p.snils is not None:
+        sets.append("snils = :snils"); params["snils"] = p.snils
+    if p.passport is not None:
+        sets.append("passport = :pass"); params["pass"] = p.passport
+    if p.dms_oms is not None:
+        sets.append("dms_oms = :dms"); params["dms"] = p.dms_oms
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+    sql = f"""
+        update clients
+        set {', '.join(sets)}
+        where user_id = :uid
+        returning *
+    """
+    r = s.execute(text(sql), params).mappings().first()
+    s.commit()
+    return dict(r) if r else None
+
+
+def patch_doctor_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"uid": user_id}
+
+    if p.clinic_id is not None:
+        sets.append("clinic_id = :cid"); params["cid"] = p.clinic_id
+    if p.profession is not None:
+        sets.append("profession = :prof"); params["prof"] = p.profession
+    if p.info is not None:
+        sets.append("info = :info"); params["info"] = p.info
+    if p.is_confirmed is not None:
+        sets.append("is_confirmed = :conf"); params["conf"] = p.is_confirmed
+    if p.rating is not None:
+        sets.append("rating = :rt"); params["rt"] = p.rating
+    if p.experience is not None:
+        sets.append("experience = :exp"); params["exp"] = p.experience
+    if p.price is not None:
+        sets.append("price = :price"); params["price"] = p.price
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+    sql = f"""
+        update doctors
+        set {', '.join(sets)}
+        where user_id = :uid
+        returning *
+    """
+    r = s.execute(text(sql), params).mappings().first()
+
+    # зеркалим clinic_id в users, если прислали
+    if r and p.clinic_id is not None:
+        s.execute(text("update users set clinic_id=:cid, updated_at=now() where id=:uid"),
+                  {"cid": p.clinic_id, "uid": user_id})
+
+    s.commit()
+    return dict(r) if r else None
+
+
+def patch_admin_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"uid": user_id}
+
+    if p.clinic_id is not None:
+        sets.append("clinic_id = :cid"); params["cid"] = p.clinic_id
+    if p.position is not None:
+        sets.append("position = :pos"); params["pos"] = p.position
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+    sql = f"""
+        update admins
+        set {', '.join(sets)}
+        where user_id = :uid
+        returning *
+    """
+    r = s.execute(text(sql), params).mappings().first()
+
+    # зеркалим clinic_id в users, если прислали
+    if r and p.clinic_id is not None:
+        s.execute(text("update users set clinic_id=:cid, updated_at=now() where id=:uid"),
+                  {"cid": p.clinic_id, "uid": user_id})
+
+    s.commit()
+    return dict(r) if r else None

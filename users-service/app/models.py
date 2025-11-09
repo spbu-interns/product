@@ -271,3 +271,28 @@ class DoctorReviewOut(DoctorReviewIn):
     updated_at: datetime
     
 
+# --- Patches ---
+
+class ClientPatch(BaseModel):
+    blood_type: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_number: Optional[str] = None
+    address: Optional[str] = None
+    snils: Optional[str] = None
+    passport: Optional[str] = None
+    dms_oms: Optional[str] = None
+
+class DoctorPatch(BaseModel):
+    clinic_id: Optional[int] = None
+    profession: Optional[str] = None
+    info: Optional[str] = None
+    is_confirmed: Optional[bool] = None
+    rating: Optional[float] = None
+    experience: Optional[int] = None
+    price: Optional[float] = None
+
+class AdminPatch(BaseModel):
+    clinic_id: Optional[int] = None
+    position: Optional[str] = None
