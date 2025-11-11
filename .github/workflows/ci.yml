@@ -14,18 +14,19 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_DB: usersdb
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U app -d usersdb"
+          --health-cmd="pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+
     env:
-      DATABASE_URL: postgres://app:secret@localhost:5432/usersdb
+      DATABASE_URL: postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
 
     steps:
       - name: Checkout repo
@@ -46,8 +47,8 @@ jobs:
       - name: Run DB migrations
         run: |
           cd users-service/sql
-          PGPASSWORD=secret psql -h localhost -U app -d usersdb -f 001_schema.sql
-          PGPASSWORD=secret psql -h localhost -U app -d usersdb -f 002_seed.sql
+          PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -f 001_schema.sql
+          PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -f 002_seed.sql
 
       - name: Smoke test FastAPI
         run: |
@@ -59,7 +60,7 @@ jobs:
 
 
   backend-kotlin:
-    name: Kotlin server (with integration DB)
+    name: Kotlin server
     runs-on: ubuntu-latest
 
     steps:
@@ -71,8 +72,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Ensure docker-compose (Compose v2) available
-        run: docker version
+      - name: Set up Python for FastAPI
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          cd users-service
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
 
       - name: Create .env for users-service
         run: |
@@ -81,10 +91,9 @@ jobs:
           echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> users-service/.env
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> users-service/.env
 
-      - name: Start docker-compose (Postgres)
+      - name: Start Postgres via docker-compose
         working-directory: users-service
-        run: |
-          docker compose up -d
+        run: docker compose up -d
 
       - name: Wait for Postgres to be ready
         working-directory: users-service
@@ -92,27 +101,35 @@ jobs:
           CONTAINER_ID=$(docker compose ps -q db)
           echo "Container ID: $CONTAINER_ID"
           for i in $(seq 1 30); do
-            docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb && break
+            docker exec "$CONTAINER_ID" pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} && break
             echo "Waiting for Postgres... ($i/30)"
             sleep 2
           done
-          docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb
 
-      - name: Load DB schema and seeds into Postgres container
+      - name: Load DB schema and seeds
         working-directory: users-service
         run: |
           CONTAINER_ID=$(docker compose ps -q db)
           docker cp sql/. "$CONTAINER_ID":/tmp/sql
-          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/001_schema.sql"
-          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/002_seed.sql"
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -f /tmp/sql/001_schema.sql"
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -f /tmp/sql/002_seed.sql"
+
+      - name: Start FastAPI
+        working-directory: users-service
+        run: |
+          source .venv/bin/activate
+          uvicorn app.main:app --port 8001 &
+          sleep 5
+          # проверка что FastAPI поднялся
+          curl -f http://127.0.0.1:8001/docs
 
       - name: Create .env for Kotlin server
         run: |
           mkdir -p server
           echo "DB_HOST=localhost" > server/.env
           echo "DB_PORT=5432" >> server/.env
-          echo "DB_NAME=usersdb" >> server/.env
-          echo "DB_USER=app" >> server/.env
+          echo "DB_NAME=${{ secrets.POSTGRES_DB }}" >> server/.env
+          echo "DB_USER=${{ secrets.POSTGRES_USER }}" >> server/.env
           echo "DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> server/.env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> server/.env
           echo "TOKEN_PEPPER=${{ secrets.TOKEN_PEPPER }}" >> server/.env
@@ -130,13 +147,16 @@ jobs:
 
       - name: Run Kotlin integration/unit tests
         env:
-          DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/usersdb?user=app&password=secret
+          DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/${{ secrets.POSTGRES_DB }}?user=${{ secrets.POSTGRES_USER }}&password=${{ secrets.POSTGRES_PASSWORD }}
+          FASTAPI_BASE_URL: http://127.0.0.1:8001
         run: ./gradlew test
 
-      - name: Stop docker-compose (cleanup)
+      - name: Stop docker-compose and cleanup
         if: always()
         working-directory: users-service
         run: docker compose down -v
+
+
 
   frontend:
     name: Compose Web frontend
@@ -152,5 +172,4 @@ jobs:
           distribution: 'temurin'
 
       - name: Build JS frontend
-        run: |
-          ./gradlew :composeApp:jsBrowserProductionWebpack
+        run: ./gradlew :composeApp:jsBrowserProductionWebpack
