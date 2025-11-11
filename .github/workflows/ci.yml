@@ -57,8 +57,9 @@ jobs:
           sleep 5
           curl -f http://127.0.0.1:8001/docs
 
+
   backend-kotlin:
-    name: Kotlin server (with integration DB)
+    name: Kotlin server (with integration DB + FastAPI)
     runs-on: ubuntu-latest
 
     steps:
@@ -106,20 +107,40 @@ jobs:
           docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/001_schema.sql"
           docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/002_seed.sql"
 
-      - name: Build server (skip tests for initial build)
+      - name: Start FastAPI users-service
+        run: |
+          cd users-service
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          uvicorn app.main:app --port 8001 &
+          echo $! > ../fastapi_pid.txt
+          sleep 5
+          curl -f http://127.0.0.1:8001/docs || (echo "❌ FastAPI did not start" && exit 1)
+
+      - name: Build Kotlin server
         run: |
           ./gradlew clean build -x test
 
       - name: Run Kotlin integration/unit tests
         env:
           DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/usersdb?user=app&password=secret
+          USERS_SERVICE_URL: http://127.0.0.1:8001
         run: |
           ./gradlew test
+
+      - name: Stop FastAPI service
+        if: always()
+        run: |
+          if [ -f fastapi_pid.txt ]; then
+            kill $(cat fastapi_pid.txt) || true
+          fi
 
       - name: Stop docker-compose (cleanup)
         if: always()
         run: |
           docker compose -f users-service/docker-compose.yml down -v
+
 
   frontend:
     name: Compose Web frontend
