@@ -59,7 +59,7 @@ jobs:
 
 
   backend-kotlin:
-    name: Kotlin server (with integration DB + FastAPI)
+    name: Kotlin server
     runs-on: ubuntu-latest
 
     steps:
@@ -74,11 +74,41 @@ jobs:
       - name: Ensure docker-compose (Compose v2) available
         run: docker version
 
-      - name: Create .env from GitHub secrets
+      - name: Create .env for Kotlin server
         run: |
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" > users-service/.env
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> users-service/.env
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> users-service/.env
+          echo "MAIL_SMTP_HOST=smtp.yandex.ru" > server/.env
+          echo "MAIL_SMTP_PORT=465" >> server/.env
+          echo "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" >> server/.env
+          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> server/.env
+          echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> server/.env
+          echo "MAIL_REPLY_TO=${{ secrets.MAIL_REPLY_TO }}" >> server/.env
+          echo "MAIL_SMTP_SSL=true" >> server/.env
+          echo "MAIL_SMTP_STARTTLS=false" >> server/.env
+          echo "MAIL_SMTP_CONNECT_TIMEOUT_MS=8000" >> server/.env
+          echo "MAIL_SMTP_WRITE_TIMEOUT_MS=8000" >> server/.env
+          echo "MAIL_SMTP_READ_TIMEOUT_MS=8000" >> server/.env
+          echo "TOKEN_PEPPER=${{ secrets.TOKEN_PEPPER }}" >> server/.env
+          echo "BCRYPT_COST=12" >> server/.env
+          echo "SECURITY_VERIFICATION_CODE_TTL_MINUTES=3" >> server/.env
+          echo "SECURITY_VERIFICATION_CODE_MAX_ATTEMPTS=6" >> server/.env
+          echo "SECURITY_PASSWORD_RESET_TTL_MINUTES=15" >> server/.env
+          echo "SECURITY_PASSWORD_RESET_SESSION_TTL_MINUTES=5" >> server/.env
+          echo "APP_BASE_URL=http://localhost:8000" >> server/.env
+          echo "DB_HOST=localhost" >> server/.env
+          echo "DB_PORT=5432" >> server/.env
+          echo "DB_NAME=usersdb" >> server/.env
+          echo "DB_USER=app" >> server/.env
+          echo "DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> server/.env
+          echo "POSTGRES_USER=app" >> server/.env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> server/.env
+          echo "POSTGRES_DB=usersdb" >> server/.env
+          echo "POSTGRES_HOST=localhost" >> server/.env
+          echo "POSTGRES_PORT=5432" >> server/.env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> server/.env
+          echo "JWT_ISSUER=interns-server" >> server/.env
+          echo "JWT_AUDIENCE=users" >> server/.env
+          echo "JWT_EXPIRES_MIN=60" >> server/.env
+
 
       - name: Start docker-compose (Postgres)
         run: |
