@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-python:
+    name: FastAPI backend (users-service)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: usersdb
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app -d usersdb"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgres://app:secret@localhost:5432/usersdb
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd users-service
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run DB migrations
+        run: |
+          cd users-service/sql
+          PGPASSWORD=secret psql -h localhost -U app -d usersdb -f 001_schema.sql
+          PGPASSWORD=secret psql -h localhost -U app -d usersdb -f 002_seed.sql
+
+      - name: Smoke test FastAPI
+        run: |
+          cd users-service
+          source .venv/bin/activate
+          uvicorn app.main:app --port 8001 &
+          sleep 5
+          curl -f http://127.0.0.1:8001/docs
+  
+
+  backend-kotlin:
+    name: Kotlin server
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build server
+        run: |
+          ./gradlew clean build -x test
+
+      - name: Run tests
+        run: |
+          ./gradlew test
+
+  frontend:
+    name: Compose Web frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build JS frontend
+        run: |
+          ./gradlew :composeApp:jsBrowserProductionWebpack
