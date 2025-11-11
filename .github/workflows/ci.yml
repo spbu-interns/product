@@ -59,7 +59,7 @@ jobs:
 
 
   backend-kotlin:
-    name: Kotlin server
+    name: Kotlin server (with integration DB)
     runs-on: ubuntu-latest
 
     steps:
@@ -74,103 +74,69 @@ jobs:
       - name: Ensure docker-compose (Compose v2) available
         run: docker version
 
+      - name: Create .env for users-service
+        run: |
+          mkdir -p users-service
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" > users-service/.env
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> users-service/.env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> users-service/.env
+
+      - name: Start docker-compose (Postgres)
+        working-directory: users-service
+        run: |
+          docker compose up -d
+
+      - name: Wait for Postgres to be ready
+        working-directory: users-service
+        run: |
+          CONTAINER_ID=$(docker compose ps -q db)
+          echo "Container ID: $CONTAINER_ID"
+          for i in $(seq 1 30); do
+            docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb && break
+            echo "Waiting for Postgres... ($i/30)"
+            sleep 2
+          done
+          docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb
+
+      - name: Load DB schema and seeds into Postgres container
+        working-directory: users-service
+        run: |
+          CONTAINER_ID=$(docker compose ps -q db)
+          docker cp sql/. "$CONTAINER_ID":/tmp/sql
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/001_schema.sql"
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/002_seed.sql"
+
       - name: Create .env for Kotlin server
         run: |
-          echo "MAIL_SMTP_HOST=smtp.yandex.ru" > server/.env
-          echo "MAIL_SMTP_PORT=465" >> server/.env
-          echo "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" >> server/.env
-          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> server/.env
-          echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> server/.env
-          echo "MAIL_REPLY_TO=${{ secrets.MAIL_REPLY_TO }}" >> server/.env
-          echo "MAIL_SMTP_SSL=true" >> server/.env
-          echo "MAIL_SMTP_STARTTLS=false" >> server/.env
-          echo "MAIL_SMTP_CONNECT_TIMEOUT_MS=8000" >> server/.env
-          echo "MAIL_SMTP_WRITE_TIMEOUT_MS=8000" >> server/.env
-          echo "MAIL_SMTP_READ_TIMEOUT_MS=8000" >> server/.env
-          echo "TOKEN_PEPPER=${{ secrets.TOKEN_PEPPER }}" >> server/.env
-          echo "BCRYPT_COST=12" >> server/.env
-          echo "SECURITY_VERIFICATION_CODE_TTL_MINUTES=3" >> server/.env
-          echo "SECURITY_VERIFICATION_CODE_MAX_ATTEMPTS=6" >> server/.env
-          echo "SECURITY_PASSWORD_RESET_TTL_MINUTES=15" >> server/.env
-          echo "SECURITY_PASSWORD_RESET_SESSION_TTL_MINUTES=5" >> server/.env
-          echo "APP_BASE_URL=http://localhost:8000" >> server/.env
-          echo "DB_HOST=localhost" >> server/.env
+          mkdir -p server
+          echo "DB_HOST=localhost" > server/.env
           echo "DB_PORT=5432" >> server/.env
           echo "DB_NAME=usersdb" >> server/.env
           echo "DB_USER=app" >> server/.env
           echo "DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> server/.env
-          echo "POSTGRES_USER=app" >> server/.env
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> server/.env
-          echo "POSTGRES_DB=usersdb" >> server/.env
-          echo "POSTGRES_HOST=localhost" >> server/.env
-          echo "POSTGRES_PORT=5432" >> server/.env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> server/.env
-          echo "JWT_ISSUER=interns-server" >> server/.env
-          echo "JWT_AUDIENCE=users" >> server/.env
-          echo "JWT_EXPIRES_MIN=60" >> server/.env
+          echo "TOKEN_PEPPER=${{ secrets.TOKEN_PEPPER }}" >> server/.env
+          echo "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" >> server/.env
+          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> server/.env
+          echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> server/.env
+          echo "MAIL_REPLY_TO=${{ secrets.MAIL_REPLY_TO }}" >> server/.env
+          echo "MAIL_SMTP_HOST=smtp.yandex.ru" >> server/.env
+          echo "MAIL_SMTP_PORT=465" >> server/.env
+          echo "MAIL_SMTP_SSL=true" >> server/.env
+          echo "MAIL_SMTP_STARTTLS=false" >> server/.env
 
-
-      - name: Start docker-compose (Postgres)
-        run: |
-          docker compose -f users-service/docker-compose.yml up -d
-
-      - name: Wait for Postgres to be ready
-        run: |
-          CONTAINER_ID=$(docker ps -qf "name=users_pg")
-          if [ -z "$CONTAINER_ID" ]; then
-            echo "❌ users_pg container not found!"
-            docker ps
-            exit 1
-          fi
-          echo "✅ Found Postgres container: $CONTAINER_ID"
-          for i in $(seq 1 30); do
-            docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb && break
-            echo "⏳ Waiting for Postgres... ($i/30)"
-            sleep 2
-          done
-          docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb || (echo "❌ Postgres did not become ready" && exit 1)
-
-      - name: Load DB schema and seeds into Postgres container
-        run: |
-          CONTAINER_ID=$(docker ps -qf "name=users_pg")
-          docker cp users-service/sql/. "$CONTAINER_ID":/tmp/sql
-          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/001_schema.sql"
-          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/002_seed.sql"
-
-      - name: Start FastAPI users-service
-        run: |
-          cd users-service
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
-          uvicorn app.main:app --port 8001 &
-          echo $! > ../fastapi_pid.txt
-          sleep 5
-          curl -f http://127.0.0.1:8001/docs || (echo "❌ FastAPI did not start" && exit 1)
-
-      - name: Build Kotlin server
-        run: |
-          ./gradlew clean build -x test
+      - name: Build server (skip tests for initial build)
+        run: ./gradlew clean build -x test
 
       - name: Run Kotlin integration/unit tests
         env:
           DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/usersdb?user=app&password=secret
-          USERS_SERVICE_URL: http://127.0.0.1:8001
-        run: |
-          ./gradlew test
-
-      - name: Stop FastAPI service
-        if: always()
-        run: |
-          if [ -f fastapi_pid.txt ]; then
-            kill $(cat fastapi_pid.txt) || true
-          fi
+        run: ./gradlew test
 
       - name: Stop docker-compose (cleanup)
         if: always()
-        run: |
-          docker compose -f users-service/docker-compose.yml down -v
-
+        working-directory: users-service
+        run: docker compose down -v
 
   frontend:
     name: Compose Web frontend
