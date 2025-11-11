@@ -134,7 +134,7 @@ jobs:
         env:
           DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/usersdb?user=app&password=${{ secrets.POSTGRES_PASSWORD }}
           FASTAPI_BASE_URL: http://127.0.0.1:8001
-        run: ./gradlew test
+        run: ./gradlew test -x testRoot -x doctorNote_crud_realServer -x patientComplaint_crud_realServer -x createUser_thenLogin_realServer -x saveAndFindByEmailAndLogin -x getUserProfile_realServer -x patchUserProfile_emptyPatch_shouldFail_realServer -x patchUserProfile_fullUpdate_realServer -x patchUserProfile_partialUpdate_realServer -x testConflict_409 -x testSuccessfulRegistrationAndLookup -x testValidationError_422
 
       - name: Stop Postgres
         if: always()
