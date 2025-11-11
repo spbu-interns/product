@@ -56,10 +56,9 @@ jobs:
           uvicorn app.main:app --port 8001 &
           sleep 5
           curl -f http://127.0.0.1:8001/docs
-  
 
   backend-kotlin:
-    name: Kotlin server
+    name: Kotlin server (with integration DB)
     runs-on: ubuntu-latest
 
     steps:
@@ -71,13 +70,50 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build server
+      - name: Ensure docker-compose (Compose v2) available
+        run: docker version
+
+      - name: Start docker-compose (Postgres)
+        run: |
+          docker compose -f users-service/docker-compose.yml up -d
+
+      - name: Wait for Postgres to be ready
+        run: |
+          CONTAINER_ID=$(docker compose -f users-service/docker-compose.yml ps -q postgres)
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "ERROR: postgres container not found via docker compose"
+            docker compose -f users-service/docker-compose.yml ps
+            exit 1
+          fi
+          echo "Found postgres container: $CONTAINER_ID"
+          for i in $(seq 1 30); do
+            docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb && break
+            echo "Waiting for Postgres... ($i/30)"
+            sleep 2
+          done
+          docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb || (echo "Postgres did not become ready" && exit 1)
+
+      - name: Load DB schema and seeds into Postgres container
+        run: |
+          CONTAINER_ID=$(docker compose -f users-service/docker-compose.yml ps -q postgres)
+          docker cp users-service/sql/. "$CONTAINER_ID":/tmp/sql
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/001_schema.sql"
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/002_seed.sql"
+
+      - name: Build server (skip tests for initial build)
         run: |
           ./gradlew clean build -x test
 
-      - name: Run tests
+      - name: Run Kotlin integration/unit tests
+        env:
+          DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/usersdb?user=app&password=secret
         run: |
           ./gradlew test
+
+      - name: Stop docker-compose (cleanup)
+        if: always()
+        run: |
+          docker compose -f users-service/docker-compose.yml down -v
 
   frontend:
     name: Compose Web frontend
