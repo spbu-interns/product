@@ -47,17 +47,15 @@ class App : Application() {
         fun showDoctor() {
             r.removeAll()
             r.doctorScreen(
-                onLogout = {
-                    Session.isLoggedIn = true
-                    showHome()
-                }
+                onLogout = { showHome() }
             )
         }
 
-        fun showDoctorPatient(patientId: Long) {
+        fun showDoctorPatient(patientUserId: Long, patientRecordId: Long?) {
             r.removeAll()
             r.doctorPatientScreen(
-                patientId = patientId,
+                patientUserId = patientUserId,
+                patientRecordId = patientRecordId,
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -102,9 +100,13 @@ class App : Application() {
             r.removeAll()
             r.authScreen(
                 initial = tab,
-                onLogin = {
+                onLogin = { data ->
                     Session.isLoggedIn = true
-                    showPatient() },
+                    when (data.accountType.uppercase()) {
+                        "DOCTOR" -> showDoctor()
+                        else -> showPatient()
+                    }
+                },
                 onRegister = { Session.isLoggedIn = true
                     showPatient() },
                 onGoHome = { showHome() }
@@ -127,6 +129,6 @@ class App : Application() {
         Navigator.showDoctor = ::showDoctor
         Navigator.showDoctorPatient = ::showDoctorPatient
 
-        showDoctorPatient(101)
+        showHome()
     }
 }

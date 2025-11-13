@@ -4,7 +4,15 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
-import org.interns.project.dto.*
+import org.interns.project.dto.ApiResponse
+import org.interns.project.dto.ClientProfileDto
+import org.interns.project.dto.ComplaintCreateRequest
+import org.interns.project.dto.ComplaintPatchRequest
+import org.interns.project.dto.ComplaintResponse
+import org.interns.project.dto.DoctorNoteCreateRequest
+import org.interns.project.dto.DoctorNotePatchRequest
+import org.interns.project.dto.DoctorNoteResponse
+import org.interns.project.dto.UserResponseDto
 
 class PatientApiClient {
     private val client = ApiConfig.httpClient
@@ -48,6 +56,24 @@ class PatientApiClient {
             response.status == HttpStatusCode.NotFound -> false
             response.status.isSuccess() -> response.body<ApiResponse<Boolean>>().success
             else -> throw IllegalStateException("HTTP error: ${response.status.value}")
+        }
+    }
+
+    private suspend inline fun <reified T> parseNullable(
+        response: HttpResponse,
+        failureMessage: String
+    ): T? {
+        if (response.status == HttpStatusCode.NotFound) {
+            return null
+        }
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("HTTP error: ${response.status.value}")
+        }
+        val body = response.body<ApiResponse<T?>>()
+        if (body.success) {
+            return body.data
+        } else {
+            throw IllegalStateException(body.error ?: failureMessage)
         }
     }
 
@@ -124,5 +150,24 @@ class PatientApiClient {
     suspend fun deleteNote(noteId: Long): Result<Boolean> = runCatching {
         val response = client.delete(ApiConfig.Endpoints.patientNote(noteId))
         parseDelete(response)
+    }
+
+    // ---- patients ----
+
+    suspend fun listPatients(): Result<List<UserResponseDto>> = runCatching {
+        val response = client.get(ApiConfig.Endpoints.users()) {
+            parameter("role", "CLIENT")
+        }
+        parseList<UserResponseDto>(response, "Failed to load patients")
+    }
+
+    suspend fun getPatientProfile(userId: Long): Result<UserResponseDto> = runCatching {
+        val response = client.get(ApiConfig.Endpoints.userProfile(userId))
+        parseOne(response, emptyMessage = "Empty patient profile", failureMessage = "Failed to load patient profile")
+    }
+
+    suspend fun getClientProfile(userId: Long): Result<ClientProfileDto?> = runCatching {
+        val response = client.get(ApiConfig.Endpoints.clientByUser(userId))
+        parseNullable<ClientProfileDto>(response, failureMessage = "Failed to load client profile")
     }
 }

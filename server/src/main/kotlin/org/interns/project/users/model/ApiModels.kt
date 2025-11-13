@@ -78,6 +78,23 @@ data class ClientRegData(
 )
 
 @Serializable
+data class ClientOut(
+    val id: Long,
+    @SerialName("user_id") val userId: Long,
+    @SerialName("blood_type") val bloodType: String? = null,
+    val height: Double? = null,
+    val weight: Double? = null,
+    @SerialName("emergency_contact_name") val emergencyContactName: String? = null,
+    @SerialName("emergency_contact_number") val emergencyContactNumber: String? = null,
+    val address: String? = null,
+    val snils: String? = null,
+    val passport: String? = null,
+    @SerialName("dms_oms") val dmsOms: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+)
+
+@Serializable
 data class DoctorRegData(
     @SerialName("clinic_id") val clinicId: Long? = null,
     val profession: String,

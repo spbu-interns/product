@@ -96,11 +96,28 @@ object Session {
     var email: String? = null
     var accountType: String? = null
 
-    fun setSession(token: String?, userId: Long?, email: String?, accountType: String?) {
+    var firstName: String? = null
+    var lastName: String? = null
+
+    val fullName: String?
+        get() = listOfNotNull(firstName, lastName)
+            .joinToString(" ")
+            .takeIf { it.isNotBlank() }
+
+    fun setSession(
+        token: String?,
+        userId: Long?,
+        email: String?,
+        accountType: String?,
+        firstName: String? = null,
+        lastName: String? = null,
+    ) {
         this.token = token
         this.userId = userId
         this.email = email
-        this.accountType = accountType
+        this.accountType = accountType?.uppercase()
+        this.firstName = firstName
+        this.lastName = lastName
         this.isLoggedIn = true
     }
 
@@ -110,6 +127,8 @@ object Session {
         userId = null
         email = null
         accountType = null
+        firstName = null
+        lastName = null
     }
 }
 

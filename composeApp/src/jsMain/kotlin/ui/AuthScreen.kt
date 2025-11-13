@@ -126,7 +126,9 @@ fun Container.authScreen(
                                                     token = data.token,
                                                     userId = data.userId,
                                                     email = data.email,
-                                                    accountType = data.accountType
+                                                    accountType = data.accountType,
+                                                    firstName = data.firstName,
+                                                    lastName = data.lastName
                                                 )
                                                 // Уходим со страницы — чистим scope
                                                 uiScope.cancel()

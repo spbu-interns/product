@@ -1,8 +1,10 @@
 ﻿package ui
 
 import api.ApiConfig
+import api.PatientApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.html.Span
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
@@ -14,14 +16,163 @@ import io.kvision.html.span
 import io.kvision.html.ul
 import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
+import io.kvision.toast.Toast
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+
+private data class DoctorPatientListItem(
+    val userId: Long,
+    val patientRecordId: Long,
+    val name: String,
+    val subtitle: String,
+    val status: String,
+    val initials: String,
+)
 
 fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
+    val uiScope = MainScope()
+    val apiClient = PatientApiClient()
+
+    fun cleanup() {
+        uiScope.cancel()
+    }
+
+    val doctorName = Session.fullName ?: Session.email ?: "Doctor"
+    val doctorInitials = doctorName
+        .split(' ', '-', '_')
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .take(2)
+        .joinToString("")
+        .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "DR" }
+    val doctorSubtitle = Session.email ?: ""
+
+    val patients = mutableListOf<DoctorPatientListItem>()
+    var patientsLoaded = false
+    var isLoadingPatients = false
+    var patientsError: String? = null
+
+    lateinit var patientsContainer: Container
+    var patientCountPill: Span? = null
+    var patientMetricValue: Span? = null
+
+    var renderPatients: () -> Unit = {}
+    var loadPatients: (Boolean) -> Unit = {}
+
+    fun DoctorPatientListItem.render() {
+        val userId = this@render.userId
+        val recordId = this@render.patientRecordId
+        patientsContainer.div(className = "doctor-patient-item") {
+            div(className = "doctor-patient-avatar") { +initials }
+            div(className = "doctor-patient-info") {
+                span(name, className = "doctor-patient-name")
+                span(subtitle, className = "doctor-patient-condition")
+            }
+            span(status, className = "status info")
+            onClick {
+                cleanup()
+                Navigator.showDoctorPatient(userId, recordId)
+            }
+        }
+    }
+
+    renderPatients = fun() {
+        patientsContainer.removeAll()
+        when {
+            isLoadingPatients -> {
+                patientsContainer.div(className = "doctor-empty-state") {
+                    span("Загрузка пациентов...", className = "doctor-patient-condition")
+                }
+            }
+            patientsError != null -> {
+                patientsContainer.div(className = "doctor-empty-state") {
+                    span(patientsError ?: "Ошибка", className = "doctor-patient-condition")
+                    button("Повторить", className = "btn-ghost-sm").onClick {
+                        patientsError = null
+                        loadPatients(true)
+                    }
+                }
+            }
+            patients.isEmpty() -> {
+                patientsContainer.div(className = "doctor-empty-state") {
+                    span("Пациенты не найдены", className = "doctor-patient-condition")
+                    button("Обновить", className = "btn-ghost-sm").onClick {
+                        loadPatients(true)
+                    }
+                }
+            }
+            else -> patients.forEach { it.render() }
+        }
+
+        patientCountPill?.content = "Пациенты в базе: ${patients.size}"
+        patientMetricValue?.content = patients.size.toString()
+    }
+
+    loadPatients = fun(force: Boolean) {
+        if (isLoadingPatients) return
+        if (patientsLoaded && !force) return
+
+        isLoadingPatients = true
+        patientsError = null
+        renderPatients()
+
+        uiScope.launch {
+            val result = apiClient.listPatients()
+            result.fold(
+                onSuccess = { list ->
+                    patientsLoaded = true
+                    val enriched = mutableListOf<DoctorPatientListItem>()
+                    list.forEach { user ->
+                        val client = apiClient.getClientProfile(user.id).getOrElse { error ->
+                            println("Failed to load client profile for user ${user.id}: ${error.message}")
+                            null
+                        }
+                        val recordId = client?.id ?: return@forEach
+                        val displayName = listOfNotNull(user.firstName ?: user.name, user.lastName ?: user.surname)
+                            .joinToString(" ")
+                            .ifBlank { user.login }
+                        val initials = displayName
+                            .split(' ', '-', '_')
+                            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                            .take(2)
+                            .joinToString("")
+                            .ifBlank { user.login.firstOrNull()?.uppercaseChar()?.toString() ?: "PT" }
+                        val subtitle = user.email
+                        val status = if (user.isActive) "Active" else "Inactive"
+                        enriched += DoctorPatientListItem(
+                            userId = user.id,
+                            patientRecordId = recordId,
+                            name = displayName,
+                            subtitle = subtitle,
+                            status = status,
+                            initials = initials,
+                        )
+                    }
+                    patients.clear()
+                    patients.addAll(enriched.sortedBy { it.name.lowercase() })
+                    patientsError = if (enriched.isEmpty() && list.isNotEmpty()) {
+                        "Пациенты с заполненным профилем не найдены"
+                    } else {
+                        null
+                    }
+                },
+                onFailure = { error ->
+                    patientsError = error.message ?: "Не удалось загрузить пациентов"
+                    Toast.danger(patientsError ?: "Ошибка")
+                }
+            )
+            isLoadingPatients = false
+            renderPatients()
+        }
+    }
+
     headerBar(
         mode = HeaderMode.DOCTOR,
         active = NavTab.NONE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()
+            cleanup()
             onLogout()
         }
     )
@@ -29,13 +180,15 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     div(className = "doctor container") {
         div(className = "doctor grid") {
             div(className = "sidebar card doctor-sidebar") {
-                div(className = "avatar circle doctor-avatar") { +"SJ" }
-                h3("Dr. Sarah Johnson", className = "account name")
-                span("Cardiologist", className = "doctor-specialty")
+                div(className = "avatar circle doctor-avatar") { +doctorInitials }
+                h3(doctorName, className = "account name")
+                if (doctorSubtitle.isNotBlank()) {
+                    span(doctorSubtitle, className = "doctor-specialty")
+                }
 
                 div(className = "doctor-tags") {
-                    span("New York, USA", className = "doctor-tag")
-                    span("15 Years Experience", className = "doctor-tag")
+                    Session.userId?.let { span("ID: #$it", className = "doctor-tag") }
+                    span("Role: ${Session.accountType ?: "DOCTOR"}", className = "doctor-tag")
                 }
 
                 nav {
@@ -52,7 +205,15 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                         li(className = "side_item") {
                             span("Patients")
                             span("\uD83D\uDC65", className = "side icon")
-                            onClick { Navigator.showDoctorPatient(101) }
+                            onClick {
+                                if (patients.isNotEmpty()) {
+                                    cleanup()
+                                    val first = patients.first()
+                                    Navigator.showDoctorPatient(first.userId, first.patientRecordId)
+                                } else {
+                                    loadPatients(true)
+                                }
+                            }
                         }
                         li(className = "side_item") {
                             span("My Records")
@@ -72,16 +233,16 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 div(className = "doctor-header") {
                     div {
                         h1("Dashboard Overview", className = "doctor-title")
-                        span("Today: September 14, 2025", className = "doctor-date")
+                        span("Сегодня: ${js("new Date()").unsafeCast<dynamic>().toLocaleDateString()}", className = "doctor-date")
                     }
                     div(className = "doctor-status") {
-                        span("Patients today: 4", className = "doctor-status-pill")
+                        patientCountPill = span("Пациенты в базе: ${patients.size}", className = "doctor-status-pill")
                     }
                 }
 
                 div(className = "doctor-metrics grid") {
                     doctorMetric("4", "Today", "Appointments")
-                    doctorMetric("127", "Patients", "Active in Care")
+                    patientMetricValue = doctorMetric(patients.size.toString(), "Patients", "Active in Care")
                     doctorMetric("4.9", "Rating", "Avg. Feedback")
                     doctorMetric("15", "Years", "Experience")
                 }
@@ -119,19 +280,15 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
                     div(className = "doctor-aside") {
                         div(className = "card block doctor-recent-patients") {
-                            h4("Recent Patients", className = "block title")
-                            div(className = "doctor-patient-list") {
-                                doctorRecentPatient("JS", "John Smith", "Hypertension", "Active", 101)
-                                doctorRecentPatient("SW", "Sarah Wilson", "Diabetes", "Active", 102)
-                                doctorRecentPatient("MJ", "Mike Johnson", "Anxiety", "Follow-up", 103)
-                            }
+                            h4("Patients from database", className = "block title")
+                            patientsContainer = div(className = "doctor-patient-list")
                         }
 
                         div(className = "card block doctor-week-summary") {
                             h4("This Week", className = "block title")
                             div(className = "doctor-week-list") {
                                 doctorWeekStat("Total Appointments", "18")
-                                doctorWeekStat("New Patients", "3")
+                                doctorWeekStat("New Patients", patients.size.toString())
                                 doctorWeekStat("Follow-ups", "7")
                                 doctorWeekStat("Consultations", "8")
                             }
@@ -141,16 +298,21 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             }
         }
     }
+
+    loadPatients(false)
+    renderPatients()
 }
 
-private fun Container.doctorMetric(value: String, label: String, subtitle: String) {
+private fun Container.doctorMetric(value: String, label: String, subtitle: String): Span {
+    lateinit var valueSpan: Span
     div(className = "doctor-metric card") {
         hPanel(className = "doctor-metric-header") {
-            span(value, className = "doctor-metric-value")
+            valueSpan = span(value, className = "doctor-metric-value")
             span(label, className = "doctor-metric-label")
         }
         span(subtitle, className = "doctor-metric-subtitle")
     }
+    return valueSpan
 }
 
 private fun Container.doctorAppointment(
@@ -173,24 +335,6 @@ private fun Container.doctorAppointment(
             span(notes, className = "doctor-appointment-notes")
         }
         span(status, className = statusClass)
-    }
-}
-
-private fun Container.doctorRecentPatient(
-    initials: String,
-    name: String,
-    condition: String,
-    status: String,
-    patientId: Long
-) {
-    div(className = "doctor-patient-item") {
-        div(className = "doctor-patient-avatar") { +initials }
-        div(className = "doctor-patient-info") {
-            span(name, className = "doctor-patient-name")
-            span(condition, className = "doctor-patient-condition")
-        }
-        span(status, className = "status info")
-        onClick { Navigator.showDoctorPatient(patientId) }
     }
 }
 
