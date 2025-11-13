@@ -1,13 +1,5 @@
 -- 006_domain_core.sql
 
--- 1) users: добавим поля из целевой модели (оставляем твои поля для совместимости)
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS name           VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS surname        VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS date_of_birth  DATE,
-  ADD COLUMN IF NOT EXISTS avatar         TEXT,
-  ADD COLUMN IF NOT EXISTS gender         VARCHAR(20) CHECK (gender IN ('MALE','FEMALE'));
-
 -- 2) clinics: расширим по ТЗ
 ALTER TABLE clinics
   ADD COLUMN IF NOT EXISTS description  TEXT,
