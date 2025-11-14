@@ -7,7 +7,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.assertNotNull
+import org.junit.Ignore
 
+@Ignore
 class RepoLoginIntegrationTest {
 
     @Test

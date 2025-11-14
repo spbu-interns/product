@@ -91,7 +91,7 @@ data class ClientOut(
     val passport: String? = null,
     @SerialName("dms_oms") val dmsOms: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
-    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
 )
 
 @Serializable
@@ -136,4 +136,27 @@ data class DoctorOut(
     val price: Double? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
+)
+
+@Serializable
+data class DoctorPatch(
+    @SerialName("clinic_id") val clinicId: Long? = null,
+    val profession: String? = null,
+    val info: String? = null,
+    @SerialName("is_confirmed") val isConfirmed: Boolean? = null,
+    val rating: Double? = null,
+    val experience: Int? = null,
+    val price: Double? = null
+)
+@Serializable
+data class ClientPatch(
+    @SerialName("blood_type") val bloodType: String? = null,
+    val height: Double? = null,
+    val weight: Double? = null,
+    @SerialName("emergency_contact_name") val emergencyContactName: String? = null,
+    @SerialName("emergency_contact_number") val emergencyContactNumber: String? = null,
+    val address: String? = null,
+    val snils: String? = null,
+    val passport: String? = null,
+    @SerialName("dms_oms") val dmsOms: String? = null
 )

@@ -301,6 +301,13 @@ class ApiUserRepo(
         doPatch("/users/$userId/profile", patch) { resp ->
             resp.body<UserOutDto>().let(::fromOutDto)
         }
+    // === clients ===
+    suspend fun patchClientByUserId(userId: Long, patch: ClientPatch): ClientOut =
+        doPatch("/clients/by-user/$userId", patch) { it.body() }
+
+    // === doctors ===
+    suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorOut =
+        doPatch("/doctors/by-user/$userId", patch) { it.body() }
 
     // ===== ДЛЯ ЖАЛОБ ПАЦИЕНТА =====
     // POST /patients/{id}/complaints
