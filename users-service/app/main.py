@@ -10,17 +10,31 @@ from .models import (
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
     NoteIn, NoteOut, NotePatch,
-    UserProfilePatch
+    UserProfilePatch,
+    SpecializationOut, DoctorSearchOut, Gender,
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
 from passlib.hash import bcrypt
+from datetime import date
 
 app = FastAPI(title="Users DB API")
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/specializations", response_model=List[SpecializationOut])
+def api_list_specializations(popular_only: bool = Query(False)):
+    """
+    popular_only=true -> только популярные,
+    popular_only=false -> все, популярные первыми.
+    """
+    s = get_session()
+    try:
+        return repo.list_specializations(s, popular_only=popular_only)
+    finally:
+        s.close()
 
 @app.get("/users", response_model=List[UserOut])
 def get_users(role: Optional[str] = Query(None)):
@@ -480,5 +494,60 @@ def api_patch_admin_by_user(user_id: int, p: AdminPatch):
         if not r:
             raise HTTPException(404, "admin not found or nothing to update")
         return r
+    finally:
+        s.close()
+        
+@app.get("/doctors/search", response_model=List[DoctorSearchOut])
+def api_search_doctors(
+    specialization_ids: Optional[List[int]] = Query(None),
+    city: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
+    metro: Optional[str] = Query(None),
+    online_only: bool = Query(False),
+
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
+    min_rating: Optional[float] = Query(None),
+
+    gender: Optional[Gender] = Query(None),
+    min_age: Optional[int] = Query(None),
+    max_age: Optional[int] = Query(None),
+
+    min_experience: Optional[int] = Query(None),
+    max_experience: Optional[int] = Query(None),
+
+    date_filter: Optional[date] = Query(None, alias="date"),
+):
+    """
+    Поиск врачей с фильтрами из ТЗ.
+    - specialization_ids: список id специализаций
+    - city/region/metro: локация клиники
+    - online_only: только онлайн-консультации
+    - min/max_price: диапазон цены
+    - min_rating: минимальный рейтинг
+    - gender: пол врача
+    - min/max_age: возраст врача
+    - min/max_experience: стаж
+    - date: наличие свободного слота в указанный день
+    """
+    s = get_session()
+    try:
+        return repo.search_doctors(
+            s,
+            specialization_ids=specialization_ids,
+            city=city,
+            region=region,
+            metro=metro,
+            online_only=online_only,
+            min_price=min_price,
+            max_price=max_price,
+            min_rating=min_rating,
+            gender=gender,
+            min_age=min_age,
+            max_age=max_age,
+            min_experience=min_experience,
+            max_experience=max_experience,
+            date_filter=date_filter,
+        )
     finally:
         s.close()
