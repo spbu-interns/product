@@ -301,6 +301,7 @@ from .models import (
     MedicalRecordIn, MedicalRecordOut,
     MedicalDocumentIn, MedicalDocumentOut,
     DoctorReviewIn, DoctorReviewOut,
+    ClientPatch, DoctorPatch, AdminPatch,
 )
 
 # --- Clients ---
@@ -434,5 +435,50 @@ def api_list_reviews(doctor_id: int):
     s = get_session()
     try:
         return repo.list_doctor_reviews(s, doctor_id)
+    finally:
+        s.close()
+
+
+@app.get("/admins/by-user/{user_id}", response_model=AdminOut | None)
+def api_get_admin_by_user(user_id: int):
+    s = get_session()
+    try:
+        return repo.get_admin_by_user_id(s, user_id)
+    finally:
+        s.close()
+        
+# --- PATCH Clients by user_id ---
+@app.patch("/clients/by-user/{user_id}", response_model=ClientOut)
+def api_patch_client_by_user(user_id: int, p: ClientPatch):
+    s = get_session()
+    try:
+        r = repo.patch_client_by_user_id(s, user_id, p)
+        if not r:
+            raise HTTPException(404, "client not found or nothing to update")
+        return r
+    finally:
+        s.close()
+
+# --- PATCH Doctors by user_id ---
+@app.patch("/doctors/by-user/{user_id}", response_model=DoctorOut)
+def api_patch_doctor_by_user(user_id: int, p: DoctorPatch):
+    s = get_session()
+    try:
+        r = repo.patch_doctor_by_user_id(s, user_id, p)
+        if not r:
+            raise HTTPException(404, "doctor not found or nothing to update")
+        return r
+    finally:
+        s.close()
+
+# --- PATCH Admins by user_id ---
+@app.patch("/admins/by-user/{user_id}", response_model=AdminOut)
+def api_patch_admin_by_user(user_id: int, p: AdminPatch):
+    s = get_session()
+    try:
+        r = repo.patch_admin_by_user_id(s, user_id, p)
+        if not r:
+            raise HTTPException(404, "admin not found or nothing to update")
+        return r
     finally:
         s.close()

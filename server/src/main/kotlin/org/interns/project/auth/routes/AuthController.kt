@@ -26,13 +26,18 @@ class AuthController(
         )
     }
 
-    private fun mapRoleToDbRole(role: String): String {
-        return when (role) {
-            "Пациент" -> "CLIENT"
-            "Медицинский работник" -> "DOCTOR"
-            "Администратор" -> "ADMIN"
-            else -> role
-        }
+    private fun mapRoleToDbRole(role: String): String = when (role) {
+        "Пациент" -> "CLIENT"
+        "Медицинский работник" -> "DOCTOR"
+        "Администратор" -> "ADMIN"
+        else -> role
+    }
+
+    private fun mapRoleToDisplayName(role: String): String = when (role.uppercase()) {
+        "CLIENT" -> "Пациент"
+        "DOCTOR" -> "Медицинский работник"
+        "ADMIN" -> "Администратор"
+        else -> role
     }
 
     fun registerRoutes(route: Route) {
@@ -43,13 +48,24 @@ class AuthController(
                 println("📝 Login attempt: email=${apiRequest.email}, accountType=${apiRequest.accountType}")
                 
                 try {
-                    val mappedRole = mapRoleToDbRole(apiRequest.accountType)
+                    val mappedRole = mapRoleToDbRole(apiRequest.accountType).uppercase()
                     println("📝 Mapped role: ${apiRequest.accountType} -> $mappedRole")
 
                     val apiResponse = apiUserRepo.login(
                         loginOrEmail = apiRequest.email,
                         password = apiRequest.password
                     )
+                    if (!apiResponse.success) {
+                        val error = apiResponse.error ?: "Invalid email or password"
+                        call.respond(
+                            HttpStatusCode.Unauthorized,
+                            ApiResponse<org.interns.project.dto.LoginResponse>(
+                                success = false,
+                                error = error
+                            )
+                        )
+                        return@post
+                    }
                     val user = apiUserRepo.findByEmail(apiRequest.email)
                     if (user == null) {
                         call.respond(
@@ -61,11 +77,30 @@ class AuthController(
                         )
                         return@post
                     }
+                    val actualRole = (apiResponse.role ?: user.role).uppercase()
+
+                    if (mappedRole.isNotBlank() && mappedRole != actualRole) {
+                        val targetName = mapRoleToDisplayName(mappedRole)
+                        val actualName = mapRoleToDisplayName(actualRole)
+                        val message = if (mappedRole == "DOCTOR" && actualRole != "DOCTOR") {
+                            "Ваш аккаунт зарегистрирован как \"$actualName\". Вход для роли \"$targetName\" недоступен."
+                        } else {
+                            "Вход доступен только для роли \"$actualName\"."
+                        }
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            ApiResponse<org.interns.project.dto.LoginResponse>(
+                                success = false,
+                                error = message
+                            )
+                        )
+                        return@post
+                    }
                     val token = apiResponse.token?.takeIf { it.isNotBlank() }
                         ?: JwtService.issue(
                             subject = user.id.toString(),
                             login = user.email,
-                            role = mappedRole,
+                            role = actualRole,
                             email = user.email
                         )
 
@@ -73,7 +108,7 @@ class AuthController(
                         token = token,
                         userId = user.id,
                         email = user.email,
-                        accountType = mappedRole,
+                        accountType = actualRole,
                         firstName = user.firstName,
                         lastName = user.lastName
                     )

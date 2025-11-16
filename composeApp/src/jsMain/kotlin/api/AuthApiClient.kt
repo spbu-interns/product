@@ -21,7 +21,6 @@ class AuthApiClient {
                 val loginResponse = response.body<ApiResponse<LoginResponse>>()
                 if (loginResponse.success) {
                     loginResponse.data?.let { loginData ->
-                        //ApiConfig.setToken(loginData.token) потом
                         loginData.token?.let { ApiConfig.setToken(it) }
                         Result.success(loginData)
                     } ?: Result.failure(Exception("No login data returned"))
@@ -29,7 +28,9 @@ class AuthApiClient {
                     Result.failure(Exception(loginResponse.error ?: "Login failed"))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                val errorBody = runCatching { response.body<ApiResponse<LoginResponse>>() }.getOrNull()
+                val message = errorBody?.error ?: "HTTP error: ${response.status.value}"
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)

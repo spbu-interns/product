@@ -13,7 +13,7 @@ RESET_TOKEN_TTL_MIN = 30
 # В НАЧАЛЕ ФАЙЛА (после импортов) — общий список колонок, чтобы не дублировать:
 _USER_COLS = """
 id,email,login,role,
-first_name,last_name,patronymic,phone_number,clinic_id,
+patronymic,phone_number,clinic_id,
 name,surname,date_of_birth,avatar,gender,
 is_active,email_verified_at,password_changed_at,created_at,updated_at
 """
@@ -49,13 +49,13 @@ def insert_user(s: Session, user) -> Dict:
     pwd_hash = bcrypt.hash(user.password)
     r = s.execute(text(f"""
         insert into users (email,login,password_hash,role,
-                           first_name,last_name,patronymic,phone_number,
+                           name,surname,patronymic,phone_number,
                            clinic_id,is_active)
-        values (:e,:l,:p,:r,:fn,:ln,:pn,:ph,:cid,:ia)
+        values (:e,:l,:p,:r,:name,:surname,:pn,:ph,:cid,:ia)
         returning {_USER_COLS}
     """), {
         "e": user.email, "l": user.login, "p": pwd_hash, "r": user.role,
-        "fn": user.first_name, "ln": user.last_name, "pn": user.patronymic,
+        "name": user.name, "surname": user.surname, "pn": user.patronymic,
         "ph": user.phone_number, "cid": user.clinic_id,
         "ia": True if user.is_active is None else user.is_active,
     }).mappings().first()
@@ -95,19 +95,12 @@ def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     sets = []
     params = {"id": user_id}
 
-    # совместимостьные поля
-    if p.first_name is not None:
-        sets.append("first_name = :first_name"); params["first_name"] = p.first_name
-    if p.last_name is not None:
-        sets.append("last_name = :last_name"); params["last_name"] = p.last_name
-    if p.patronymic is not None:
-        sets.append("patronymic = :patronymic"); params["patronymic"] = p.patronymic
+    # поля, реально существующие в users
     if p.phone_number is not None:
         sets.append("phone_number = :phone_number"); params["phone_number"] = p.phone_number
     if p.clinic_id is not None:
         sets.append("clinic_id = :clinic_id"); params["clinic_id"] = p.clinic_id
 
-    # НОВЫЕ поля профиля
     if p.name is not None:
         sets.append("name = :name"); params["name"] = p.name
     if p.surname is not None:
@@ -122,26 +115,41 @@ def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     if not sets:
         return None
 
-    sql = f"""
+    sets.append("updated_at = now()")
+
+    # роль для зеркалирования clinic_id
+    role_row = s.execute(text("select role from users where id = :id"), {"id": user_id}).first()
+    role = role_row[0] if role_row else None
+
+    r = s.execute(text(f"""
         update users
         set {', '.join(sets)}
         where id = :id
         returning {_USER_COLS}
-    """
-    r = s.execute(text(sql), params).mappings().first()
+    """), params).mappings().first()
+
+    # --- синк clinic_id в doctors/admins (если прислали clinic_id) ---
+    if p.clinic_id is not None:
+        if role == "DOCTOR":
+            s.execute(text("""
+                update doctors
+                set clinic_id = :cid, updated_at = now()
+                where user_id = :uid
+            """), {"cid": p.clinic_id, "uid": user_id})
+        elif role == "ADMIN":
+            s.execute(text("""
+                update admins
+                set clinic_id = :cid, updated_at = now()
+                where user_id = :uid
+            """), {"cid": p.clinic_id, "uid": user_id})
+
     s.commit()
     return dict(r) if r else None
 
 # --- User profile by id ---
 def get_user_profile(s: Session, user_id: int) -> Optional[Dict]:
-    r = s.execute(text("""
-        select
-            id, email, login, role,
-            first_name, last_name, patronymic,
-            phone_number, clinic_id,
-            name, surname, date_of_birth, avatar, gender,
-            is_active, email_verified_at, password_changed_at,
-            created_at, updated_at
+    r = s.execute(text(f"""
+        select {_USER_COLS}
         from users
         where id = :id
         limit 1
@@ -571,3 +579,114 @@ def register_user_with_role(s: Session, reg) -> Dict:
     except Exception:
         s.rollback()
         raise
+    
+def get_admin_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
+    r = s.execute(text("select * from admins where user_id=:u"), {"u": user_id}).mappings().first()
+    return dict(r) if r else None
+
+def patch_client_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"uid": user_id}
+
+    if p.blood_type is not None:
+        sets.append("blood_type = :blood_type"); params["blood_type"] = p.blood_type
+    if p.height is not None:
+        sets.append("height = :height"); params["height"] = p.height
+    if p.weight is not None:
+        sets.append("weight = :weight"); params["weight"] = p.weight
+    if p.emergency_contact_name is not None:
+        sets.append("emergency_contact_name = :ecn"); params["ecn"] = p.emergency_contact_name
+    if p.emergency_contact_number is not None:
+        sets.append("emergency_contact_number = :ecn2"); params["ecn2"] = p.emergency_contact_number
+    if p.address is not None:
+        sets.append("address = :addr"); params["addr"] = p.address
+    if p.snils is not None:
+        sets.append("snils = :snils"); params["snils"] = p.snils
+    if p.passport is not None:
+        sets.append("passport = :pass"); params["pass"] = p.passport
+    if p.dms_oms is not None:
+        sets.append("dms_oms = :dms"); params["dms"] = p.dms_oms
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+    sql = f"""
+        update clients
+        set {', '.join(sets)}
+        where user_id = :uid
+        returning *
+    """
+    r = s.execute(text(sql), params).mappings().first()
+    s.commit()
+    return dict(r) if r else None
+
+
+def patch_doctor_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"uid": user_id}
+
+    if p.clinic_id is not None:
+        sets.append("clinic_id = :cid"); params["cid"] = p.clinic_id
+    if p.profession is not None:
+        sets.append("profession = :prof"); params["prof"] = p.profession
+    if p.info is not None:
+        sets.append("info = :info"); params["info"] = p.info
+    if p.is_confirmed is not None:
+        sets.append("is_confirmed = :conf"); params["conf"] = p.is_confirmed
+    if p.rating is not None:
+        sets.append("rating = :rt"); params["rt"] = p.rating
+    if p.experience is not None:
+        sets.append("experience = :exp"); params["exp"] = p.experience
+    if p.price is not None:
+        sets.append("price = :price"); params["price"] = p.price
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+    sql = f"""
+        update doctors
+        set {', '.join(sets)}
+        where user_id = :uid
+        returning *
+    """
+    r = s.execute(text(sql), params).mappings().first()
+
+    # зеркалим clinic_id в users, если прислали
+    if r and p.clinic_id is not None:
+        s.execute(text("update users set clinic_id=:cid, updated_at=now() where id=:uid"),
+                  {"cid": p.clinic_id, "uid": user_id})
+
+    s.commit()
+    return dict(r) if r else None
+
+
+def patch_admin_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
+    sets = []
+    params = {"uid": user_id}
+
+    if p.clinic_id is not None:
+        sets.append("clinic_id = :cid"); params["cid"] = p.clinic_id
+    if p.position is not None:
+        sets.append("position = :pos"); params["pos"] = p.position
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+    sql = f"""
+        update admins
+        set {', '.join(sets)}
+        where user_id = :uid
+        returning *
+    """
+    r = s.execute(text(sql), params).mappings().first()
+
+    # зеркалим clinic_id в users, если прислали
+    if r and p.clinic_id is not None:
+        s.execute(text("update users set clinic_id=:cid, updated_at=now() where id=:uid"),
+                  {"cid": p.clinic_id, "uid": user_id})
+
+    s.commit()
+    return dict(r) if r else None

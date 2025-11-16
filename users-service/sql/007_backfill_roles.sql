@@ -9,7 +9,7 @@ WHERE u.role = 'CLIENT' AND c.user_id IS NULL;
 
 -- Создаём doctors для всех users.role = 'DOCTOR', переносим clinic_id (если был)
 INSERT INTO doctors (user_id, clinic_id, profession, is_confirmed)
-SELECT u.id, u.clinic_id, COALESCE(u.last_name, 'Doctor') || ' ' || COALESCE(u.first_name, ''), FALSE
+SELECT u.id, u.clinic_id, COALESCE(u.surname, 'Doctor') || ' ' || COALESCE(u.name, ''), FALSE
 FROM users u
 LEFT JOIN doctors d ON d.user_id = u.id
 WHERE u.role = 'DOCTOR' AND d.user_id IS NULL;

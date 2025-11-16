@@ -17,6 +17,7 @@ import org.interns.project.auth.routes.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
 import org.interns.project.patient.PatientDataController
+import org.interns.project.users.UserController
 import org.interns.project.users.repo.ApiUserRepo
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -82,6 +83,7 @@ fun Application.module() {
         passwordResetService = passwordResetService
     )
     val patientDataController = PatientDataController(apiUserRepo)
+    val userController = UserController(apiUserRepo)
 
     routing {
         get("/") {
@@ -90,6 +92,7 @@ fun Application.module() {
 
         authController.registerRoutes(this)
         patientDataController.registerRoutes(this)
+        userController.registerRoutes(this)
 
         fastApiCompatRoutes(verificationService, passwordResetService)
     }

@@ -18,6 +18,7 @@ import java.time.Instant
 import org.interns.project.users.dto.ApiResponse
 import org.interns.project.security.token.JwtService
 import org.interns.project.users.model.*
+import java.time.LocalDate
 
 class ApiUserRepo(
     private val baseUrl: String = "http://127.0.0.1:8001",
@@ -45,23 +46,37 @@ class ApiUserRepo(
     fun close() = client.close()
 
     private fun fromOutDto(d: UserOutDto): User {
-        val created = try { d.createdAt?.let { Instant.parse(it) } } catch (_: Exception) { null }
-        val updated = try { d.updatedAt?.let { Instant.parse(it) } } catch (_: Exception) { null }
+        val created = try { d.createdAt?.let(Instant::parse) } catch (_: Exception) { null }
+        val updated = try { d.updatedAt?.let(Instant::parse) } catch (_: Exception) { null }
+        val dob = try { d.dateOfBirth?.let(LocalDate::parse) } catch (_: Exception) { null }
+        val emailVerified = try { d.emailVerifiedAt?.let(Instant::parse) } catch (_: Exception) { null }
+        val passwordChanged = try { d.passwordChangedAt?.let(Instant::parse) } catch (_: Exception) { null }
 
         return User(
-            id = d.id ?: 0L,
+            id = d.id,
             email = d.email,
             login = d.login,
-            passwordHash = "",
+            passwordHash = "",          // пароль не приходит из api
             role = d.role,
-            firstName = d.firstName,
-            lastName = d.lastName,
-            patronymic = null,
-            phoneNumber = null,
-            isActive = d.isActive,
+
+            // поддерживаем и старые, и новые поля
+            firstName = d.firstName ?: d.name,
+            lastName = d.lastName ?: d.surname,
+            name = d.name ?: d.firstName,
+            surname = d.surname ?: d.lastName,
+            patronymic = d.patronymic,
+            phoneNumber = d.phoneNumber,
             clinicId = d.clinicId,
+
+            dateOfBirth = dob,
+            avatar = d.avatar,
+            gender = d.gender,
+
+            isActive = d.isActive,
             createdAt = created,
-            updatedAt = updated
+            updatedAt = updated,
+            emailVerifiedAt = emailVerified,
+            passwordChangedAt = passwordChanged
         )
     }
 
@@ -144,18 +159,61 @@ class ApiUserRepo(
     }
 
     suspend fun saveByApi(input: UserInDto): User {
-        val dto = UserCreateRequest(
-            email = input.email,
-            login = input.login,
-            password = input.password,
-            role = input.role,
-            username = input.login,
-            firstName = input.firstName,
-            lastName  = input.lastName,
-            clinicId  = input.clinicId,
-            isActive  = input.isActive
-        )
-        return doPost("/users", dto) { resp ->
+        val role = input.role.uppercase()
+
+        val registration = when (role) {
+            // клиент: users + пустая строка в clients
+            "CLIENT" -> RegistrationRequest(
+                username = input.login,
+                password = input.password,
+                email = input.email,
+                role = role,
+                isActive = input.isActive,
+                client = ClientRegData()
+            )
+
+            // доктор: users + запись в doctors
+            // profession обязательна на стороне fastapi,
+            // поэтому, пока нет отдельного поля, кладем заглушку.
+            // если потом появится конкретная специализация в dto — просто подставь её сюда.
+            "DOCTOR" -> RegistrationRequest(
+                username = input.login,
+                password = input.password,
+                email = input.email,
+                role = role,
+                isActive = input.isActive,
+                doctor = DoctorRegData(
+                    clinicId = input.clinicId?.toLong(),
+                    profession = "doctor"
+                )
+            )
+
+            // админ: users + запись в admins
+            // admin.clinic_id обязателен; используем переданный clinicId,
+            // а если его нет — базовую клинику (id = 1 из 002_seed.sql).
+            "ADMIN" -> RegistrationRequest(
+                username = input.login,
+                password = input.password,
+                email = input.email,
+                role = role,
+                isActive = input.isActive,
+                admin = AdminRegData(
+                    clinicId = input.clinicId ?.toLong(),
+                )
+            )
+
+            // fallback — пусть будет как клиент
+            else -> RegistrationRequest(
+                username = input.login,
+                password = input.password,
+                email = input.email,
+                role = role,
+                isActive = input.isActive,
+                client = ClientRegData()
+            )
+        }
+
+        return doPost("/register", registration) { resp ->
             resp.body<UserOutDto>().let(::fromOutDto)
         }
     }
@@ -165,6 +223,17 @@ class ApiUserRepo(
 
     suspend fun findByLogin(login: String): User? =
         doGet("/users/by-login/${urlEncode(login)}") { it.body<UserOutDto>().let(::fromOutDto) }
+
+    suspend fun listUsers(role: String? = null): List<User> {
+        val resp = client.get("$baseUrl/users") {
+            role?.takeIf { it.isNotBlank() }?.let { parameter("role", it) }
+        }
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        val payload = resp.body<List<UserOutDto>>()
+        return payload.map(::fromOutDto)
+    }
 
     suspend fun login(loginOrEmail: String, password: String): ApiResponse {
         val apiResp: ApiResponse = doPost(
@@ -204,12 +273,34 @@ class ApiUserRepo(
             firstName = request.firstName,
             lastName = request.lastName,
             clinicId = request.clinicId?.toInt(),
-            isActive = request.isActive?: true
+            isActive = request.isActive
         )
 
         val user = saveByApi(userInDto)
         return user.id
     }
+
+    // GET /users/{id}/profile — полный профиль
+    suspend fun getUserProfile(userId: Long): User? =
+        doGet("/users/$userId/profile") { resp ->
+            resp.body<UserOutDto>().let(::fromOutDto)
+        }
+
+    suspend fun findClientByUserId(userId: Long): ClientOut? {
+        val path = "/clients/by-user/$userId"
+        val resp = client.get("$baseUrl$path")
+        return when (resp.status) {
+            HttpStatusCode.OK -> resp.body()
+            HttpStatusCode.NotFound -> null
+            else -> throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+    }
+
+    // PATCH /users/{id}/profile — частичное обновление профиля
+    suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): User =
+        doPatch("/users/$userId/profile", patch) { resp ->
+            resp.body<UserOutDto>().let(::fromOutDto)
+        }
 
     // ===== ДЛЯ ЖАЛОБ ПАЦИЕНТА =====
     // POST /patients/{id}/complaints
@@ -238,9 +329,34 @@ class ApiUserRepo(
 
 
     //===== ДЛЯ ЗАПИСЕЙ ВРАЧЕЙ ====
+    suspend fun findDoctorByUserId(userId: Long): DoctorOut? {
+        val path = "/doctors/by-user/$userId"
+        val resp = client.get("$baseUrl$path")
+        println("🟢 GET $baseUrl$path -> ${resp.status}")
+        return when (resp.status) {
+            HttpStatusCode.OK -> resp.body()
+            HttpStatusCode.NotFound -> null
+            else -> throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+    }
     // POST /patients/{id}/notes
-    suspend fun createNote(patientId: Long, input: NoteIn): NoteOut =
-        doPost("/patients/$patientId/notes", input) { it.body() }
+    suspend fun createNote(patientId: Long, input: NoteIn): NoteOut {
+        val doctor = findDoctorByUserId(input.doctorId)
+            ?: throw IllegalArgumentException("doctor not found for user_id=${input.doctorId}")
+
+        val payload = NoteIn(
+            doctorId = doctor.id,
+            note = input.note,
+            visibility = input.visibility
+        )
+
+        return doPost("/patients/$patientId/notes", payload) { resp ->
+            val raw = resp.body<NoteOut>()
+            // raw.doctorId = doctors.id, наружу возвращаем userId,
+            // чтобы тесты и фронт жили в пространстве users.id
+            raw.copy(doctorId = doctor.userId)
+        }
+    }
 
     // GET /patients/{id}/notes?include_internal=true|false
     suspend fun listNotes(patientId: Long, includeInternal: Boolean = true): List<NoteOut> {
