@@ -58,7 +58,7 @@
 }
 
 .find-filter-title {
-    margin: 0 0 12px;
+    margin: 0 0 6px;
     font-size: 16px;
 }
 
@@ -95,13 +95,13 @@
 }
 
 .doctor-card-avatar {
-    width: 72px;
-    height: 72px;
+    width: 96px;
+    height: 96px;
     border-radius: 50%;
     background: linear-gradient(135deg, #d7e4ff, #f3f4ff);
     color: #1f2a37;
     font-weight: 600;
-    font-size: 18px;
+    font-size: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -155,12 +155,23 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
 }
 
 .doctor-card-price {
     margin: 0;
     font-weight: 600;
+}
+
+.doctor-card-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.doctor-card-actions .btn-secondary {
+    background: #eef2ff;
+    border: none;
+    color: #1f2a37;
 }
 
 .find-empty {
