@@ -12,6 +12,10 @@ import ui.authScreen
 import ui.confirmEmailScreen
 import ui.doctorPatientScreen
 import ui.doctorScreen
+import ui.passwordResetFormScreen
+import ui.passwordResetSuccessScreen
+import kotlinx.browser.window
+import org.w3c.dom.url.URLSearchParams
 import ui.findDoctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
@@ -106,6 +110,16 @@ class App : Application() {
             r.resetPasswordScreen()
         }
 
+        fun showPasswordResetForm(token: String?) {
+            r.removeAll()
+            r.passwordResetFormScreen(token)
+        }
+
+        fun showPasswordResetSuccess() {
+            r.removeAll()
+            r.passwordResetSuccessScreen()
+        }
+
         fun showStub(message: String) {
             r.removeAll()
             r.stubScreen(message = message) { showHome() }
@@ -149,7 +163,15 @@ class App : Application() {
         Navigator.showDoctor = ::showDoctor
         Navigator.showDoctorPatient = ::showDoctorPatient
 
-        showHome()
+        Navigator.showPasswordResetSuccess = ::showPasswordResetSuccess
+        val currentPath = window.location.pathname
+        if (currentPath == "/auth/password/reset") {
+            val params = URLSearchParams(window.location.search)
+            val token = params.get("token")
+            showPasswordResetForm(token)
+        } else {
+            showHome()
+        }
     }
 }
 
