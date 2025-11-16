@@ -296,6 +296,35 @@ class ApiUserRepo(
         }
     }
 
+    suspend fun searchDoctors(filter: DoctorSearchFilter): List<DoctorSearchResult> {
+        val resp = client.get("$baseUrl/doctors/search") {
+            filter.specializationIds?.forEach { parameter("specialization_ids", it) }
+            filter.city?.let { parameter("city", it) }
+            filter.region?.let { parameter("region", it) }
+            filter.metro?.let { parameter("metro", it) }
+            if (filter.onlineOnly) parameter("online_only", true)
+
+            filter.minPrice?.let { parameter("min_price", it) }
+            filter.maxPrice?.let { parameter("max_price", it) }
+            filter.minRating?.let { parameter("min_rating", it) }
+            filter.gender?.let { parameter("gender", it) }
+            filter.minAge?.let { parameter("min_age", it) }
+            filter.maxAge?.let { parameter("max_age", it) }
+            filter.minExperience?.let { parameter("min_experience", it) }
+            filter.maxExperience?.let { parameter("max_experience", it) }
+            filter.date?.let { parameter("date", it) }
+
+            parameter("limit", filter.limit)
+            parameter("offset", filter.offset)
+        }
+
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+
+        return resp.body()
+    }
+
     // PATCH /users/{id}/profile — частичное обновление профиля
     suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): User =
         doPatch("/users/$userId/profile", patch) { resp ->
