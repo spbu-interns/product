@@ -54,6 +54,9 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
                 button("Find New Doctor", className = "btn-primary-lg").onClick {
                     Navigator.showFind()
                 }
+                button("Find New Doctor", className = "btn-primary-lg").onClick {
+                    Navigator.showFind()
+                }
             }
 
             div(className = "main column") {
