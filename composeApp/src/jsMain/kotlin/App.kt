@@ -12,6 +12,7 @@ import ui.authScreen
 import ui.confirmEmailScreen
 import ui.doctorPatientScreen
 import ui.doctorScreen
+import ui.findDoctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
 import ui.resetPasswordScreen
@@ -30,7 +31,13 @@ class App : Application() {
 
         fun showFind() {
             r.removeAll()
-            r.stubScreen(message = "В разработке") { showHome() }
+            r.findDoctorScreen(
+                onLogout = {
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    showHome()
+                }
+            )
         }
 
         fun showPatient() {
@@ -127,7 +134,7 @@ class App : Application() {
         Navigator.showDoctor = ::showDoctor
         Navigator.showDoctorPatient = ::showDoctorPatient
 
-        showDoctorPatient(101)
+        showHome()
     }
 }
 

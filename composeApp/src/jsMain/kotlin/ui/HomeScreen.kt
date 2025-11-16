@@ -2,6 +2,7 @@ package ui
 
 import api.ApiConfig
 import io.kvision.core.Container
+import io.kvision.core.onClick
 import io.kvision.form.text.text
 import io.kvision.html.*
 import io.kvision.panel.hPanel
@@ -27,13 +28,13 @@ fun Container.homeScreen() {
                 div(className = "searchbar_icon") {
                     +"\uD83D\uDD0D"
                 }
-                val search = text {
+                text {
                     type = InputType.SEARCH
                     placeholder = "Find a doctor by specialty, location, or rating"
                     addCssClass("searchbar_input")
                 }
                 button("Find Doctor", className = "searchbar_button").onClick {
-                    console.log("Search: ${search.value}")
+                    Navigator.showFind()
                 }
             }
         }
@@ -48,37 +49,43 @@ fun Container.homeScreen() {
                 title = "Cardiology",
                 subtitle = "Heart and cardiovascular care",
                 icon = "❤",
-                imagePath = "images/cardiology.jpg"
+                imagePath = "images/cardiology.jpg",
+                onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Pediatrics",
                 subtitle = "Children’s health and development",
                 icon = "👶",
-                imagePath = "images/pediatrics.jpg"
+                imagePath = "images/pediatrics.jpg",
+                onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Neurology",
                 subtitle = "Brain and nervous system care",
                 icon = "🧠",
-                imagePath = "images/neurology.jpg"
+                imagePath = "images/neurology.jpg",
+                onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Ophthalmology",
                 subtitle = "Eye and vision care",
                 icon = "👁️",
-                imagePath = "images/ophthalmology.jpg"
+                imagePath = "images/ophthalmology.jpg",
+                onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Orthopedics",
                 subtitle = "Bone and joint care",
                 icon = "🦴",
-                imagePath = "images/orthopedics.jpg"
+                imagePath = "images/orthopedics.jpg",
+                onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "General Medicine",
                 subtitle = "Primary healthcare services",
                 icon = "🩺",
-                imagePath = "images/general.jpg"
+                imagePath = "images/general.jpg",
+                onSelect = { Navigator.showFind() }
             )
         }
     }
@@ -117,7 +124,8 @@ private fun Container.specialtyCard(
     title: String,
     subtitle: String,
     icon: String,
-    imagePath: String
+    imagePath: String,
+    onSelect: (() -> Unit)? = null
 ) {
     div(className = "specialty").apply {
         setAttribute(
@@ -133,6 +141,10 @@ private fun Container.specialtyCard(
                 }
                 p(subtitle, className = "specialty_subtitle")
             }
+        }
+
+        onClick {
+            onSelect?.invoke()
         }
     }
 }

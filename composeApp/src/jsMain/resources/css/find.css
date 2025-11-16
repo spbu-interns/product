@@ -1,0 +1,165 @@
+.find-page {
+    background: var(--bg);
+    min-height: calc(100vh - 70px);
+    padding: 32px 0 64px;
+}
+
+.find-title {
+    margin: 0 0 16px;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.find-search-bar {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+.find-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+}
+
+.find-search-button {
+    min-width: 140px;
+    border-radius: 12px;
+}
+
+.find-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 24px;
+    align-items: start;
+}
+
+.find-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.find-sidebar-title {
+    margin: 0 0 8px;
+    font-size: 20px;
+}
+
+.find-filter-card {
+    background: #fff;
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+.find-filter-title {
+    margin: 0 0 12px;
+    font-size: 16px;
+}
+
+.find-select {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #d4d8e3;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.find-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.find-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+}
+
+.doctor-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.doctor-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.doctor-card-name {
+    margin: 0;
+    font-size: 20px;
+}
+
+.doctor-card-rating {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #fef3c7;
+    font-weight: 600;
+}
+
+.doctor-card-specialty {
+    margin: 0;
+    color: #475569;
+}
+
+.doctor-card-meta {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.doctor-card-bio {
+    margin: 4px 0 0;
+    color: #334155;
+    min-height: 48px;
+}
+
+.doctor-card-footer {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.doctor-card-price {
+    margin: 0;
+    font-weight: 600;
+}
+
+.find-empty {
+    background: #fff;
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+@media (max-width: 960px) {
+    .find-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .find-sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .find-filter-card {
+        flex: 1 1 260px;
+    }
+}
