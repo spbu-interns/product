@@ -15,6 +15,8 @@ import ui.doctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
 import ui.resetPasswordScreen
+import ui.patientProfileEditScreen
+import ui.doctorProfileEditScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
@@ -96,6 +98,20 @@ class App : Application() {
             r.confirmEmailScreen(email)
         }
 
+        fun showPatientProfileEdit() {
+            r.removeAll()
+            r.patientProfileEditScreen(
+                onBack = { showPatient() }
+            )
+        }
+
+        fun showDoctorProfileEdit() {
+            r.removeAll()
+            r.doctorProfileEditScreen(
+                onBack = { showDoctor() }
+            )
+        }
+
         showAuth = { tab ->
             r.removeAll()
             r.authScreen(
@@ -129,6 +145,9 @@ class App : Application() {
         Navigator.showDoctor = ::showDoctor
         Navigator.showDoctorPatient = ::showDoctorPatient
 
-        showHome()
+        Navigator.showPatientProfileEdit = ::showPatientProfileEdit
+        Navigator.showDoctorProfileEdit = ::showDoctorProfileEdit
+
+        showDoctor()
     }
 }
