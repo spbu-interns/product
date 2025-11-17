@@ -71,7 +71,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             span(status, className = "status info")
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(userId, recordId)
+                Navigator.showDoctorPatient(userId)
             }
         }
     }
@@ -209,7 +209,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                                 if (patients.isNotEmpty()) {
                                     cleanup()
                                     val first = patients.first()
-                                    Navigator.showDoctorPatient(first.userId, first.patientRecordId)
+                                    Navigator.showDoctorPatient(first.userId)
                                 } else {
                                     loadPatients(true)
                                 }

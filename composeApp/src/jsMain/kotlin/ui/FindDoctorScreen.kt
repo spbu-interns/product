@@ -14,6 +14,7 @@ import io.kvision.panel.SimplePanel
 import io.kvision.panel.hPanel
 import io.kvision.panel.simplePanel
 import io.kvision.panel.vPanel
+import ui.components.bookingModal
 
 private data class DoctorProfile(
     val name: String,
@@ -146,6 +147,8 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
 
     lateinit var resultsPanel: SimplePanel
 
+    val bookingModalController = bookingModal()
+    val onBookDoctor: (DoctorProfile) -> Unit = { bookingModalController.open(it.name) }
     div(className = "find-page") {
         div(className = "container") {
             h2("Найти врача", className = "find-title")
@@ -157,7 +160,14 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                 }
                 button("Поиск", className = "btn btn-primary find-search-button").onClick {
                     searchQuery = searchField.value?.trim().orEmpty()
-                    renderResults(resultsPanel, searchQuery, selectedSpecialties, selectedLocation, sortOption)
+                    renderResults(
+                        resultsPanel,
+                        searchQuery,
+                        selectedSpecialties,
+                        selectedLocation,
+                        sortOption,
+                        onBookDoctor
+                    )
                 }
             }
 
@@ -174,7 +184,14 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                         sortSelect.onEvent {
                             change = {
                                 sortOption = SortOption.from(sortSelect.value)
-                                renderResults(resultsPanel, searchQuery, selectedSpecialties, selectedLocation, sortOption)
+                                renderResults(
+                                    resultsPanel,
+                                    searchQuery,
+                                    selectedSpecialties,
+                                    selectedLocation,
+                                    sortOption,
+                                    onBookDoctor
+                                )
                             }
                         }
                     }
@@ -188,7 +205,14 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                                 onEvent {
                                     change = {
                                         if (value == true) selectedSpecialties.add(specialty) else selectedSpecialties.remove(specialty)
-                                        renderResults(resultsPanel, searchQuery, selectedSpecialties, selectedLocation, sortOption)
+                                        renderResults(
+                                            resultsPanel,
+                                            searchQuery,
+                                            selectedSpecialties,
+                                            selectedLocation,
+                                            sortOption,
+                                            onBookDoctor
+                                        )
                                     }
                                 }
                             }
@@ -206,7 +230,14 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                         locationSelect.onEvent {
                             change = {
                                 selectedLocation = locationSelect.value?.takeIf { it.isNotBlank() }
-                                renderResults(resultsPanel, searchQuery, selectedSpecialties, selectedLocation, sortOption)
+                                renderResults(
+                                    resultsPanel,
+                                    searchQuery,
+                                    selectedSpecialties,
+                                    selectedLocation,
+                                    sortOption,
+                                    onBookDoctor
+                                )
                             }
                         }
                     }
@@ -217,7 +248,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
         }
     }
 
-    renderResults(resultsPanel, searchQuery, selectedSpecialties, selectedLocation, sortOption)
+    renderResults(resultsPanel, searchQuery, selectedSpecialties, selectedLocation, sortOption, onBookDoctor)
 }
 
 private fun renderResults(
@@ -225,7 +256,8 @@ private fun renderResults(
     query: String,
     specialties: Set<String>,
     location: String?,
-    sortOption: SortOption
+    sortOption: SortOption,
+    onBook: (DoctorProfile) -> Unit
 ) {
     container.removeAll()
     val normalizedQuery = query.trim().lowercase()
@@ -256,11 +288,11 @@ private fun renderResults(
     }
 
     filtered.forEach { profile ->
-        container.doctorCard(profile)
+        container.doctorCard(profile, onBook)
     }
 }
 
-private fun Container.doctorCard(profile: DoctorProfile) {
+private fun Container.doctorCard(profile: DoctorProfile, onBook: (DoctorProfile) -> Unit) {
     val initials = profile.name
         .split(" ")
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
@@ -285,7 +317,7 @@ private fun Container.doctorCard(profile: DoctorProfile) {
                 p("от ${profile.price} ₽ / приём", className = "doctor-card-price")
                 div(className = "doctor-card-actions") {
                     button("Посмотреть профиль", className = "btn btn-secondary btn-sm")
-                    button("Записаться", className = "btn btn-primary btn-sm")
+                    button("Записаться", className = "btn btn-primary btn-sm").onClick { onBook(profile) }
                 }
             }
         }

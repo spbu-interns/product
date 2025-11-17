@@ -79,7 +79,8 @@ class App : Application() {
         fun showDoctorPatient(patientId: Long) {
             r.removeAll()
             r.doctorPatientScreen(
-                patientId = patientId,
+                patientUserId = patientId,
+                patientRecordId = null,
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
