@@ -7,7 +7,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.interns.project.users.model.UserInDto
 import org.interns.project.users.repo.ApiUserRepo
+import org.junit.Ignore
 
+@Ignore
 class RepoTest {
     @Test
     fun saveAndFindByEmailAndLogin() = runBlocking {

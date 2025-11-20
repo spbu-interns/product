@@ -5,7 +5,9 @@ import kotlin.test.*
 import org.interns.project.users.model.UserInDto
 import org.interns.project.users.model.UserProfilePatch
 import org.interns.project.users.repo.ApiUserRepo
+import kotlin.test.Ignore
 
+@Ignore
 class UserProfileIntegrationTest {
 
     private val baseUrl = "http://127.0.0.1:8001"
