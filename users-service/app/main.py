@@ -396,10 +396,34 @@ def api_create_slot(doctor_id: int, body: SlotIn):
         s.close()
 
 @app.get("/doctors/{doctor_id}/slots", response_model=List[SlotOut])
-def api_list_slots(doctor_id: int):
+def api_list_slots(
+    doctor_id: int,
+    date_filter: Optional[date] = Query(None, alias="date"),
+):
+    """
+    Все слоты врача. Если передать ?date=YYYY-MM-DD — вернёт слоты только за этот день.
+    """
     s = get_session()
     try:
-        return repo.list_slots_for_doctor(s, doctor_id)
+        return repo.list_slots_for_doctor(s, doctor_id, date_filter)
+    finally:
+        s.close()
+        
+@app.delete("/doctors/{doctor_id}/slots/{slot_id}", status_code=204)
+def api_delete_slot(doctor_id: int, slot_id: int):
+    """
+    Удалить слот врача. Нельзя удалить занятый слот.
+    """
+    s = get_session()
+    try:
+        ok = repo.delete_slot_for_doctor(s, doctor_id, slot_id)
+        if not ok:
+            # чтобы не палить детали, даём общее сообщение
+            raise HTTPException(
+                400,
+                "slot not found, belongs to another doctor or is already booked",
+            )
+        return
     finally:
         s.close()
 
@@ -420,6 +444,22 @@ def api_list_appointments_for_client(client_id: int):
     s = get_session()
     try:
         return repo.list_appointments_for_client(s, client_id)
+    finally:
+        s.close()
+        
+@app.post("/appointments/{appointment_id}/cancel", status_code=204)
+def api_cancel_appointment(appointment_id: int):
+    """
+    Клиент отменяет запись:
+    - слот становится свободным
+    - запись помечена как CANCELED
+    """
+    s = get_session()
+    try:
+        ok = repo.cancel_appointment(s, appointment_id)
+        if not ok:
+            raise HTTPException(404, "appointment not found")
+        return
     finally:
         s.close()
 

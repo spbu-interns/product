@@ -518,10 +518,36 @@ def create_slot(s: Session, body) -> Dict:
     s.commit()
     return dict(r)
 
-def list_slots_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
-    rows = s.execute(text("""
-        select * from appointment_slots where doctor_id=:d order by start_time
-    """), {"d": doctor_id}).mappings().all()
+def list_slots_for_doctor(
+    s: Session,
+    doctor_id: int,
+    slot_date: Optional[date] = None,
+) -> List[Dict]:
+    """
+    Все слоты врача, опционально отфильтрованные по дате (DATE(start_time)).
+    """
+    if slot_date is None:
+        rows = s.execute(
+            text("""
+                select *
+                from appointment_slots
+                where doctor_id = :d
+                order by start_time
+            """),
+            {"d": doctor_id},
+        ).mappings().all()
+    else:
+        rows = s.execute(
+            text("""
+                select *
+                from appointment_slots
+                where doctor_id = :d
+                  and date(start_time) = :dt
+                order by start_time
+            """),
+            {"d": doctor_id, "dt": slot_date},
+        ).mappings().all()
+
     return [dict(r) for r in rows]
 
 # ===== Appointments =====
@@ -582,6 +608,84 @@ def list_available_dates_for_doctor(s: Session, doctor_id: int) -> List[date]:
         {"d": doctor_id},
     ).all()
     return [r[0] for r in rows]
+
+def cancel_appointment(s: Session, appointment_id: int) -> bool:
+    """
+    Отменить запись:
+    - appointment.status -> 'CANCELED'
+    - выставить canceled_at, updated_at
+    - освободить слот (appointment_slots.is_booked = false)
+    """
+    row = s.execute(
+        text("select slot_id from appointments where id = :id"),
+        {"id": appointment_id},
+    ).first()
+
+    if not row:
+        return False
+
+    slot_id = row[0]
+
+    s.execute(
+        text("""
+            update appointments
+            set status = 'CANCELED',
+                canceled_at = now(),
+                updated_at = now()
+            where id = :id
+        """),
+        {"id": appointment_id},
+    )
+
+    s.execute(
+        text("""
+            update appointment_slots
+            set is_booked = false,
+                updated_at = now()
+            where id = :sid
+        """),
+        {"sid": slot_id},
+    )
+
+    s.commit()
+    return True
+
+def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
+    """
+    Удалить слот врача, только если он:
+    - существует
+    - принадлежит этому doctor_id
+    - не забронирован (is_booked = false)
+    """
+    row = s.execute(
+        text("""
+            select doctor_id, is_booked
+            from appointment_slots
+            where id = :id
+        """),
+        {"id": slot_id},
+    ).first()
+
+    if not row:
+        # нет такого слота
+        return False
+
+    row_doctor_id, is_booked = row[0], row[1]
+
+    if row_doctor_id != doctor_id:
+        # слот другого врача
+        return False
+
+    if is_booked:
+        # по ТЗ нельзя удалять занятый слот
+        return False
+
+    res = s.execute(
+        text("delete from appointment_slots where id = :id"),
+        {"id": slot_id},
+    )
+    s.commit()
+    return res.rowcount > 0
 
 # ===== Medical records / documents =====
 def create_medical_record(s: Session, body) -> Dict:
