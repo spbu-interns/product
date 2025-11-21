@@ -527,15 +527,38 @@ def list_slots_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
 # ===== Appointments =====
 def book_appointment(s: Session, body) -> Optional[Dict]:
     # простая защита: слот свободен?
-    slot = s.execute(text("select is_booked from appointment_slots where id=:id"), {"id": body.slot_id}).first()
+    slot = s.execute(
+        text("select is_booked from appointment_slots where id=:id"),
+        {"id": body.slot_id},
+    ).first()
     if not slot or slot[0]:
+        # нет такого слота или уже занят
         return None
-    r = s.execute(text("""
-        insert into appointments(slot_id, client_id, comments)
-        values (:sid,:cid,:com)
-        returning *
-    """), {"sid": body.slot_id, "cid": body.client_id, "com": body.comments}).mappings().first()
-    s.execute(text("update appointment_slots set is_booked=true where id=:id"), {"id": body.slot_id})
+
+    r = s.execute(
+        text("""
+            insert into appointments(
+                slot_id,
+                client_id,
+                comments,
+                appointment_type_id
+            )
+            values (:sid, :cid, :com, :atype)
+            returning *
+        """),
+        {
+            "sid": body.slot_id,
+            "cid": body.client_id,
+            "com": body.comments,
+            "atype": getattr(body, "appointment_type_id", None),
+        },
+    ).mappings().first()
+
+    s.execute(
+        text("update appointment_slots set is_booked=true where id=:id"),
+        {"id": body.slot_id},
+    )
+
     s.commit()
     return dict(r)
 
@@ -543,6 +566,22 @@ def list_appointments_for_client(s: Session, client_id: int) -> List[Dict]:
     rows = s.execute(text("select * from appointments where client_id=:c order by id desc"),
                      {"c": client_id}).mappings().all()
     return [dict(r) for r in rows]
+
+def list_available_dates_for_doctor(s: Session, doctor_id: int) -> List[date]:
+    """
+    Список дат, в которые у врача есть хотя бы один свободный слот.
+    """
+    rows = s.execute(
+        text("""
+            select distinct date(start_time) as day
+            from appointment_slots
+            where doctor_id = :d
+              and is_booked = false
+            order by day
+        """),
+        {"d": doctor_id},
+    ).all()
+    return [r[0] for r in rows]
 
 # ===== Medical records / documents =====
 def create_medical_record(s: Session, body) -> Dict:

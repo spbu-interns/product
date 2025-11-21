@@ -351,6 +351,18 @@ def api_get_doctor_by_user(user_id: int):
         return repo.get_doctor_by_user_id(s, user_id)
     finally:
         s.close()
+        
+@app.get("/doctors/{doctor_id}/available-dates", response_model=List[date])
+def api_get_doctor_available_dates(doctor_id: int):
+    """
+    Доступные даты для календаря врача:
+    только те дни, когда есть хотя бы один свободный слот.
+    """
+    s = get_session()
+    try:
+        return repo.list_available_dates_for_doctor(s, doctor_id)
+    finally:
+        s.close()
 
 # --- Client complaints (совместимость: принимаем patient_user_id) ---
 @app.post("/v2/patients/{patient_user_id}/complaints", status_code=201)
