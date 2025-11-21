@@ -18,7 +18,7 @@ fun Container.headerBar(
     nav(className = "topnav") {
         div(className = "container topnav_content") {
             div(className = "brand") {
-                image(src = "images/logo.jpg") {
+                image(src = "/images/logo.jpg") {
                     addCssClass("brand_logo")
                 }
                 link(label = "INTERNS", url = "#", className = "brand_text").onClick { it.preventDefault(); Navigator.showHome() }

@@ -143,7 +143,23 @@ class AuthApiClient {
                     Result.failure(Exception(resetResponse.error ?: "Password reset failed"))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                val api = runCatching {
+                    response.body<ApiResponse<ResetPasswordResponse>>()
+                }.getOrNull()
+
+                val rawError = api?.error
+                val message = when {
+                    rawError.equals("Invalid or expired token", ignoreCase = true) ->
+                        "Ссылка для восстановления пароля недействительна или устарела"
+                    !rawError.isNullOrBlank() ->
+                        rawError
+                    response.status == HttpStatusCode.BadRequest ->
+                        "Не удалось сменить пароль: некорректный запрос"
+                    else ->
+                        "Не удалось сменить пароль. ошибка: ${response.status.value}"
+                }
+
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
