@@ -196,4 +196,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+INSERT INTO appointment_types (name) VALUES
+  ('Первичный'),
+  ('Повторный'),
+  ('Осмотр')
+ON CONFLICT (name) DO NOTHING;
+
 COMMIT;
