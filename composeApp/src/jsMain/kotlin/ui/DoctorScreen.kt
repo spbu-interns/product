@@ -17,6 +17,7 @@ import io.kvision.toast.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import ui.components.timetableModal
 
 private data class DoctorPatientListItem(
     val userId: Long,
@@ -37,6 +38,7 @@ private data class DoctorAppointmentCard(
 fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     val uiScope = MainScope()
     val apiClient = PatientApiClient()
+    val timetableController = timetableModal()
 
     fun cleanup() {
         uiScope.cancel()
@@ -247,6 +249,9 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 div(className = "side button")
                 button("Create Appointment", className = "btn-primary-lg").onClick {
                     Navigator.showStub("Создание приема скоро будет доступно")
+                }
+                button("Timetable", className = "btn-secondary-lg timetable-trigger").onClick {
+                    timetableController.open(doctorName)
                 }
             }
 
