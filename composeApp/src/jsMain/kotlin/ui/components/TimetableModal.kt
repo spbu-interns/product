@@ -112,19 +112,7 @@ fun Container.timetableModal(): TimetableModalController {
                 }
             }
 
-            div(className = "timetable-slot-list") {
-                schedule.slots.forEachIndexed { index, slot ->
-                    div(className = "timetable-slot is-selected") {
-                        +slot
-                        button("×", className = "timetable-slot-remove").onClick {
-                            schedule.slots.removeAt(index)
-                            onChange()
-                        }
-                    }
-                }
-            }
-
-            div(className = "timetable-input-row") {
+            div(className = "timetable-time-row") {
                 val hours = (0..23).map { it.toString() to it.toString().padStart(2, '0') }
                 val minutes = (0..59).map { it.toString() to it.toString().padStart(2, '0') }
 
@@ -156,18 +144,34 @@ fun Container.timetableModal(): TimetableModalController {
                     add(endMinuteSelect)
                 }
 
-                button("Добавить время", className = "btn btn-primary timetable-add-slot").onClick {
-                    val startHour = startHourSelect.value?.toIntOrNull()
-                    val startMinute = startMinuteSelect.value?.toIntOrNull()
-                    val endHour = endHourSelect.value?.toIntOrNull()
-                    val endMinute = endMinuteSelect.value?.toIntOrNull()
+                div(className = "timetable-slot-list timetable-slot-list-editor") {
+                    schedule.slots.forEachIndexed { index, slot ->
+                        div(className = "timetable-slot is-selected") {
+                            +slot
+                            button("×", className = "timetable-slot-remove").onClick {
+                                schedule.slots.removeAt(index)
+                                onChange()
+                            }
+                        }
+                    }
+                }
 
-                    if (startHour != null && startMinute != null && endHour != null && endMinute != null) {
-                        val slotLabel =
-                            "${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}" +
-                                    "-${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}"
-                        schedule.slots.add(slotLabel)
-                        onChange()
+                div(className = "timetable-slot-actions") {
+                    button("Добавить время", className = "btn btn-primary timetable-add-slot").onClick {
+                        val startHour = startHourSelect.value?.toIntOrNull()
+                        val startMinute = startMinuteSelect.value?.toIntOrNull()
+                        val endHour = endHourSelect.value?.toIntOrNull()
+                        val endMinute = endMinuteSelect.value?.toIntOrNull()
+
+                        if (startHour != null && startMinute != null && endHour != null && endMinute != null) {
+                            val slotLabel =
+                                "${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}" +
+                                        "-${endHour.toString().padStart(2, '0')}:${
+                                            endMinute.toString().padStart(2, '0')
+                                        }"
+                            schedule.slots.add(slotLabel)
+                            onChange()
+                        }
                     }
                 }
             }

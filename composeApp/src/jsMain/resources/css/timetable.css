@@ -41,11 +41,43 @@
     margin-top: 8px;
 }
 
+.timetable-slot-list-editor {
+    margin-top: 12px;
+}
+
 .timetable-slot-list {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 6px;
+}
+
+.timetable-time-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.timetable-time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timetable-time-inputs .timetable-input {
+    flex: 0 0 90px;
+    min-width: 90px;
+}
+
+.timetable-time-separator {
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.timetable-slot-actions {
+    margin-top: 12px;
 }
 
 .timetable-slot {
