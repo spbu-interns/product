@@ -2,6 +2,7 @@ package org.interns.project.users.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.time.Instant
 
 @Serializable
 data class UserInDto(
@@ -159,4 +160,55 @@ data class ClientPatch(
     val snils: String? = null,
     val passport: String? = null,
     @SerialName("dms_oms") val dmsOms: String? = null
+)
+
+// --- Appointment slots / appointments ---
+@Serializable
+data class SlotOutDto(
+    val id: Long,
+    @SerialName("doctor_id") val doctorId: Long,
+    @SerialName("start_time") val startTime: String,
+    @SerialName("end_time") val endTime: String,
+    val duration: Int,
+    @SerialName("is_booked") val isBooked: Boolean,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String
+)
+
+data class Slot(
+    val id: Long,
+    val doctorId: Long,
+    val startTime: Instant?,
+    val endTime: Instant?,
+    val durationMinutes: Int,
+    val isBooked: Boolean,
+    val createdAt: Instant?,
+    val updatedAt: Instant?
+)
+
+@Serializable
+data class AppointmentOutDto(
+    val id: Long,
+    @SerialName("slot_id") val slotId: Long,
+    @SerialName("client_id") val clientId: Long,
+    val status: String,
+    val comments: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("canceled_at") val canceledAt: String? = null,
+    @SerialName("completed_at") val completedAt: String? = null,
+    @SerialName("appointment_type_id") val appointmentTypeId: Long? = null
+)
+
+data class Appointment(
+    val id: Long,
+    val slotId: Long,
+    val clientId: Long,
+    val status: String,
+    val comments: String?,
+    val createdAt: Instant?,
+    val updatedAt: Instant?,
+    val canceledAt: Instant?,
+    val completedAt: Instant?,
+    val appointmentTypeId: Long?
 )
