@@ -2,12 +2,14 @@ package ui.components
 
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.form.select.Select
 import io.kvision.form.text.Text
 import io.kvision.form.text.text
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h3
 import io.kvision.html.p
+import io.kvision.html.span
 import io.kvision.panel.SimplePanel
 import io.kvision.panel.simplePanel
 import io.kvision.toast.Toast
@@ -123,15 +125,48 @@ fun Container.timetableModal(): TimetableModalController {
             }
 
             div(className = "timetable-input-row") {
-                val slotField: Text = text(value = "") {
-                    placeholder = "Например, 09:00-12:00"
+                val hours = (0..23).map { it.toString() to it.toString().padStart(2, '0') }
+                val minutes = (0..59).map { it.toString() to it.toString().padStart(2, '0') }
+
+                val startHourSelect = Select(options = hours) {
+                    value = "09"
                     addCssClass("timetable-input")
                 }
+                val startMinuteSelect = Select(options = minutes) {
+                    value = "00"
+                    addCssClass("timetable-input")
+                }
+                val endHourSelect = Select(options = hours) {
+                    value = "12"
+                    addCssClass("timetable-input")
+                }
+
+                val endMinuteSelect = Select(options = minutes) {
+                    value = "00"
+                    addCssClass("timetable-input")
+                }
+
+                div(className = "timetable-time-inputs") {
+                    add(startHourSelect)
+                    span(":", className = "timetable-time-separator")
+                    add(startMinuteSelect)
+                    span(" — ", className = "timetable-time-separator")
+                    add(endHourSelect)
+                    span(":", className = "timetable-time-separator")
+                    add(endMinuteSelect)
+                }
+
                 button("Добавить время", className = "btn btn-primary timetable-add-slot").onClick {
-                    val value = slotField.value?.trim()
-                    if (!value.isNullOrBlank()) {
-                        schedule.slots.add(value)
-                        slotField.value = ""
+                    val startHour = startHourSelect.value?.toIntOrNull()
+                    val startMinute = startMinuteSelect.value?.toIntOrNull()
+                    val endHour = endHourSelect.value?.toIntOrNull()
+                    val endMinute = endMinuteSelect.value?.toIntOrNull()
+
+                    if (startHour != null && startMinute != null && endHour != null && endMinute != null) {
+                        val slotLabel =
+                            "${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}" +
+                                    "-${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}"
+                        schedule.slots.add(slotLabel)
                         onChange()
                     }
                 }
