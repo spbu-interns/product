@@ -171,7 +171,7 @@ class App : Application() {
             val token = params.get("token")
             showPasswordResetForm(token)
         } else {
-            showHome()
+            showDoctor()
         }
     }
 }
