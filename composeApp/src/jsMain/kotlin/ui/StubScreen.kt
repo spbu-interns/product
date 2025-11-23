@@ -14,3 +14,4 @@ fun Container.stubScreen(message: String, onBack: () -> Unit) = vPanel(spacing =
     div("✅ $message")
     add(Button("Назад", style = ButtonStyle.SECONDARY).apply { onClick { onBack() } })
 }
+
