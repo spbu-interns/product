@@ -49,42 +49,42 @@ fun Container.homeScreen() {
                 title = "Cardiology",
                 subtitle = "Heart and cardiovascular care",
                 icon = "❤",
-                imagePath = "images/cardiology.jpg",
+                imagePath = "/images/cardiology.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Pediatrics",
                 subtitle = "Children’s health and development",
                 icon = "👶",
-                imagePath = "images/pediatrics.jpg",
+                imagePath = "/images/pediatrics.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Neurology",
                 subtitle = "Brain and nervous system care",
                 icon = "🧠",
-                imagePath = "images/neurology.jpg",
+                imagePath = "/images/neurology.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Ophthalmology",
                 subtitle = "Eye and vision care",
                 icon = "👁️",
-                imagePath = "images/ophthalmology.jpg",
+                imagePath = "/images/ophthalmology.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "Orthopedics",
                 subtitle = "Bone and joint care",
                 icon = "🦴",
-                imagePath = "images/orthopedics.jpg",
+                imagePath = "/images/orthopedics.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
                 title = "General Medicine",
                 subtitle = "Primary healthcare services",
                 icon = "🩺",
-                imagePath = "images/general.jpg",
+                imagePath = "/images/general.jpg",
                 onSelect = { Navigator.showFind() }
             )
         }

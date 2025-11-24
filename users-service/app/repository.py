@@ -518,24 +518,73 @@ def create_slot(s: Session, body) -> Dict:
     s.commit()
     return dict(r)
 
-def list_slots_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
-    rows = s.execute(text("""
-        select * from appointment_slots where doctor_id=:d order by start_time
-    """), {"d": doctor_id}).mappings().all()
+def list_slots_for_doctor(
+    s: Session,
+    doctor_id: int,
+    slot_date: Optional[date] = None,
+) -> List[Dict]:
+    """
+    Все слоты врача, опционально отфильтрованные по дате (DATE(start_time)).
+    """
+    if slot_date is None:
+        rows = s.execute(
+            text("""
+                select *
+                from appointment_slots
+                where doctor_id = :d
+                order by start_time
+            """),
+            {"d": doctor_id},
+        ).mappings().all()
+    else:
+        rows = s.execute(
+            text("""
+                select *
+                from appointment_slots
+                where doctor_id = :d
+                  and date(start_time) = :dt
+                order by start_time
+            """),
+            {"d": doctor_id, "dt": slot_date},
+        ).mappings().all()
+
     return [dict(r) for r in rows]
 
 # ===== Appointments =====
 def book_appointment(s: Session, body) -> Optional[Dict]:
     # простая защита: слот свободен?
-    slot = s.execute(text("select is_booked from appointment_slots where id=:id"), {"id": body.slot_id}).first()
+    slot = s.execute(
+        text("select is_booked from appointment_slots where id=:id"),
+        {"id": body.slot_id},
+    ).first()
     if not slot or slot[0]:
+        # нет такого слота или уже занят
         return None
-    r = s.execute(text("""
-        insert into appointments(slot_id, client_id, comments)
-        values (:sid,:cid,:com)
-        returning *
-    """), {"sid": body.slot_id, "cid": body.client_id, "com": body.comments}).mappings().first()
-    s.execute(text("update appointment_slots set is_booked=true where id=:id"), {"id": body.slot_id})
+
+    r = s.execute(
+        text("""
+            insert into appointments(
+                slot_id,
+                client_id,
+                comments,
+                appointment_type_id
+            )
+            values (:sid, :cid, :com, :atype)
+            returning *
+        """),
+        {
+            "sid": body.slot_id,
+            "cid": body.client_id,
+            "com": body.comments,
+            "atype": getattr(body, "appointment_type_id", None),
+        },
+    ).mappings().first()
+
+    s.execute(
+        text("update appointment_slots set is_booked=true where id=:id"),
+        {"id": body.slot_id},
+    )
+
     s.commit()
     return dict(r)
 
@@ -543,6 +592,100 @@ def list_appointments_for_client(s: Session, client_id: int) -> List[Dict]:
     rows = s.execute(text("select * from appointments where client_id=:c order by id desc"),
                      {"c": client_id}).mappings().all()
     return [dict(r) for r in rows]
+
+def list_available_dates_for_doctor(s: Session, doctor_id: int) -> List[date]:
+    """
+    Список дат, в которые у врача есть хотя бы один свободный слот.
+    """
+    rows = s.execute(
+        text("""
+            select distinct date(start_time) as day
+            from appointment_slots
+            where doctor_id = :d
+              and is_booked = false
+            order by day
+        """),
+        {"d": doctor_id},
+    ).all()
+    return [r[0] for r in rows]
+
+def cancel_appointment(s: Session, appointment_id: int) -> bool:
+    """
+    Отменить запись:
+    - appointment.status -> 'CANCELED'
+    - выставить canceled_at, updated_at
+    - освободить слот (appointment_slots.is_booked = false)
+    """
+    row = s.execute(
+        text("select slot_id from appointments where id = :id"),
+        {"id": appointment_id},
+    ).first()
+
+    if not row:
+        return False
+
+    slot_id = row[0]
+
+    s.execute(
+        text("""
+            update appointments
+            set status = 'CANCELED',
+                canceled_at = now(),
+                updated_at = now()
+            where id = :id
+        """),
+        {"id": appointment_id},
+    )
+
+    s.execute(
+        text("""
+            update appointment_slots
+            set is_booked = false,
+                updated_at = now()
+            where id = :sid
+        """),
+        {"sid": slot_id},
+    )
+
+    s.commit()
+    return True
+
+def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
+    """
+    Удалить слот врача, только если он:
+    - существует
+    - принадлежит этому doctor_id
+    - не забронирован (is_booked = false)
+    """
+    row = s.execute(
+        text("""
+            select doctor_id, is_booked
+            from appointment_slots
+            where id = :id
+        """),
+        {"id": slot_id},
+    ).first()
+
+    if not row:
+        # нет такого слота
+        return False
+
+    row_doctor_id, is_booked = row[0], row[1]
+
+    if row_doctor_id != doctor_id:
+        # слот другого врача
+        return False
+
+    if is_booked:
+        # по ТЗ нельзя удалять занятый слот
+        return False
+
+    res = s.execute(
+        text("delete from appointment_slots where id = :id"),
+        {"id": slot_id},
+    )
+    s.commit()
+    return res.rowcount > 0
 
 # ===== Medical records / documents =====
 def create_medical_record(s: Session, body) -> Dict:
@@ -825,7 +968,11 @@ def search_doctors(
     min_experience: Optional[int] = None,
     max_experience: Optional[int] = None,
     date_filter: Optional[date] = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> List[Dict]:
+    safe_limit = 50 if limit is None or limit <= 0 else limit
+    safe_offset = 0 if offset is None or offset < 0 else offset
     sql = """
         select
             d.*,
@@ -849,7 +996,7 @@ def search_doctors(
         left join clinics c on c.id = d.clinic_id
         where 1=1
     """
-    params = {}
+    params = {"limit": safe_limit, "offset": safe_offset}
 
     if city is not None:
         sql += " and c.city = :city"
@@ -926,7 +1073,10 @@ def search_doctors(
         """
         params["slot_date"] = date_filter
 
-    sql += " order by d.rating desc nulls last, d.price nulls first, d.id"
+    sql += """
+            order by d.rating desc nulls last, d.price asc nulls last, d.id
+            limit :limit offset :offset
+        """
 
     rows = s.execute(text(sql), params).mappings().all()
     return [dict(r) for r in rows]

@@ -226,6 +226,8 @@ class AppointmentIn(BaseModel):
     slot_id: int
     client_id: int
     comments: Optional[str] = None
+    # NEW: тип приёма (nullable)
+    appointment_type_id: Optional[int] = None
 
 class AppointmentOut(BaseModel):
     id: int
@@ -237,6 +239,8 @@ class AppointmentOut(BaseModel):
     updated_at: datetime
     canceled_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    # NEW: тип приёма
+    appointment_type_id: Optional[int] = None
 
 # --- Medical records / documents ---
 class MedicalRecordIn(BaseModel):
