@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 from typing import Literal
 from datetime import datetime, date
@@ -26,6 +26,9 @@ class DoctorRegData(BaseModel):
     rating: Optional[float] = 0.0
     experience: Optional[int] = None
     price: Optional[float] = None
+    # НОВОЕ:
+    online_available: Optional[bool] = False
+    specialization_ids: Optional[List[int]] = None
 
 class AdminRegData(BaseModel):
     clinic_id: int
@@ -181,6 +184,10 @@ class DoctorIn(BaseModel):
     rating: Optional[float] = 0.0
     experience: Optional[int] = None
     price: Optional[float] = None
+    
+    # НОВОЕ:
+    online_available: Optional[bool] = False
+    specialization_ids: Optional[List[int]] = None
 
 class DoctorOut(DoctorIn):
     id: int
@@ -219,6 +226,8 @@ class AppointmentIn(BaseModel):
     slot_id: int
     client_id: int
     comments: Optional[str] = None
+    # NEW: тип приёма (nullable)
+    appointment_type_id: Optional[int] = None
 
 class AppointmentOut(BaseModel):
     id: int
@@ -230,6 +239,8 @@ class AppointmentOut(BaseModel):
     updated_at: datetime
     canceled_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    # NEW: тип приёма
+    appointment_type_id: Optional[int] = None
 
 # --- Medical records / documents ---
 class MedicalRecordIn(BaseModel):
@@ -292,7 +303,39 @@ class DoctorPatch(BaseModel):
     rating: Optional[float] = None
     experience: Optional[int] = None
     price: Optional[float] = None
+    # НОВОЕ:
+    online_available: Optional[bool] = None
+    specialization_ids: Optional[List[int]] = None
 
 class AdminPatch(BaseModel):
     clinic_id: Optional[int] = None
     position: Optional[str] = None
+    
+    
+class SpecializationOut(BaseModel):
+    id: int
+    name: str
+    is_popular: bool
+
+
+class DoctorSearchOut(BaseModel):
+    id: int
+    user_id: int
+    clinic_id: Optional[int] = None
+    profession: str
+    info: Optional[str] = None
+    is_confirmed: Optional[bool] = None
+    rating: Optional[float] = None
+    experience: Optional[int] = None
+    price: Optional[float] = None
+    online_available: bool
+
+    gender: Optional[Gender] = None
+    date_of_birth: Optional[date] = None
+
+    city: Optional[str] = None
+    region: Optional[str] = None
+    metro: Optional[str] = None
+
+    # список названий специализаций врача
+    specialization_names: List[str] = []

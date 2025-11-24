@@ -1,8 +1,3 @@
-/* =========================
-   Patient Dashboard (by class names from PatientScreen.kt)
-========================= */
-
-/* Layout */
 .account { padding: 20px 0 36px; }
 .account.grid {
   display: grid;
@@ -10,7 +5,6 @@
   gap: 20px;
 }
 
-/* Generic card */
 .card {
   background: var(--card);
   border: 1px solid #e5e7eb;
@@ -18,7 +12,6 @@
   box-shadow: var(--shadow);
 }
 
-/* Sidebar */
 .sidebar.card { padding: 20px; }
 .avatar.circle {
   width: 84px; height: 84px; margin: 4px auto 10px;
@@ -39,10 +32,8 @@
 .side_item.is-active { background: var(--primary); color:#fff; }
 .side.icon { margin-left: auto; opacity: .7; }
 
-/* Divider before button */
 .side.button { height:1px; background:#e5e7eb; margin: 16px 0; }
 
-/* Primary CTA */
 .btn-primary-lg {
   width: 100%; padding: 12px 14px; border: none; border-radius: 12px;
   background: var(--primary); color: #fff; font-weight: 700; cursor: pointer;
@@ -50,11 +41,9 @@
 }
 .btn-primary-lg:hover { background: var(--primary-600); }
 
-/* Main column */
 .main.column { }
 .account.title { text-align: center; }
 
-/* Statistics */
 .statistics.grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;
 }
@@ -67,12 +56,10 @@
 .statistics.value { margin: 0; font-size: 28px; line-height: 1; }
 .statistics.label { color: var(--muted); }
 
-/* Content blocks */
 .card.block { padding: 16px; border-radius: 18px; margin-bottom: 18px; }
 .card.block.appointment-block { margin-bottom: 32px; }
 .block.title { margin: 0 0 12px; }
 
-/* Appointment */
 .appointment.card {
   background: #eef5ff; border:1px solid #dbeafe; border-radius: 14px; padding: 18px 18px 18px 28px;
 }
@@ -82,8 +69,22 @@
   display:flex; align-items:center; justify-content:center; background:#e2e8f0; flex: 0 0 40px;
 }
 .appointment.info { display: flex; flex-direction: column; min-width: 0; }
-.appointment.doctor    { font-weight: 700; }
-.appointment.appointment-specialty { color: var(--primary-600); display:block; margin-top: 2px; }
+
+.appointment .appointment.doctor {
+    margin: 0;
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1;
+}
+.appointment .appointment-specialty {
+    margin-top: -2px;
+    display: block;
+    font-size: 15px;
+    line-height: 1;
+    color: #64748b;
+}
+
 .appointment.meta      { display:flex; gap: 16px; margin-top: 6px; color:#475569; font-size: 14px; }
 .appointment.actions { justify-self: end; display: flex; align-items: center; }
 .appointment.card > .block,
@@ -104,7 +105,6 @@
 
 .spacer { flex: 1 1 auto; }
 
-/* Status badges */
 .status {
   display:inline-flex; align-items:center; border-radius: 999px;
   padding: 6px 10px; font-size: 12px; font-weight: 700;
@@ -113,7 +113,71 @@
 .status.neutral { background:#eef2f7; color:#111827; }
 .status.info    { background:#e0f2fe; color:#075985; }
 
-/* Records list */
+.status.confirmed { background:#16a34a; color:#fff; }
+.status.pending   { background:#facc15; color:#92400e; }
+
+.tab-buttons {
+    display: flex;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto 18px;
+    background: #e7edf6;
+    padding: 4px;
+    border-radius: 999px;
+    gap: 0;
+}
+
+.tab-button {
+    flex: 1 1 0;
+    border: none;
+    background: transparent;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    text-align: center;
+    transition: all .15s ease;
+}
+
+.tab-button.is-active {
+    background: #ffffff;
+    color: #111827;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.10);
+}
+
+.tab-button:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.appointments.tabs { display: flex; flex-direction: column; }
+.appointments.list { display: flex; flex-direction: column; gap: 12px; }
+.appointments-title { margin-bottom: 12px; }
+
+.btn.ghost.small {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    font-weight: 700;
+    color: #111827;
+    cursor: pointer;
+    transition: all .15s ease;
+}
+.btn.ghost.small:hover { background: #f1f5f9; }
+
+.btn.danger.small {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #ef4444;
+    background: #fee2e2;
+    font-weight: 700;
+    color: #b91c1c;
+    cursor: pointer;
+    transition: all .15s ease;
+}
+.btn.danger.small:hover { background: #fecdd3; }
+
 .records.list { display:flex; flex-direction:column; gap: 12px; }
 .record.item {
   display:flex; align-items:center; gap: 12px;
@@ -150,8 +214,74 @@
 
 .toolbar { margin-top: 24px; margin-bottom: 24px; }
 
+.appointment.card.full {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+    padding: 18px 22px 20px;
+}
 
-/* Responsive */
+.appointment.card.full .appointment.info {
+    line-height: 1;
+}
+
+.appointment.card.full .appointment.info .appointment.doctor,
+.appointment.card.full .appointment.info .appointment-specialty {
+    margin: 0 !important;
+    padding: 0;
+    line-height: 1.1;
+}
+
+.appointment.card.full .appointment.info .appointment-specialty {
+    margin-top: 2px !important;
+}
+
+.appointment.avatar.colored {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status.completed {
+    background: #bbf7d0;
+    color: #166534;
+}
+.appointment.buttons { display: flex; gap: 8px; margin-left: 12px; }
+.appointment.note { margin: 0; color: #64748b; font-size: 13px; }
+
+.appointment.details {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #f8fafc;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.details.column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.details.title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.details.text {
+    font-size: 14px;
+    color: #475569;
+}
+
+@media (max-width: 640px) {
+    .appointment.details {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 1024px) {
   .account.grid { grid-template-columns: 1fr; }
 }

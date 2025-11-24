@@ -3,7 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from passlib.hash import bcrypt
 from .models import UserIn, RegistrationIn
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import secrets, hashlib
 
 
@@ -376,21 +376,113 @@ def get_client_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
     return dict(r) if r else None
 
 # ===== Doctors =====
+def set_doctor_specializations(s: Session, doctor_id: int, specialization_ids: List[int]) -> None:
+    """
+    Перезаписывает список специализаций врача.
+    """
+    # удаляем старые связи
+    s.execute(text("delete from doctor_specializations where doctor_id=:d"), {"d": doctor_id})
+    # вставляем новые
+    if specialization_ids:
+        s.execute(
+            text("""
+                insert into doctor_specializations(doctor_id, specialization_id)
+                values (:did, :sid)
+            """),
+            [{"did": doctor_id, "sid": sid} for sid in specialization_ids],
+        )
+        
+def _get_doctor_with_specs_by_id(s: Session, doctor_id: int) -> Optional[Dict]:
+    r = s.execute(text("""
+        select
+            d.*,
+            coalesce(
+                array(
+                    select ds.specialization_id
+                    from doctor_specializations ds
+                    where ds.doctor_id = d.id
+                    order by ds.specialization_id
+                ),
+                array[]::int[]
+            ) as specialization_ids
+        from doctors d
+        where d.id = :id
+        limit 1
+    """), {"id": doctor_id}).mappings().first()
+    return dict(r) if r else None
+
+
+def _get_doctor_with_specs_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
+    r = s.execute(text("""
+        select
+            d.*,
+            coalesce(
+                array(
+                    select ds.specialization_id
+                    from doctor_specializations ds
+                    where ds.doctor_id = d.id
+                    order by ds.specialization_id
+                ),
+                array[]::int[]
+            ) as specialization_ids
+        from doctors d
+        where d.user_id = :uid
+        limit 1
+    """), {"uid": user_id}).mappings().first()
+    return dict(r) if r else None
+        
+def list_specializations(s: Session, popular_only: Optional[bool] = None) -> List[Dict]:
+    if popular_only:
+        rows = s.execute(text("""
+            select id, name, is_popular, created_at
+            from specializations
+            where is_popular = true
+            order by name
+        """)).mappings().all()
+    else:
+        rows = s.execute(text("""
+            select id, name, is_popular, created_at
+            from specializations
+            order by is_popular desc, name
+        """)).mappings().all()
+    return [dict(r) for r in rows]
+
+
+
 def create_doctor(s: Session, body) -> Dict:
     r = s.execute(text("""
-        insert into doctors(user_id, clinic_id, profession, info, is_confirmed, rating, experience, price)
-        values (:uid,:cid,:prof,:info,:conf,:rt,:exp,:price)
-        returning *
+        insert into doctors(user_id, clinic_id, profession, info,
+                            is_confirmed, rating, experience, price,
+                            online_available)
+        values (:uid,:cid,:prof,:info,:conf,:rt,:exp,:price,:online)
+        returning id
     """), {
-        "uid": body.user_id, "cid": body.clinic_id, "prof": body.profession, "info": body.info,
-        "conf": body.is_confirmed, "rt": body.rating, "exp": body.experience, "price": body.price
+        "uid": body.user_id,
+        "cid": body.clinic_id,
+        "prof": body.profession,
+        "info": body.info,
+        "conf": body.is_confirmed,
+        "rt": body.rating,
+        "exp": body.experience,
+        "price": body.price,
+        "online": body.online_available if body.online_available is not None else False,
     }).mappings().first()
+
+    doctor_id = r["id"]
+
+    # специализации, если переданы
+    spec_ids = getattr(body, "specialization_ids", None)
+    if spec_ids:
+        set_doctor_specializations(s, doctor_id, spec_ids)
+
+    # теперь достаем врача с specialization_ids
+    doctor = _get_doctor_with_specs_by_id(s, doctor_id)
+
     s.commit()
-    return dict(r)
+    return doctor
 
 def get_doctor_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
-    r = s.execute(text("select * from doctors where user_id=:u"), {"u": user_id}).mappings().first()
-    return dict(r) if r else None
+    return _get_doctor_with_specs_by_user_id(s, user_id)
 
 # ===== Complaints (новая таблица: client_complaints) =====
 def create_client_complaint_by_user(s: Session, patient_user_id: int, c) -> Optional[Dict]:
@@ -426,24 +518,73 @@ def create_slot(s: Session, body) -> Dict:
     s.commit()
     return dict(r)
 
-def list_slots_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
-    rows = s.execute(text("""
-        select * from appointment_slots where doctor_id=:d order by start_time
-    """), {"d": doctor_id}).mappings().all()
+def list_slots_for_doctor(
+    s: Session,
+    doctor_id: int,
+    slot_date: Optional[date] = None,
+) -> List[Dict]:
+    """
+    Все слоты врача, опционально отфильтрованные по дате (DATE(start_time)).
+    """
+    if slot_date is None:
+        rows = s.execute(
+            text("""
+                select *
+                from appointment_slots
+                where doctor_id = :d
+                order by start_time
+            """),
+            {"d": doctor_id},
+        ).mappings().all()
+    else:
+        rows = s.execute(
+            text("""
+                select *
+                from appointment_slots
+                where doctor_id = :d
+                  and date(start_time) = :dt
+                order by start_time
+            """),
+            {"d": doctor_id, "dt": slot_date},
+        ).mappings().all()
+
     return [dict(r) for r in rows]
 
 # ===== Appointments =====
 def book_appointment(s: Session, body) -> Optional[Dict]:
     # простая защита: слот свободен?
-    slot = s.execute(text("select is_booked from appointment_slots where id=:id"), {"id": body.slot_id}).first()
+    slot = s.execute(
+        text("select is_booked from appointment_slots where id=:id"),
+        {"id": body.slot_id},
+    ).first()
     if not slot or slot[0]:
+        # нет такого слота или уже занят
         return None
-    r = s.execute(text("""
-        insert into appointments(slot_id, client_id, comments)
-        values (:sid,:cid,:com)
-        returning *
-    """), {"sid": body.slot_id, "cid": body.client_id, "com": body.comments}).mappings().first()
-    s.execute(text("update appointment_slots set is_booked=true where id=:id"), {"id": body.slot_id})
+
+    r = s.execute(
+        text("""
+            insert into appointments(
+                slot_id,
+                client_id,
+                comments,
+                appointment_type_id
+            )
+            values (:sid, :cid, :com, :atype)
+            returning *
+        """),
+        {
+            "sid": body.slot_id,
+            "cid": body.client_id,
+            "com": body.comments,
+            "atype": getattr(body, "appointment_type_id", None),
+        },
+    ).mappings().first()
+
+    s.execute(
+        text("update appointment_slots set is_booked=true where id=:id"),
+        {"id": body.slot_id},
+    )
+
     s.commit()
     return dict(r)
 
@@ -451,6 +592,100 @@ def list_appointments_for_client(s: Session, client_id: int) -> List[Dict]:
     rows = s.execute(text("select * from appointments where client_id=:c order by id desc"),
                      {"c": client_id}).mappings().all()
     return [dict(r) for r in rows]
+
+def list_available_dates_for_doctor(s: Session, doctor_id: int) -> List[date]:
+    """
+    Список дат, в которые у врача есть хотя бы один свободный слот.
+    """
+    rows = s.execute(
+        text("""
+            select distinct date(start_time) as day
+            from appointment_slots
+            where doctor_id = :d
+              and is_booked = false
+            order by day
+        """),
+        {"d": doctor_id},
+    ).all()
+    return [r[0] for r in rows]
+
+def cancel_appointment(s: Session, appointment_id: int) -> bool:
+    """
+    Отменить запись:
+    - appointment.status -> 'CANCELED'
+    - выставить canceled_at, updated_at
+    - освободить слот (appointment_slots.is_booked = false)
+    """
+    row = s.execute(
+        text("select slot_id from appointments where id = :id"),
+        {"id": appointment_id},
+    ).first()
+
+    if not row:
+        return False
+
+    slot_id = row[0]
+
+    s.execute(
+        text("""
+            update appointments
+            set status = 'CANCELED',
+                canceled_at = now(),
+                updated_at = now()
+            where id = :id
+        """),
+        {"id": appointment_id},
+    )
+
+    s.execute(
+        text("""
+            update appointment_slots
+            set is_booked = false,
+                updated_at = now()
+            where id = :sid
+        """),
+        {"sid": slot_id},
+    )
+
+    s.commit()
+    return True
+
+def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
+    """
+    Удалить слот врача, только если он:
+    - существует
+    - принадлежит этому doctor_id
+    - не забронирован (is_booked = false)
+    """
+    row = s.execute(
+        text("""
+            select doctor_id, is_booked
+            from appointment_slots
+            where id = :id
+        """),
+        {"id": slot_id},
+    ).first()
+
+    if not row:
+        # нет такого слота
+        return False
+
+    row_doctor_id, is_booked = row[0], row[1]
+
+    if row_doctor_id != doctor_id:
+        # слот другого врача
+        return False
+
+    if is_booked:
+        # по ТЗ нельзя удалять занятый слот
+        return False
+
+    res = s.execute(
+        text("delete from appointment_slots where id = :id"),
+        {"id": slot_id},
+    )
+    s.commit()
+    return res.rowcount > 0
 
 # ===== Medical records / documents =====
 def create_medical_record(s: Session, body) -> Dict:
@@ -547,9 +782,12 @@ def register_user_with_role(s: Session, reg) -> Dict:
         elif reg.role == "DOCTOR":
             if not reg.doctor or not reg.doctor.profession:
                 raise ValueError("doctor.profession is required")
-            s.execute(text("""
-              insert into doctors(user_id, clinic_id, profession, info, is_confirmed, rating, experience, price)
-              values (:uid,:cid,:prof,:info,:conf,:rt,:exp,:price)
+            doc = s.execute(text("""
+              insert into doctors(user_id, clinic_id, profession, info,
+                                  is_confirmed, rating, experience, price,
+                                  online_available)
+              values (:uid,:cid,:prof,:info,:conf,:rt,:exp,:price,:online)
+              returning id
             """), {
               "uid": uid,
               "cid": reg.doctor.clinic_id,
@@ -558,8 +796,13 @@ def register_user_with_role(s: Session, reg) -> Dict:
               "conf": reg.doctor.is_confirmed or False,
               "rt": reg.doctor.rating or 0.0,
               "exp": reg.doctor.experience,
-              "price": reg.doctor.price
-            })
+              "price": reg.doctor.price,
+              "online": reg.doctor.online_available or False,
+            }).mappings().first()
+
+            # специализации при регистрации
+            if reg.doctor.specialization_ids:
+                set_doctor_specializations(s, doc["id"], reg.doctor.specialization_ids)
 
         elif reg.role == "ADMIN":
             if not reg.admin or not reg.admin.clinic_id:
@@ -640,6 +883,9 @@ def patch_doctor_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
         sets.append("experience = :exp"); params["exp"] = p.experience
     if p.price is not None:
         sets.append("price = :price"); params["price"] = p.price
+    if p.online_available is not None:
+        sets.append("online_available = :online")
+        params["online"] = p.online_available
 
     if not sets:
         return None
@@ -649,17 +895,32 @@ def patch_doctor_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
         update doctors
         set {', '.join(sets)}
         where user_id = :uid
-        returning *
+        returning id
     """
     r = s.execute(text(sql), params).mappings().first()
 
+    if not r:
+        s.commit()
+        return None
+
+    doctor_id = r["id"]
+
+    # обновляем специализации, если прислали
+    if p.specialization_ids is not None:
+        set_doctor_specializations(s, doctor_id, p.specialization_ids)
+
     # зеркалим clinic_id в users, если прислали
-    if r and p.clinic_id is not None:
-        s.execute(text("update users set clinic_id=:cid, updated_at=now() where id=:uid"),
-                  {"cid": p.clinic_id, "uid": user_id})
+    if p.clinic_id is not None:
+        s.execute(
+            text("update users set clinic_id=:cid, updated_at=now() where id=:uid"),
+            {"cid": p.clinic_id, "uid": user_id},
+        )
+
+    # достаем полную запись врача с specialization_ids
+    doctor = _get_doctor_with_specs_by_id(s, doctor_id)
 
     s.commit()
-    return dict(r) if r else None
+    return doctor
 
 
 def patch_admin_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
@@ -690,3 +951,132 @@ def patch_admin_by_user_id(s: Session, user_id: int, p) -> Optional[Dict]:
 
     s.commit()
     return dict(r) if r else None
+
+def search_doctors(
+    s: Session,
+    specialization_ids: Optional[List[int]] = None,
+    city: Optional[str] = None,
+    region: Optional[str] = None,
+    metro: Optional[str] = None,
+    online_only: bool = False,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_rating: Optional[float] = None,
+    gender: Optional[str] = None,
+    min_age: Optional[int] = None,
+    max_age: Optional[int] = None,
+    min_experience: Optional[int] = None,
+    max_experience: Optional[int] = None,
+    date_filter: Optional[date] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> List[Dict]:
+    safe_limit = 50 if limit is None or limit <= 0 else limit
+    safe_offset = 0 if offset is None or offset < 0 else offset
+    sql = """
+        select
+            d.*,
+            u.gender,
+            u.date_of_birth,
+            c.city,
+            c.region,
+            c.metro,
+            coalesce(
+                array(
+                    select s2.name
+                    from doctor_specializations ds2
+                    join specializations s2 on s2.id = ds2.specialization_id
+                    where ds2.doctor_id = d.id
+                    order by s2.name
+                ),
+                array[]::varchar[]
+            ) as specialization_names
+        from doctors d
+        join users u on u.id = d.user_id
+        left join clinics c on c.id = d.clinic_id
+        where 1=1
+    """
+    params = {"limit": safe_limit, "offset": safe_offset}
+
+    if city is not None:
+        sql += " and c.city = :city"
+        params["city"] = city
+
+    if region is not None:
+        sql += " and c.region = :region"
+        params["region"] = region
+
+    if metro is not None:
+        sql += " and c.metro = :metro"
+        params["metro"] = metro
+
+    if online_only:
+        sql += " and d.online_available = true"
+
+    if min_price is not None:
+        sql += " and d.price is not null and d.price >= :min_price"
+        params["min_price"] = min_price
+
+    if max_price is not None:
+        sql += " and d.price is not null and d.price <= :max_price"
+        params["max_price"] = max_price
+
+    if min_rating is not None:
+        sql += " and d.rating is not null and d.rating >= :min_rating"
+        params["min_rating"] = min_rating
+
+    if gender is not None:
+        sql += " and u.gender = :gender"
+        params["gender"] = gender
+
+    if min_age is not None:
+        sql += """
+            and u.date_of_birth is not null
+            and extract(year from age(now(), u.date_of_birth)) >= :min_age
+        """
+        params["min_age"] = min_age
+
+    if max_age is not None:
+        sql += """
+            and u.date_of_birth is not null
+            and extract(year from age(now(), u.date_of_birth)) <= :max_age
+        """
+        params["max_age"] = max_age
+
+    if min_experience is not None:
+        sql += " and d.experience is not null and d.experience >= :min_exp"
+        params["min_exp"] = min_experience
+
+    if max_experience is not None:
+        sql += " and d.experience is not null and d.experience <= :max_exp"
+        params["max_exp"] = max_experience
+
+    if specialization_ids:
+        sql += """
+            and exists (
+                select 1 from doctor_specializations ds
+                where ds.doctor_id = d.id
+                  and ds.specialization_id = any(:spec_ids)
+            )
+        """
+        params["spec_ids"] = specialization_ids
+
+    if date_filter is not None:
+        sql += """
+            and exists (
+                select 1
+                from appointment_slots s2
+                where s2.doctor_id = d.id
+                  and s2.is_booked = false
+                  and date(s2.start_time) = :slot_date
+            )
+        """
+        params["slot_date"] = date_filter
+
+    sql += """
+            order by d.rating desc nulls last, d.price asc nulls last, d.id
+            limit :limit offset :offset
+        """
+
+    rows = s.execute(text(sql), params).mappings().all()
+    return [dict(r) for r in rows]

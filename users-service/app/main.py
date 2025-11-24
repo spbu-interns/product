@@ -10,17 +10,31 @@ from .models import (
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
     NoteIn, NoteOut, NotePatch,
-    UserProfilePatch
+    UserProfilePatch,
+    SpecializationOut, DoctorSearchOut, Gender,
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
 from passlib.hash import bcrypt
+from datetime import date
 
 app = FastAPI(title="Users DB API")
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/specializations", response_model=List[SpecializationOut])
+def api_list_specializations(popular_only: bool = Query(False)):
+    """
+    popular_only=true -> только популярные,
+    popular_only=false -> все, популярные первыми.
+    """
+    s = get_session()
+    try:
+        return repo.list_specializations(s, popular_only=popular_only)
+    finally:
+        s.close()
 
 @app.get("/users", response_model=List[UserOut])
 def get_users(role: Optional[str] = Query(None)):
@@ -337,6 +351,18 @@ def api_get_doctor_by_user(user_id: int):
         return repo.get_doctor_by_user_id(s, user_id)
     finally:
         s.close()
+        
+@app.get("/doctors/{doctor_id}/available-dates", response_model=List[date])
+def api_get_doctor_available_dates(doctor_id: int):
+    """
+    Доступные даты для календаря врача:
+    только те дни, когда есть хотя бы один свободный слот.
+    """
+    s = get_session()
+    try:
+        return repo.list_available_dates_for_doctor(s, doctor_id)
+    finally:
+        s.close()
 
 # --- Client complaints (совместимость: принимаем patient_user_id) ---
 @app.post("/v2/patients/{patient_user_id}/complaints", status_code=201)
@@ -370,10 +396,34 @@ def api_create_slot(doctor_id: int, body: SlotIn):
         s.close()
 
 @app.get("/doctors/{doctor_id}/slots", response_model=List[SlotOut])
-def api_list_slots(doctor_id: int):
+def api_list_slots(
+    doctor_id: int,
+    date_filter: Optional[date] = Query(None, alias="date"),
+):
+    """
+    Все слоты врача. Если передать ?date=YYYY-MM-DD — вернёт слоты только за этот день.
+    """
     s = get_session()
     try:
-        return repo.list_slots_for_doctor(s, doctor_id)
+        return repo.list_slots_for_doctor(s, doctor_id, date_filter)
+    finally:
+        s.close()
+        
+@app.delete("/doctors/{doctor_id}/slots/{slot_id}", status_code=204)
+def api_delete_slot(doctor_id: int, slot_id: int):
+    """
+    Удалить слот врача. Нельзя удалить занятый слот.
+    """
+    s = get_session()
+    try:
+        ok = repo.delete_slot_for_doctor(s, doctor_id, slot_id)
+        if not ok:
+            # чтобы не палить детали, даём общее сообщение
+            raise HTTPException(
+                400,
+                "slot not found, belongs to another doctor or is already booked",
+            )
+        return
     finally:
         s.close()
 
@@ -394,6 +444,22 @@ def api_list_appointments_for_client(client_id: int):
     s = get_session()
     try:
         return repo.list_appointments_for_client(s, client_id)
+    finally:
+        s.close()
+        
+@app.post("/appointments/{appointment_id}/cancel", status_code=204)
+def api_cancel_appointment(appointment_id: int):
+    """
+    Клиент отменяет запись:
+    - слот становится свободным
+    - запись помечена как CANCELED
+    """
+    s = get_session()
+    try:
+        ok = repo.cancel_appointment(s, appointment_id)
+        if not ok:
+            raise HTTPException(404, "appointment not found")
+        return
     finally:
         s.close()
 
@@ -480,5 +546,64 @@ def api_patch_admin_by_user(user_id: int, p: AdminPatch):
         if not r:
             raise HTTPException(404, "admin not found or nothing to update")
         return r
+    finally:
+        s.close()
+        
+@app.get("/doctors/search", response_model=List[DoctorSearchOut])
+def api_search_doctors(
+    specialization_ids: Optional[List[int]] = Query(None),
+    city: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
+    metro: Optional[str] = Query(None),
+    online_only: bool = Query(False),
+
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
+    min_rating: Optional[float] = Query(None),
+
+    gender: Optional[Gender] = Query(None),
+    min_age: Optional[int] = Query(None),
+    max_age: Optional[int] = Query(None),
+
+    min_experience: Optional[int] = Query(None),
+    max_experience: Optional[int] = Query(None),
+
+    date_filter: Optional[date] = Query(None, alias="date"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """
+    Поиск врачей с фильтрами из ТЗ.
+    - specialization_ids: список id специализаций
+    - city/region/metro: локация клиники
+    - online_only: только онлайн-консультации
+    - min/max_price: диапазон цены
+    - min_rating: минимальный рейтинг
+    - gender: пол врача
+    - min/max_age: возраст врача
+    - min/max_experience: стаж
+    - date: наличие свободного слота в указанный день
+    """
+    s = get_session()
+    try:
+        return repo.search_doctors(
+            s,
+            specialization_ids=specialization_ids,
+            city=city,
+            region=region,
+            metro=metro,
+            online_only=online_only,
+            min_price=min_price,
+            max_price=max_price,
+            min_rating=min_rating,
+            gender=gender,
+            min_age=min_age,
+            max_age=max_age,
+            min_experience=min_experience,
+            max_experience=max_experience,
+            date_filter=date_filter,
+            limit=limit,
+            offset=offset,
+        )
     finally:
         s.close()

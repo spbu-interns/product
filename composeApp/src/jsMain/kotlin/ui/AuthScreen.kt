@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.interns.project.dto.LoginRequest
 import org.interns.project.dto.LoginResponse
 import org.interns.project.dto.RegisterRequest
+import ui.components.PASSWORD_REGEX
 
 enum class AuthTab { LOGIN, REGISTER }
 
@@ -74,7 +75,6 @@ fun Container.authScreen(
 
             when (current) {
                 AuthTab.LOGIN -> {
-                    val accountType = content.addAccountTypeSelect()
 
                     val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
                         width = 100.perc
@@ -98,7 +98,6 @@ fun Container.authScreen(
                         onClick {
                             val email = emailField.value ?: ""
                             val password = passField.value ?: ""
-                            val accType = accountType.value ?: "Пациент"
 
                             val emailOk = EMAIL_REGEX.matches(email)
                             val passOk = PASSWORD_REGEX.matches(password)
@@ -116,7 +115,6 @@ fun Container.authScreen(
                                             LoginRequest(
                                                 email = email,
                                                 password = password,
-                                                accountType = accType
                                             )
                                         )
 
@@ -130,7 +128,6 @@ fun Container.authScreen(
                                                     firstName = data.firstName,
                                                     lastName = data.lastName
                                                 )
-                                                // Уходим со страницы — чистим scope
                                                 uiScope.cancel()
                                                 onLogin(data)
                                             },
@@ -222,9 +219,6 @@ fun Container.authScreen(
 
 private val EMAIL_REGEX =
     Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,63}$")
-
-private val PASSWORD_REGEX =
-    Regex("^(?=.*\\d)[A-Za-z\\d!@#$%^&*()_+\\-={}\\[\\]|:;\"'<>,.?/`~]{8,71}$")
 
 private fun accountTypeSelect(): Select = Select(
     options = listOf(
