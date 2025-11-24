@@ -12,6 +12,7 @@ from .models import (
     NoteIn, NoteOut, NotePatch,
     UserProfilePatch,
     SpecializationOut, DoctorSearchOut, Gender,
+    DoctorPatientOut,
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
@@ -601,5 +602,32 @@ def api_search_doctors(
             max_experience=max_experience,
             date_filter=date_filter,
         )
+    finally:
+        s.close()
+
+
+@app.get("/clients/{client_id}/medical-records", response_model=List[MedicalRecordOut])
+def api_list_medical_records_for_client(client_id: int):
+    s = get_session()
+    try:
+        return repo.list_medical_records_for_client(s, client_id)
+    finally:
+        s.close()
+
+
+@app.get("/doctors/{doctor_id}/appointments", response_model=List[AppointmentOut])
+def api_list_appointments_for_doctor(doctor_id: int):
+    s = get_session()
+    try:
+        return repo.list_appointments_for_doctor(s, doctor_id)
+    finally:
+        s.close()
+
+
+@app.get("/doctors/{doctor_id}/patients", response_model=List[DoctorPatientOut])
+def api_list_patients_for_doctor(doctor_id: int):
+    s = get_session()
+    try:
+        return repo.list_patients_for_doctor(s, doctor_id)
     finally:
         s.close()

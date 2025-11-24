@@ -1073,3 +1073,60 @@ def search_doctors(
 
     rows = s.execute(text(sql), params).mappings().all()
     return [dict(r) for r in rows]
+
+
+def list_medical_records_for_client(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select *
+            from medical_records
+            where client_id = :c
+            order by id desc
+            """
+        ),
+        {"c": client_id},
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+def list_appointments_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select a.*
+            from appointments a
+            join appointment_slots s2 on a.slot_id = s2.id
+            where s2.doctor_id = :d
+            order by a.id desc
+            """
+        ),
+        {"d": doctor_id},
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+def list_patients_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select distinct
+                c.id as client_id,
+                c.user_id as user_id,
+                u.name,
+                u.surname,
+                u.patronymic,
+                u.phone_number,
+                u.date_of_birth,
+                u.avatar,
+                u.gender
+            from appointments a
+            join appointment_slots s2 on a.slot_id = s2.id
+            join clients c on a.client_id = c.id
+            join users u on c.user_id = u.id
+            where s2.doctor_id = :d
+            """
+        ),
+        {"d": doctor_id},
+    ).mappings().all()
+    return [dict(r) for r in rows]

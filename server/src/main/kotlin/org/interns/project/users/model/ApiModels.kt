@@ -160,3 +160,45 @@ data class ClientPatch(
     val passport: String? = null,
     @SerialName("dms_oms") val dmsOms: String? = null
 )
+
+@Serializable
+data class DoctorPatientOut(
+    @SerialName("client_id") val clientId: Long,
+    @SerialName("user_id") val userId: Long,
+    val name: String? = null,
+    val surname: String? = null,
+    val patronymic: String? = null,
+    @SerialName("phone_number") val phoneNumber: String? = null,
+    @SerialName("date_of_birth") val dateOfBirth: String? = null, // yyyy-mm-dd
+    val avatar: String? = null,
+    val gender: String? = null,
+)
+
+@Serializable
+data class AppointmentOut(
+    @SerialName("id") val id: Long,
+    @SerialName("slot_id") val slotId: Long,
+    @SerialName("client_id") val clientId: Long,
+    @SerialName("status") val status: String,
+    @SerialName("comments") val comments: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("canceled_at") val canceledAt: String? = null,
+    @SerialName("completed_at") val completedAt: String? = null,
+    @SerialName("appointment_type_id") val appointmentTypeId: Long? = null
+)
+
+
+@Serializable
+data class MedicalRecordOut(
+    @SerialName("id") val id: Long,
+    @SerialName("client_id") val clientId: Long,
+    @SerialName("doctor_id") val doctorId: Long? = null,
+    @SerialName("appointment_id") val appointmentId: Long? = null,
+    @SerialName("diagnosis") val diagnosis: String? = null,
+    @SerialName("symptoms") val symptoms: String? = null,
+    @SerialName("treatment") val treatment: String? = null,
+    @SerialName("recommendations") val recommendations: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
+)

@@ -384,4 +384,45 @@ class ApiUserRepo(
     suspend fun deleteNote(noteId: Long): Boolean =
         doDelete("/notes/$noteId")
 
+
+
+
+    // ===== appointments & records =====
+
+    suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentOut> {
+        val path = "/clients/$clientId/appointments"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordOut> {
+        val path = "/clients/$clientId/medical-records"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentOut> {
+        val path = "/doctors/$doctorId/appointments"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun listPatientsForDoctor(doctorId: Long): List<DoctorPatientOut> {
+        val path = "/doctors/$doctorId/patients"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
 }
