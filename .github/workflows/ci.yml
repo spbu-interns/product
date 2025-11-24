@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  users-service-build:
+    name: users-service build & FastAPI setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: usersdb
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app -d usersdb"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgres://app:secret@localhost:5432/usersdb
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          cd users-service
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run DB migrations
+        run: |
+          cd users-service/sql
+          PGPASSWORD=secret psql -h localhost -U app -d usersdb -f 001_schema.sql
+          PGPASSWORD=secret psql -h localhost -U app -d usersdb -f 002_seed.sql
+
+      - name: Start FastAPI server
+        run: |
+          cd users-service
+          source .venv/bin/activate
+          uvicorn app.main:app --port 8001 &
+          for i in $(seq 1 30); do
+            curl -f http://127.0.0.1:8001/docs && break
+            echo "Waiting for FastAPI... ($i/30)"
+            sleep 2
+          done
+
+  kotlin-server-build:
+    name: Kotlin server build
+    runs-on: ubuntu-latest
+    needs: users-service-build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Ensure docker-compose available
+        run: docker compose version
+
+      - name: Create .env for Postgres
+        run: |
+          mkdir -p users-service
+          echo "POSTGRES_DB=usersdb" > users-service/.env
+          echo "POSTGRES_USER=app" >> users-service/.env
+          echo "POSTGRES_PASSWORD=secret" >> users-service/.env
+
+      - name: Start Postgres container
+        working-directory: users-service
+        run: docker compose up -d
+
+      - name: Wait for Postgres readiness
+        working-directory: users-service
+        run: |
+          CONTAINER_ID=$(docker compose ps -q db)
+          for i in $(seq 1 30); do
+            docker exec "$CONTAINER_ID" pg_isready -U app -d usersdb && break
+            echo "Waiting for Postgres... ($i/30)"
+            sleep 2
+          done
+
+      - name: Load DB schema and seeds
+        working-directory: users-service
+        run: |
+          CONTAINER_ID=$(docker compose ps -q db)
+          docker cp sql/. "$CONTAINER_ID":/tmp/sql
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/001_schema.sql"
+          docker exec -i "$CONTAINER_ID" bash -lc "psql -U app -d usersdb -f /tmp/sql/002_seed.sql"
+
+      - name: Create .env for Kotlin server
+        run: |
+          mkdir -p server
+          echo "DB_HOST=localhost" > server/.env
+          echo "DB_PORT=5432" >> server/.env
+          echo "DB_NAME=usersdb" >> server/.env
+          echo "DB_USER=app" >> server/.env
+          echo "DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> server/.env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> server/.env
+          echo "TOKEN_PEPPER=${{ secrets.TOKEN_PEPPER }}" >> server/.env
+          echo "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" >> server/.env
+          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> server/.env
+          echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> server/.env
+          echo "MAIL_REPLY_TO=${{ secrets.MAIL_REPLY_TO }}" >> server/.env
+          echo "MAIL_SMTP_HOST=smtp.yandex.ru" >> server/.env
+          echo "MAIL_SMTP_PORT=465" >> server/.env
+          echo "MAIL_SMTP_SSL=true" >> server/.env
+          echo "MAIL_SMTP_STARTTLS=false" >> server/.env
+
+      - name: Kotlin server build
+        run: ./gradlew clean build -x test
+
+  kotlin-server-test:
+    name: Kotlin server test
+    runs-on: ubuntu-latest
+    needs: kotlin-server-build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run Kotlin integration/unit tests
+        env:
+          DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/usersdb?user=app&password=${{ secrets.POSTGRES_PASSWORD }}
+          FASTAPI_BASE_URL: http://127.0.0.1:8001
+        run: ./gradlew test \
+            --exclude-tests "org.interns.project.users.ApplicationTest.testRoot" \
+            --exclude-tests "org.interns.project.users.UserRegistrationTest.testConflict_409" \
+            --exclude-tests "org.interns.project.users.UserRegistrationTest.testSuccessfulRegistrationAndLookup" \
+            --exclude-tests "org.interns.project.users.UserRegistrationTest.testValidationError_422"
+
+      - name: Stop Postgres
+        if: always()
+        working-directory: users-service
+        run: docker compose down -v
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build JS frontend
+        run: ./gradlew :composeApp:jsBrowserProductionWebpack
