@@ -10,6 +10,8 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import org.interns.project.dto.AppointmentCreateRequest
+import org.interns.project.dto.SlotCreateRequest
 import org.interns.project.users.model.User
 import org.interns.project.users.model.UserInDto
 import org.interns.project.users.model.UserOutDto
@@ -45,12 +47,18 @@ class ApiUserRepo(
 
     fun close() = client.close()
 
+    private fun String?.toInstantOrNull(): Instant? =
+        this?.let { runCatching { Instant.parse(it) }.getOrNull() }
+
+    private fun String?.toLocalDateOrNull(): LocalDate? =
+        this?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
     private fun fromOutDto(d: UserOutDto): User {
-        val created = try { d.createdAt?.let(Instant::parse) } catch (_: Exception) { null }
-        val updated = try { d.updatedAt?.let(Instant::parse) } catch (_: Exception) { null }
-        val dob = try { d.dateOfBirth?.let(LocalDate::parse) } catch (_: Exception) { null }
-        val emailVerified = try { d.emailVerifiedAt?.let(Instant::parse) } catch (_: Exception) { null }
-        val passwordChanged = try { d.passwordChangedAt?.let(Instant::parse) } catch (_: Exception) { null }
+        val created = d.createdAt.toInstantOrNull()
+        val updated = d.updatedAt.toInstantOrNull()
+        val dob = d.dateOfBirth.toLocalDateOrNull()
+        val emailVerified = d.emailVerifiedAt.toInstantOrNull()
+        val passwordChanged = d.passwordChangedAt.toInstantOrNull()
 
         return User(
             id = d.id,
@@ -77,6 +85,44 @@ class ApiUserRepo(
             updatedAt = updated,
             emailVerifiedAt = emailVerified,
             passwordChangedAt = passwordChanged
+        )
+    }
+
+    private fun fromSlotDto(dto: SlotOutDto): Slot {
+        val start = dto.startTime.toInstantOrNull()
+        val end = dto.endTime.toInstantOrNull()
+        val created = dto.createdAt.toInstantOrNull()
+        val updated = dto.updatedAt.toInstantOrNull()
+
+        return Slot(
+            id = dto.id,
+            doctorId = dto.doctorId,
+            startTime = start,
+            endTime = end,
+            durationMinutes = dto.duration,
+            isBooked = dto.isBooked,
+            createdAt = created,
+            updatedAt = updated
+        )
+    }
+
+    private fun fromAppointmentDto(dto: AppointmentOutDto): Appointment {
+        val created = dto.createdAt.toInstantOrNull()
+        val updated = dto.updatedAt.toInstantOrNull()
+        val canceled = dto.canceledAt.toInstantOrNull()
+        val completed = dto.completedAt.toInstantOrNull()
+
+        return Appointment(
+            id = dto.id,
+            slotId = dto.slotId,
+            clientId = dto.clientId,
+            status = dto.status,
+            comments = dto.comments,
+            createdAt = created,
+            updatedAt = updated,
+            canceledAt = canceled,
+            completedAt = completed,
+            appointmentTypeId = dto.appointmentTypeId
         )
     }
 
@@ -412,5 +458,38 @@ class ApiUserRepo(
     // DELETE /notes/{id}
     suspend fun deleteNote(noteId: Long): Boolean =
         doDelete("/notes/$noteId")
+
+    // ===== Slots / appointments =====
+    suspend fun createSlot(doctorId: Long, input: SlotCreateRequest): Slot {
+        val payload = mapOf(
+            "doctor_id" to doctorId,
+            "start_time" to input.startTime,
+            "end_time" to input.endTime
+        )
+
+        return doPost("/doctors/$doctorId/slots", payload) { resp ->
+            fromSlotDto(resp.body())
+        }
+    }
+
+    suspend fun listSlots(doctorId: Long, date: String?): List<Slot> {
+        val query = date?.let { "?date=$it" } ?: ""
+        return doGet("/doctors/$doctorId/slots$query") { resp ->
+            resp.body<List<SlotOutDto>>().map(::fromSlotDto)
+        } ?: emptyList()
+    }
+
+    suspend fun deleteSlot(doctorId: Long, slotId: Long): Boolean =
+        doDelete("/doctors/$doctorId/slots/$slotId")
+
+    suspend fun bookAppointment(input: AppointmentCreateRequest): Appointment =
+        doPost("/appointments", input) { resp -> fromAppointmentDto(resp.body()) }
+
+    suspend fun cancelAppointment(appointmentId: Long): Boolean =
+        doPost(
+            path = "/appointments/$appointmentId/cancel",
+            body = null,
+            successCodes = setOf(HttpStatusCode.NoContent, HttpStatusCode.OK)
+        ) { true }
 
 }
