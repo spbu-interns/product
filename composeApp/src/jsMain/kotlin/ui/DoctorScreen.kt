@@ -312,6 +312,11 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("\uD83D\uDCDD", className = "side icon")
                             onClick { Navigator.showStub("Профиль в разработке") }
                         }
+                        li(className = "side_item") {
+                            span("Edit Profile")
+                            span("\uD83D\uDC64", className = "side icon")
+                            onClick { Navigator.showDoctorProfileEdit() }
+                        }
                     }
                 }
 

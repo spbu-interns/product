@@ -48,6 +48,9 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
                         span("confirmed", className = "status success")
                     }
                 }
+                button("Find New Doctor", className = "btn-primary-lg").onClick {
+                    Navigator.showFind()
+                }
             }
         }
 
