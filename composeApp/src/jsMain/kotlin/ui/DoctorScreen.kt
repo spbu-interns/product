@@ -59,8 +59,12 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     var patientsError: String? = null
 
     lateinit var patientsContainer: Container
+    lateinit var overviewContainer: Container
+    lateinit var scheduleContainer: Container
+    lateinit var scheduleListContainer: Container
 
     var renderPatients: () -> Unit = {}
+    var renderSchedule: () -> Unit = {}
 
     val appointments = listOf(
         DoctorAppointmentCard("JS", "John Smith", "09:00 AM · Consultation · 30 min", "confirmed"),
@@ -85,6 +89,28 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             onClick {
                 cleanup()
                 Navigator.showDoctorPatient(userId)
+            }
+        }
+    }
+
+    fun Container.renderSchedulePatient(item: DoctorPatientListItem) {
+        val statusClass = when (item.status.lowercase()) {
+            "confirmed", "active" -> "status success"
+            "new" -> "status info"
+            else -> "status neutral"
+        }
+
+        div(className = "record item") {
+            vPanel {
+                span(item.name, className = "record title")
+                span(item.subtitle, className = "record subtitle")
+            }
+
+            span(item.status, className = statusClass)
+
+            onClick {
+                cleanup()
+                Navigator.showDoctorPatient(item.userId)
             }
         }
     }
@@ -161,6 +187,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             )
             isLoadingPatients = false
             renderPatients()
+            renderSchedule()
         }
     }
 
@@ -193,6 +220,40 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         }
     }
 
+    renderSchedule = fun() {
+        scheduleListContainer.removeAll()
+
+        when {
+            isLoadingPatients -> {
+                scheduleListContainer.div(className = "doctor-empty-state") {
+                    span("Загрузка пациентов...", className = "doctor-patient-condition")
+                }
+            }
+
+            patientsError != null -> {
+                scheduleListContainer.div(className = "record item") {
+                    span(patientsError ?: "Не удалось загрузить пациентов", className = "record subtitle")
+                    button("Повторить", className = "btn-ghost-sm").onClick {
+                        patientsError = null
+                        loadPatients(true)
+                    }
+                }
+            }
+
+            patients.isEmpty() -> {
+                scheduleListContainer.div(className = "record item") {
+                    span("Пока нет записанных пациентов", className = "record subtitle")
+                }
+            }
+
+            else -> {
+                patients.forEach { patient ->
+                    scheduleListContainer.renderSchedulePatient(patient)
+                }
+            }
+        }
+    }
+
     headerBar(
         mode = HeaderMode.DOCTOR,
         active = NavTab.NONE,
@@ -219,11 +280,19 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                         li(className = "side_item is-active") {
                             span("Overview")
                             span("\uD83D\uDC64", className = "side icon")
+                            onClick {
+                                overviewContainer.visible = true
+                                scheduleContainer.visible = false
+                            }
                         }
                         li(className = "side_item") {
                             span("Schedule")
                             span("\uD83D\uDCC5", className = "side icon")
-                            onClick { Navigator.showStub("Расписание в разработке") }
+                            onClick {
+                                overviewContainer.visible = false
+                                scheduleContainer.visible = true
+                                renderSchedule()
+                            }
                         }
                         li(className = "side_item") {
                             span("Patients")
@@ -256,24 +325,38 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             }
 
             div(className = "main column") {
-                h1("Dashboard Overview", className = "account title")
 
-                div(className = "statistics grid") {
-                    doctorStatisticsCard("4", "Today", "\uD83D\uDCC5")
-                    doctorStatisticsCard(patients.size.toString(), "Patients", "\uD83D\uDC65")
-                    doctorStatisticsCard("4.9", "Rating", "⭐")
-                }
+                overviewContainer = div {
+                    h1("Dashboard Overview", className = "account title")
 
-                div(className = "card block appointment-block") {
-                    h4("Today's Appointments", className = "block title")
-                    appointments.forEach { appointment ->
-                        doctorAppointmentCard(appointment)
+                    div(className = "statistics grid") {
+                        doctorStatisticsCard("4", "Today", "\uD83D\uDCC5")
+                        doctorStatisticsCard(patients.size.toString(), "Patients", "\uD83D\uDC65")
+                        doctorStatisticsCard("4.9", "Rating", "⭐")
+                    }
+
+                    div(className = "card block appointment-block") {
+                        h4("Today's Appointments", className = "block title")
+                        appointments.forEach { appointment ->
+                            doctorAppointmentCard(appointment)
+                        }
+                    }
+
+                    h4("Patients from database", className = "block title")
+                    div(className = "card block") {
+                        patientsContainer = div(className = "records list")
                     }
                 }
 
-                h4("Patients from database", className = "block title")
-                div(className = "card block") {
-                    patientsContainer = div(className = "records list")
+                scheduleContainer = div {
+                    visible = false
+
+                    h1("Schedule", className = "account title")
+
+                    div(className = "card block appointment-block") {
+                        h4("Scheduled Patients", className = "block title")
+                        scheduleListContainer = div(className = "records list")
+                    }
                 }
             }
         }
@@ -281,6 +364,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
     loadPatients(false)
     renderPatients()
+    renderSchedule()
 }
 
 private fun Container.doctorStatisticsCard(value: String, label: String, icon: String) {
