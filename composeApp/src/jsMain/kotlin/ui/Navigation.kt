@@ -14,4 +14,5 @@ object Navigator {
     var showMyRecords: () -> Unit = {}
     var showRecordEditor: (String) -> Unit = {}
     var showDoctorPatient: (Long) -> Unit = {}
+    var showAppointments: () -> Unit = {}
 }

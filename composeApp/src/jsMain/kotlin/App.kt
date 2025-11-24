@@ -14,6 +14,7 @@ import ui.doctorPatientScreen
 import ui.doctorScreen
 import ui.passwordResetFormScreen
 import ui.passwordResetSuccessScreen
+import ui.patientAppointmentsScreen
 import kotlinx.browser.window
 import org.w3c.dom.url.URLSearchParams
 import ui.findDoctorScreen
@@ -47,6 +48,17 @@ class App : Application() {
         fun showPatient() {
             r.removeAll()
             r.patientScreen(
+                onLogout = {
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    showHome()
+                }
+            )
+        }
+
+        fun showAppointments() {
+            r.removeAll()
+            r.patientAppointmentsScreen(
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -163,6 +175,7 @@ class App : Application() {
         Navigator.showRecordEditor = ::showRecordEditor
         Navigator.showDoctor = ::showDoctor
         Navigator.showDoctorPatient = ::showDoctorPatient
+        Navigator.showAppointments = ::showAppointments
 
         Navigator.showPasswordResetSuccess = ::showPasswordResetSuccess
         val currentPath = window.location.pathname
@@ -171,7 +184,7 @@ class App : Application() {
             val token = params.get("token")
             showPasswordResetForm(token)
         } else {
-            showHome()
+            showDoctor()
         }
     }
 }

@@ -75,7 +75,6 @@ fun Container.authScreen(
 
             when (current) {
                 AuthTab.LOGIN -> {
-                    val accountType = content.addAccountTypeSelect()
 
                     val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
                         width = 100.perc
@@ -99,7 +98,6 @@ fun Container.authScreen(
                         onClick {
                             val email = emailField.value ?: ""
                             val password = passField.value ?: ""
-                            val accType = accountType.value ?: "Пациент"
 
                             val emailOk = EMAIL_REGEX.matches(email)
                             val passOk = PASSWORD_REGEX.matches(password)
@@ -117,7 +115,6 @@ fun Container.authScreen(
                                             LoginRequest(
                                                 email = email,
                                                 password = password,
-                                                accountType = accType
                                             )
                                         )
 
@@ -131,7 +128,6 @@ fun Container.authScreen(
                                                     firstName = data.firstName,
                                                     lastName = data.lastName
                                                 )
-                                                // Уходим со страницы — чистим scope
                                                 uiScope.cancel()
                                                 onLogin(data)
                                             },

@@ -84,11 +84,6 @@ fun Container.bookingModal(
                 }
 
                 div(className = "booking-body") {
-                    p(
-                        "Выберите удобную дату и время приёма. После выбора времени нажмите «Подтвердить запись».",
-                        className = "booking-hint"
-                    )
-
                     div(className = "booking-card") {
                         if (!showingTimes) {
                             div(className = "booking-card-header") {
@@ -163,9 +158,10 @@ fun Container.bookingModal(
                             p("Тип приёма", className = "booking-label")
                             val typeSelect = select(
                                 options = listOf(
-                                    "online" to "Онлайн консультация",
-                                    "office" to "Очный приём",
-                                    "home" to "Вызов на дом"
+                                    "first" to "Первичный приём",
+                                    "secondary" to "Повторный приём",
+                                    "regular" to "Плановый осмотр",
+                                    "consultation" to "Консультация"
                                 )
                             ) {
                                 addCssClass("booking-select")
