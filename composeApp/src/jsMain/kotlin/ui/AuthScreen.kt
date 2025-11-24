@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.interns.project.dto.LoginRequest
 import org.interns.project.dto.LoginResponse
 import org.interns.project.dto.RegisterRequest
+import ui.components.PASSWORD_REGEX
 
 enum class AuthTab { LOGIN, REGISTER }
 
@@ -222,9 +223,6 @@ fun Container.authScreen(
 
 private val EMAIL_REGEX =
     Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,63}$")
-
-private val PASSWORD_REGEX =
-    Regex("^(?=.*\\d)[A-Za-z\\d!@#$%^&*()_+\\-={}\\[\\]|:;\"'<>,.?/`~]{8,71}$")
 
 private fun accountTypeSelect(): Select = Select(
     options = listOf(

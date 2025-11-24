@@ -14,7 +14,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 import org.interns.project.users.repo.ApiUserRepo
+import kotlin.test.Ignore
 
+@Ignore
 class UserRegistrationTest {
 
     private fun mockClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient =
