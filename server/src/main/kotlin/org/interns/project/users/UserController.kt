@@ -14,6 +14,8 @@ import org.interns.project.dto.UserResponseDto
 import org.interns.project.users.model.ClientOut
 import org.interns.project.users.model.User
 import org.interns.project.users.repo.ApiUserRepo
+import org.interns.project.dto.*
+import org.interns.project.users.model.*
 
 class UserController(
     private val apiUserRepo: ApiUserRepo
@@ -62,6 +64,69 @@ class UserController(
                         )
                     }
             }
+
+            get("/{userId}/full") {
+                val userId = call.parameters["userId"]?.toLongOrNull()
+                    ?: return@get respondBadRequest(call, "Invalid user id")
+
+                runCatching {
+                    val user = apiUserRepo.getUserProfile(userId)
+                        ?: return@runCatching call.respond(
+                            HttpStatusCode.NotFound,
+                            ApiResponse<FullUserProfileDto>(
+                                success = false,
+                                error = "User not found",
+                            )
+                        )
+
+                    // пытаемся найти client/doctor по user_id
+                    val client = apiUserRepo.findClientByUserId(userId)
+                    val doctor = apiUserRepo.findDoctorByUserId(userId) // пока только для when, без .toDto()
+
+                    val (appointmentsModel, recordsModel, patientsModel) =
+                        when {
+                            user.role == "CLIENT" && client != null -> {
+                                val apps = apiUserRepo.listAppointmentsForClient(client.id)
+                                val recs = apiUserRepo.listMedicalRecordsForClient(client.id)
+                                Triple(apps, recs, emptyList<DoctorPatientOut>())
+                            }
+                            user.role == "DOCTOR" && doctor != null -> {
+                                val apps = apiUserRepo.listAppointmentsForDoctor(doctor.id)
+                                val pats = apiUserRepo.listPatientsForDoctor(doctor.id)
+                                Triple(apps, emptyList<MedicalRecordOut>(), pats)
+                            }
+                            else -> Triple(
+                                emptyList<AppointmentOut>(),
+                                emptyList<MedicalRecordOut>(),
+                                emptyList<DoctorPatientOut>(),
+                            )
+                        }
+
+                    val dto = FullUserProfileDto(
+                        user = user.toDto(),
+                        client = client?.toDto(),
+                        doctor = doctor?.toDto(),
+                        appointments = appointmentsModel.map { it.toDto() },
+                        medicalRecords = recordsModel.map { it.toDto() },
+                        patients = patientsModel.map { it.toDto() },
+                    )
+
+                    call.respond(
+                        HttpStatusCode.OK,
+                        ApiResponse(success = true, data = dto),
+                    )
+                }.onFailure { e ->
+                    call.application.log.error("Failed to load full profile for user $userId", e)
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ApiResponse<FullUserProfileDto>(
+                            success = false,
+                            error = e.message ?: "Failed to load full profile",
+                        ),
+                    )
+                }
+            }
+
         }
 
         route.get("/api/clients/by-user/{userId}") {
@@ -133,4 +198,59 @@ class UserController(
         createdAt = createdAt,
         updatedAt = updatedAt
     )
+
+    private fun AppointmentOut.toDto(): AppointmentDto =
+        AppointmentDto(
+            id = id,
+            slotId = slotId,
+            clientId = clientId,
+            status = status,
+            comments = comments,
+            createdAt = createdAt ?: "",
+            updatedAt = updatedAt ?: "",
+            canceledAt = canceledAt,
+            completedAt = completedAt,
+            appointmentTypeId = appointmentTypeId,
+        )
+
+    private fun MedicalRecordOut.toDto(): MedicalRecordDto =
+        MedicalRecordDto(
+            id = id,
+            clientId = clientId,
+            doctorId = doctorId,
+            appointmentId = appointmentId,
+            diagnosis = diagnosis,
+            symptoms = symptoms,
+            treatment = treatment,
+            recommendations = recommendations,
+            createdAt = createdAt ?: "",
+            updatedAt = updatedAt,
+        )
+
+    private fun DoctorPatientOut.toDto(): DoctorPatientDto =
+        DoctorPatientDto(
+            clientId = clientId,
+            userId = userId,
+            name = name,
+            surname = surname,
+            patronymic = patronymic,
+            phoneNumber = phoneNumber,
+            dateOfBirth = dateOfBirth,
+            avatar = avatar,
+            gender = gender,
+        )
+    private fun DoctorOut.toDto() = DoctorProfileDto(
+        id = id,
+        userId = userId,
+        clinicId = clinicId,
+        profession = profession,
+        info = info,
+        isConfirmed = isConfirmed,
+        rating = rating,
+        experience = experience,
+        price = price,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
+    
 }

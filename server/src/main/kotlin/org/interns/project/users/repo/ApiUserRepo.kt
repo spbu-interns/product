@@ -408,8 +408,6 @@ class ApiUserRepo(
     suspend fun deleteComplaint(complaintId: Long): Boolean =
         doDelete("/complaints/$complaintId")
 
-
-
     //===== ДЛЯ ЗАПИСЕЙ ВРАЧЕЙ ====
     suspend fun findDoctorByUserId(userId: Long): DoctorOut? {
         val path = "/doctors/by-user/$userId"
@@ -459,6 +457,44 @@ class ApiUserRepo(
     suspend fun deleteNote(noteId: Long): Boolean =
         doDelete("/notes/$noteId")
 
+    // ===== appointments & records =====
+
+    suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentOutDto> {
+        val path = "/clients/$clientId/appointments"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordOut> {
+        val path = "/clients/$clientId/medical-records"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentOutDto> {
+        val path = "/doctors/$doctorId/appointments"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun listPatientsForDoctor(doctorId: Long): List<DoctorPatientOut> {
+        val path = "/doctors/$doctorId/patients"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
     // ===== Slots / appointments =====
     suspend fun createSlot(doctorId: Long, input: SlotCreateRequest): Slot {
         val payload = mapOf(
@@ -491,5 +527,4 @@ class ApiUserRepo(
             body = null,
             successCodes = setOf(HttpStatusCode.NoContent, HttpStatusCode.OK)
         ) { true }
-
 }

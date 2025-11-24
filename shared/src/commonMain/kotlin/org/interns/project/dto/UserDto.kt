@@ -104,3 +104,39 @@ data class ClientProfileDto(
     @SerialName("updated_at")
     val updatedAt: String? = null,
 )
+
+@Serializable
+data class DoctorProfileDto(
+    @SerialName("id")
+    val id: Long,
+
+    @SerialName("user_id")
+    val userId: Long,
+
+    @SerialName("clinic_id")
+    val clinicId: Long? = null,
+
+    @SerialName("profession")
+    val profession: String,
+
+    @SerialName("info")
+    val info: String? = null,
+
+    @SerialName("is_confirmed")
+    val isConfirmed: Boolean? = null,
+
+    @SerialName("rating")
+    val rating: Double? = null,
+
+    @SerialName("experience")
+    val experience: Int? = null,
+
+    @SerialName("price")
+    val price: Double? = null,
+
+    @SerialName("created_at")
+    val createdAt: String? = null,
+
+    @SerialName("updated_at")
+    val updatedAt: String? = null,
+)
