@@ -23,11 +23,21 @@
     position: relative;
     background: #fff;
     border-radius: 24px;
-    width: min(1040px, 94vw);
+    width: min(1248px, 96vw);
     max-height: 92vh;
     overflow: auto;
     padding: 24px;
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+}
+
+.timetable-slot-editor-layout {
+    display: flex;
+    flex-direction: column;
+}
+
+.timetable-slot-row {
+    display: flex;
+    flex-wrap: wrap;
 }
 
 .timetable-actions {
@@ -58,6 +68,31 @@
     align-items: center;
     gap: 10px;
     margin-top: 12px;
+    justify-content: space-between;
+}
+
+.timetable-input select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+
+    height: 36px;
+    line-height: 36px;
+    width: 120%;
+
+    display: flex;
+    align-items: center;
 }
 
 .timetable-time-inputs {
@@ -67,17 +102,27 @@
 }
 
 .timetable-time-inputs .timetable-input {
-    flex: 0 0 90px;
-    min-width: 90px;
+    flex: 0 0 80px;
+    min-width: 80px;
+
+    height: 36px;
+    display: flex;
+    align-items: center;
 }
 
-.timetable-time-separator {
-    color: #94a3b8;
+.timetable-time-inputs .timetable-time-separator {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    font-size: 16px;
     font-weight: 600;
+    color: #64748b;
 }
 
 .timetable-slot-actions {
-    margin-top: 12px;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
 }
 
 .timetable-slot {
@@ -173,5 +218,17 @@
 }
 
 .timetable-trigger {
-    margin-top: 10px;
+    margin-top: 20px;
+}
+
+.timetable-trigger.btn-secondary-lg {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.timetable-trigger.btn-secondary-lg:hover {
+    background: #1e4fcc !important;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
 }
