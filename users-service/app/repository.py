@@ -968,7 +968,11 @@ def search_doctors(
     min_experience: Optional[int] = None,
     max_experience: Optional[int] = None,
     date_filter: Optional[date] = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> List[Dict]:
+    safe_limit = 50 if limit is None or limit <= 0 else limit
+    safe_offset = 0 if offset is None or offset < 0 else offset
     sql = """
         select
             d.*,
@@ -992,7 +996,7 @@ def search_doctors(
         left join clinics c on c.id = d.clinic_id
         where 1=1
     """
-    params = {}
+    params = {"limit": safe_limit, "offset": safe_offset}
 
     if city is not None:
         sql += " and c.city = :city"
@@ -1069,7 +1073,10 @@ def search_doctors(
         """
         params["slot_date"] = date_filter
 
-    sql += " order by d.rating desc nulls last, d.price nulls first, d.id"
+    sql += """
+            order by d.rating desc nulls last, d.price asc nulls last, d.id
+            limit :limit offset :offset
+        """
 
     rows = s.execute(text(sql), params).mappings().all()
     return [dict(r) for r in rows]
