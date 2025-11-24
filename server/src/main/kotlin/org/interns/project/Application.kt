@@ -13,6 +13,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
+import org.interns.project.appointments.AppointmentController
 import org.interns.project.auth.routes.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
@@ -83,6 +84,7 @@ fun Application.module() {
         passwordResetService = passwordResetService
     )
     val patientDataController = PatientDataController(apiUserRepo)
+    val appointmentController = AppointmentController(apiUserRepo)
     val userController = UserController(apiUserRepo)
 
     routing {
@@ -93,6 +95,7 @@ fun Application.module() {
         authController.registerRoutes(this)
         patientDataController.registerRoutes(this)
         userController.registerRoutes(this)
+        appointmentController.registerRoutes(this)
 
         fastApiCompatRoutes(verificationService, passwordResetService)
     }

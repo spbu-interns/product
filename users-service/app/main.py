@@ -570,6 +570,8 @@ def api_search_doctors(
     max_experience: Optional[int] = Query(None),
 
     date_filter: Optional[date] = Query(None, alias="date"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
     """
     Поиск врачей с фильтрами из ТЗ.
@@ -601,6 +603,8 @@ def api_search_doctors(
             min_experience=min_experience,
             max_experience=max_experience,
             date_filter=date_filter,
+            limit=limit,
+            offset=offset,
         )
     finally:
         s.close()

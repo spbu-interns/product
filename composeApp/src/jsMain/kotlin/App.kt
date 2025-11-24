@@ -14,12 +14,15 @@ import ui.doctorPatientScreen
 import ui.doctorScreen
 import ui.passwordResetFormScreen
 import ui.passwordResetSuccessScreen
+import ui.patientAppointmentsScreen
 import kotlinx.browser.window
 import org.w3c.dom.url.URLSearchParams
 import ui.findDoctorScreen
 import ui.myRecordsScreen
 import ui.recordEditorScreen
 import ui.resetPasswordScreen
+import ui.patientProfileEditScreen
+import ui.doctorProfileEditScreen
 
 class App : Application() {
     override fun start(state: Map<String, Any>) {
@@ -47,6 +50,17 @@ class App : Application() {
         fun showPatient() {
             r.removeAll()
             r.patientScreen(
+                onLogout = {
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    showHome()
+                }
+            )
+        }
+
+        fun showAppointments() {
+            r.removeAll()
+            r.patientAppointmentsScreen(
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -131,6 +145,20 @@ class App : Application() {
             r.confirmEmailScreen(email)
         }
 
+        fun showPatientProfileEdit() {
+            r.removeAll()
+            r.patientProfileEditScreen(
+                onBack = { showPatient() }
+            )
+        }
+
+        fun showDoctorProfileEdit() {
+            r.removeAll()
+            r.doctorProfileEditScreen(
+                onBack = { showDoctor() }
+            )
+        }
+
         showAuth = { tab ->
             r.removeAll()
             r.authScreen(
@@ -163,17 +191,19 @@ class App : Application() {
         Navigator.showRecordEditor = ::showRecordEditor
         Navigator.showDoctor = ::showDoctor
         Navigator.showDoctorPatient = ::showDoctorPatient
+        Navigator.showAppointments = ::showAppointments
 
+        Navigator.showPatientProfileEdit = ::showPatientProfileEdit
+        Navigator.showDoctorProfileEdit = ::showDoctorProfileEdit
         Navigator.showPasswordResetSuccess = ::showPasswordResetSuccess
+
         val currentPath = window.location.pathname
         if (currentPath == "/auth/password/reset") {
             val params = URLSearchParams(window.location.search)
             val token = params.get("token")
             showPasswordResetForm(token)
         } else {
-            showHome()
+            showDoctor()
         }
     }
 }
-
-

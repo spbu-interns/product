@@ -15,7 +15,8 @@ fun Container.passwordResetSuccessScreen() = vPanel(spacing = 16) {
 
     vPanel(spacing = 16) {
         width = 520.px
-        addCssClass("mx-auto text-center")
+        addCssClass("mx-auto")
+        addCssClass("text-center")
 
         h3("Пароль изменён")
         div("Ваш пароль был успешно изменён, теперь вы можете войти в аккаунт по нему")
