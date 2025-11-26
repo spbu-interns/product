@@ -241,6 +241,20 @@ data class Slot(
 )
 
 @Serializable
+data class AppointmentOut(
+    @SerialName("id") val id: Long,
+    @SerialName("slot_id") val slotId: Long,
+    @SerialName("client_id") val clientId: Long,
+    @SerialName("status") val status: String,
+    @SerialName("comments") val comments: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("canceled_at") val canceledAt: String? = null,
+    @SerialName("completed_at") val completedAt: String? = null,
+    @SerialName("appointment_type_id") val appointmentTypeId: Long? = null
+)
+
+@Serializable
 data class AppointmentOutDto(
     val id: Long,
     @SerialName("slot_id") val slotId: Long,

@@ -11,7 +11,7 @@ import io.kvision.html.span
 import io.kvision.html.ul
 import io.kvision.html.li
 
-enum class PatientSection { OVERVIEW, APPOINTMENTS, MEDICAL_RECORDS, MY_RECORDS }
+enum class PatientSection { OVERVIEW, APPOINTMENTS, MEDICAL_RECORDS, MY_RECORDS, EDIT_PROFILE }
 
 fun Container.patientAccountLayout(
     active: PatientSection,
@@ -31,32 +31,35 @@ fun Container.patientAccountLayout(
 }
 
 fun Container.patientSidebar(active: PatientSection) {
-    div(className = "avatar circle") { + "NS" }
-    h3("Name Surname", className = "account name")
-    p("Patient ID: 12345", className = "account id")
+    div(className = "avatar circle") { +"ИИ" }
+    h3(Session.fullName ?: Session.email ?: "Пользователь", className = "account name")
+    p("ID пациента: ${Session.userId}", className = "account id")
 
     nav {
         ul(className = "side menu") {
-            sideItem("Overview", "\uD83D\uDC64", active == PatientSection.OVERVIEW) {
+            sideItem("Обзор", "\uD83D\uDC64", active == PatientSection.OVERVIEW) {
                 Navigator.showPatient()
             }
 
-            sideItem("Appointments", "\uD83D\uDCC5", active == PatientSection.APPOINTMENTS) {
+            sideItem("Приёмы", "\uD83D\uDCC5", active == PatientSection.APPOINTMENTS) {
                 Navigator.showAppointments()
             }
 
-            sideItem("Medical Records", "\uD83D\uDCC4", active == PatientSection.MEDICAL_RECORDS) {
-                Navigator.showStub("Medical records section is under construction")
+            sideItem("Медкарта", "\uD83D\uDCC4", active == PatientSection.MEDICAL_RECORDS) {
+                Navigator.showStub("Раздел медицинской карты находится в разработке")
             }
 
-            sideItem("My Records", "\uD83D\uDCDD", active == PatientSection.MY_RECORDS) {
+            sideItem("Мои записи", "\uD83D\uDCDD", active == PatientSection.MY_RECORDS) {
                 Navigator.showMyRecords()
+            }
+            sideItem("Редактировать профиль", "\uD83D\uDC64", active == PatientSection.EDIT_PROFILE) {
+                Navigator.showPatientProfileEdit()
             }
         }
     }
 
     div(className = "side button")
-    button("Find New Doctor", className = "btn-primary-lg").onClick {
+    button("Найти врача", className = "btn-primary-lg").onClick {
         Navigator.showFind()
     }
 }

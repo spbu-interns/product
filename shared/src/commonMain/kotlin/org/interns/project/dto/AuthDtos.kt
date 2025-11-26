@@ -116,7 +116,7 @@ data class ResetPasswordResponse(
 data class ApiResponse<T>(
     @SerialName("success")
     val success: Boolean,
-    
+
     @SerialName("data")
     val data: T? = null,
     

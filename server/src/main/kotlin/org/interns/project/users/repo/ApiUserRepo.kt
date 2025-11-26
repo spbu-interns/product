@@ -343,6 +343,7 @@ class ApiUserRepo(
     }
 
     suspend fun searchDoctors(filter: DoctorSearchFilter): List<DoctorSearchResult> {
+        println("🎯 Starting searchDoctors with filter: $filter")
         val resp = client.get("$baseUrl/doctors/search") {
             filter.specializationIds?.forEach { parameter("specialization_ids", it) }
             filter.city?.let { parameter("city", it) }
@@ -363,6 +364,9 @@ class ApiUserRepo(
             parameter("limit", filter.limit)
             parameter("offset", filter.offset)
         }
+        println("🔍 Response status: ${resp.status}")
+        val responseBody = resp.bodyAsText()
+        println("🔍 Raw response body: $responseBody")
 
         if (resp.status != HttpStatusCode.OK) {
             throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
@@ -459,7 +463,7 @@ class ApiUserRepo(
 
     // ===== appointments & records =====
 
-    suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentOutDto> {
+    suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentOut> {
         val path = "/clients/$clientId/appointments"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {
@@ -477,7 +481,7 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentOutDto> {
+    suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentOut> {
         val path = "/doctors/$doctorId/appointments"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {

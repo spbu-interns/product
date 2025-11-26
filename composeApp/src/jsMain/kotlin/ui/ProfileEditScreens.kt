@@ -1,8 +1,10 @@
 package ui
 
 import api.ApiConfig
+import api.ProfileApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.core.onClickLaunch
 import io.kvision.form.select.select
 import io.kvision.form.text.text
 import io.kvision.form.time.dateTime
@@ -13,11 +15,14 @@ import io.kvision.html.h3
 import io.kvision.html.p
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
+import kotlinx.coroutines.launch
+import org.interns.project.dto.ProfileUpdateDto
 
+val profileApi = ProfileApiClient()
 fun Container.patientProfileEditScreen(onBack: () -> Unit = { Navigator.showPatient() }) {
     profileEditScreenCommon(
         mode = HeaderMode.PATIENT,
-        title = "Edit patient profile",
+        title = "Редактирование профиля пациента",
         onBack = onBack
     )
 }
@@ -25,7 +30,7 @@ fun Container.patientProfileEditScreen(onBack: () -> Unit = { Navigator.showPati
 fun Container.doctorProfileEditScreen(onBack: () -> Unit = { Navigator.showDoctor() }) {
     profileEditScreenCommon(
         mode = HeaderMode.DOCTOR,
-        title = "Edit doctor profile",
+        title = "Редактирование профиля врача",
         onBack = onBack
     )
 }
@@ -45,14 +50,14 @@ private fun Container.profileEditScreenCommon(
         }
     )
 
-    val displayName = Session.fullName ?: Session.email ?: "User"
+    val displayName = Session.fullName ?: Session.email ?: "Пользователь"
     val userIdText = Session.userId?.let { "ID: $it" } ?: ""
     val initials = displayName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .take(2)
         .joinToString("")
-        .ifBlank { "US" }
+        .ifBlank { "ПС" }
 
     div(className = "account container") {
         div(className = "account grid") {
@@ -72,69 +77,88 @@ private fun Container.profileEditScreenCommon(
 
                 div(className = "card block") {
                     vPanel(spacing = 16) {
-                        val firstNameField = text(label = "First name") {
+                        val firstNameField = text(label = "Имя") {
                             value = Session.firstName ?: ""
                         }
-                        val lastNameField = text(label = "Last name") {
+                        val lastNameField = text(label = "Фамилия") {
                             value = Session.lastName ?: ""
                         }
-                        val patronymicField = text(label = "Middle name") { }
+                        val patronymicField = text(label = "Отчество") { }
 
                         val birthDateField = dateTime(
                             format = "DD.MM.YYYY",
-                            label = "Birth date"
+                            label = "Дата рождения"
                         ) {
-                            placeholder = "Select birth date"
-                            // showTodayButton убрали, чтобы не было Unresolved reference
+                            placeholder = "Выберите дату рождения"
                             showClear = true
                         }
 
-                        val phoneField = text(label = "Phone number") { }
+                        val phoneField = text(label = "Номер телефона") {
+                            placeholder = "+7 (XXX) XXX-XX-XX"
+                        }
 
-                        val avatarField = text(label = "Avatar URL") {
+                        val avatarField = text(label = "Ссылка на аватар") {
                             placeholder = "https://example.com/avatar.jpg"
                         }
 
                         val genderField = select(
                             options = listOf(
-                                "M" to "M",
-                                "F" to "F"
+                                "M" to "Мужской",
+                                "F" to "Женский"
                             ),
-                            label = "Gender (M/F)"
+                            label = "Пол"
                         ) {
-                            placeholder = "Select gender"
+                            placeholder = "Выберите пол"
+                        }
+                        fun convertDate(value: String?): String? {
+                            if (value.isNullOrBlank()) return null
+                            val parts = value.split(".")
+                            if (parts.size != 3) return null
+                            val (day, month, year) = parts
+                            return "$year-$month-$day"
                         }
 
                         val statusField = select(
                             options = listOf(
-                                "ACTIVE" to "Active",
-                                "INACTIVE" to "Inactive"
+                                "ACTIVE" to "Активный",
+                                "INACTIVE" to "Неактивный"
                             ),
-                            label = "Active status"
+                            label = "Статус"
                         ) {
-                            placeholder = "Select status"
+                            placeholder = "Выберите статус"
                         }
 
                         div(className = "side button")
 
-                        button("Save", className = "btn-primary-lg").onClick {
-                            // TODO: сюда подключить реальный вызов API
-                            console.log(
-                                "Profile edit: " +
-                                        "firstName=${firstNameField.value}, " +
-                                        "lastName=${lastNameField.value}, " +
-                                        "patronymic=${patronymicField.value}, " +
-                                        "birthDate=${birthDateField.getValueAsString()}, " +
-                                        "phone=${phoneField.value}, " +
-                                        "avatar=${avatarField.value}, " +
-                                        "gender=${genderField.value}, " +
-                                        "status=${statusField.value}"
+                        button("Сохранить", className = "btn-primary-lg").onClickLaunch {
+
+                            val userId = Session.userId ?: return@onClickLaunch
+
+                            val dto = ProfileUpdateDto(
+                                firstName = firstNameField.value,
+                                lastName = lastNameField.value,
+                                patronymic = patronymicField.value,
+                                phoneNumber = phoneField.value,
+                                avatar = avatarField.value,
+                                gender = genderField.value,
+                                dateOfBirth = convertDate(birthDateField.getValueAsString()),
                             )
-                            Toast.success("Profile saved (frontend only for now)")
-                            onBack()
+
+                            val result = profileApi.updateProfile(userId, dto)
+
+                            result.onSuccess { updated ->
+                                Session.updateFrom(updated)
+                                onBack()
+                            }
+
+                            result.onFailure {
+                                console.error("Ошибка обновления профиля: ${it.message}")
+                                // можно вывести сообщение на экран
+                            }
                         }
 
-                        button("Cancel", className = "btn-ghost-sm").onClick {
+
+                        button("Отмена", className = "btn-ghost-sm").onClick {
                             onBack()
                         }
                     }

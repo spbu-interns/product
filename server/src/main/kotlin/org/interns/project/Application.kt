@@ -17,7 +17,9 @@ import org.interns.project.appointments.AppointmentController
 import org.interns.project.auth.routes.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
+import org.interns.project.findDoctors.FindDoctorsController
 import org.interns.project.patient.PatientDataController
+import org.interns.project.profile.ProfileController
 import org.interns.project.users.UserController
 import org.interns.project.users.repo.ApiUserRepo
 import org.jetbrains.exposed.sql.Database
@@ -86,6 +88,8 @@ fun Application.module() {
     val patientDataController = PatientDataController(apiUserRepo)
     val appointmentController = AppointmentController(apiUserRepo)
     val userController = UserController(apiUserRepo)
+    val findDoctorsController = FindDoctorsController(apiUserRepo)
+    val profileController = ProfileController(apiUserRepo)
 
     routing {
         get("/") {
@@ -96,6 +100,8 @@ fun Application.module() {
         patientDataController.registerRoutes(this)
         userController.registerRoutes(this)
         appointmentController.registerRoutes(this)
+        findDoctorsController.registerRoutes(this)
+        profileController.registerRoutes(this)
 
         fastApiCompatRoutes(verificationService, passwordResetService)
     }

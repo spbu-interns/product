@@ -5,6 +5,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import org.interns.project.dto.ApiResponse
+import org.interns.project.dto.AppointmentDto
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.ComplaintCreateRequest
 import org.interns.project.dto.ComplaintPatchRequest
@@ -12,6 +13,9 @@ import org.interns.project.dto.ComplaintResponse
 import org.interns.project.dto.DoctorNoteCreateRequest
 import org.interns.project.dto.DoctorNotePatchRequest
 import org.interns.project.dto.DoctorNoteResponse
+import org.interns.project.dto.FullUserProfileDto
+import org.interns.project.dto.MedicalRecordDto
+import org.interns.project.dto.PatientDashboardDto
 import org.interns.project.dto.UserResponseDto
 
 class PatientApiClient {
@@ -169,5 +173,114 @@ class PatientApiClient {
     suspend fun getClientProfile(userId: Long): Result<ClientProfileDto?> = runCatching {
         val response = client.get(ApiConfig.Endpoints.clientByUser(userId))
         parseNullable<ClientProfileDto>(response, failureMessage = "Failed to load client profile")
+    }
+
+    suspend fun getFullUserProfile(userId: Long): Result<FullUserProfileDto?> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/api/users/$userId/full")
+        parseNullable<FullUserProfileDto>(response, "Failed to load full user profile")
+    }
+
+    // Получение предстоящих записей через существующий endpoint
+    suspend fun getUpcomingAppointments(clientId: Long): Result<List<AppointmentDto>> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/appointments")
+        if (response.status.isSuccess()) {
+            val appointments = response.body<List<AppointmentDto>>()
+            // Фильтруем предстоящие записи на фронте
+            val upcoming = appointments.filter { it.status == "BOOKED" }
+            upcoming
+        } else {
+            emptyList()
+        }
+    }
+
+    // Получение истории записей
+    suspend fun getAppointmentHistory(clientId: Long): Result<List<AppointmentDto>> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/appointments")
+        if (response.status.isSuccess()) {
+            val appointments = response.body<List<AppointmentDto>>()
+            // Фильтруем историю на фронте
+            val history = appointments.filter { it.status in listOf("COMPLETED", "CANCELED", "NO_SHOW") }
+            history
+        } else {
+            emptyList()
+        }
+    }
+
+    // Получение медицинских записей
+    suspend fun getMedicalRecords(clientId: Long): Result<List<MedicalRecordDto>> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/medical-records")
+        if (response.status.isSuccess()) {
+            response.body<List<MedicalRecordDto>>()
+        } else {
+            emptyList()
+        }
+    }
+
+    // Получение количества предстоящих записей
+    suspend fun getAppointmentsCount(clientId: Long): Result<Int> = runCatching {
+        val result = getUpcomingAppointments(clientId)
+        result.getOrThrow().size
+    }
+
+    // Получение количества медицинских записей
+    suspend fun getMedicalRecordsCount(clientId: Long): Result<Int> = runCatching {
+        val result = getMedicalRecords(clientId)
+        result.getOrThrow().size
+    }
+
+    // Получение следующей записи
+    suspend fun getNextAppointment(clientId: Long): Result<AppointmentDto?> = runCatching {
+        val result = getUpcomingAppointments(clientId)
+        val upcoming = result.getOrThrow()
+        upcoming.minByOrNull { it.createdAt }
+    }
+
+    // Получение последних медицинских записей
+    suspend fun getRecentMedicalRecords(clientId: Long, limit: Int = 3): Result<List<MedicalRecordDto>> = runCatching {
+        val result = getMedicalRecords(clientId)
+        result.getOrThrow().take(limit)
+    }
+
+    // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
+
+    // Получение clientId по userId
+    suspend fun getClientId(userId: Long): Result<Long?> = runCatching {
+        val response = client.get(ApiConfig.Endpoints.clientByUser(userId))
+        if (response.status.isSuccess()) {
+            val apiResponse = response.body<ApiResponse<ClientProfileDto?>>()
+            if (apiResponse.success) {
+                apiResponse.data?.id
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    // Получение всех данных для дашборда
+    suspend fun getPatientDashboardData(userId: Long): Result<PatientDashboardDto> = runCatching {
+        // Получаем полный профиль
+        val fullProfile = getFullUserProfile(userId).getOrThrow()
+            ?: throw IllegalStateException("User profile not found")
+
+        // Получаем clientId
+        val clientId = getClientId(userId).getOrThrow()
+            ?: throw IllegalStateException("Client not found")
+
+        // Получаем дополнительные данные
+        val upcomingCount = getAppointmentsCount(clientId).getOrThrow()
+        val recordsCount = getMedicalRecordsCount(clientId).getOrThrow()
+        val nextAppointment = getNextAppointment(clientId).getOrThrow()
+        val recentRecords = getRecentMedicalRecords(clientId).getOrThrow()
+
+        PatientDashboardDto(
+            profile = fullProfile.user,
+            clientInfo = fullProfile.client,
+            upcomingAppointmentsCount = upcomingCount,
+            medicalRecordsCount = recordsCount,
+            nextAppointment = nextAppointment,
+            recentMedicalRecords = recentRecords
+        )
     }
 }

@@ -115,6 +115,7 @@ fun Container.authScreen(
                                             LoginRequest(
                                                 email = email,
                                                 password = password,
+                                                accountType = ""
                                             )
                                         )
 

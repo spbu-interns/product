@@ -1,5 +1,6 @@
 package org.interns.project.users.repo
 
+import io.ktor.server.application.ApplicationStarted
 import java.time.LocalDate
 import java.time.LocalDateTime
 import org.interns.project.users.model.DoctorSearchFilter

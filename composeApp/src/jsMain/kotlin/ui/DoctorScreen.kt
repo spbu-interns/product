@@ -44,13 +44,13 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         uiScope.cancel()
     }
 
-    val doctorName = Session.fullName ?: Session.email ?: "Doctor"
+    val doctorName = Session.fullName ?: Session.email ?: "Врач"
     val doctorInitials = doctorName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .take(2)
         .joinToString("")
-        .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "DR" }
+        .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "ВР" }
     val doctorSubtitle = Session.email ?: ""
 
     val patients = mutableListOf<DoctorPatientListItem>()
@@ -66,12 +66,12 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     var renderPatients: () -> Unit = {}
     var renderSchedule: () -> Unit = {}
 
-    val appointments = listOf(
-        DoctorAppointmentCard("JS", "John Smith", "09:00 AM · Consultation · 30 min", "confirmed"),
-        DoctorAppointmentCard("SW", "Sarah Wilson", "10:30 AM · Routine Check-up · 15 min", "confirmed"),
-        DoctorAppointmentCard("MJ", "Mike Johnson", "01:00 PM · Follow-up · 20 min", "pending"),
-        DoctorAppointmentCard("ED", "Emma Davis", "03:30 PM · Consultation · 45 min", "confirmed"),
-    )
+//    val appointments = listOf(
+//        DoctorAppointmentCard("ИС", "Иван Сидоров", "09:00 · Консультация · 30 мин", "confirmed"),
+//        DoctorAppointmentCard("СП", "Светлана Петрова", "10:30 · Плановый осмотр · 15 мин", "confirmed"),
+//        DoctorAppointmentCard("МЖ", "Михаил Жуков", "13:00 · Повторный приём · 20 мин", "pending"),
+//        DoctorAppointmentCard("ЕД", "Елена Дмитриева", "15:30 · Консультация · 45 мин", "confirmed"),
+//    )
 
     fun DoctorPatientListItem.render() {
         val statusClass = when (status.lowercase()) {
@@ -88,7 +88,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(userId)
+                Navigator.showDoctorPatient(userId, null)
             }
         }
     }
@@ -106,11 +106,11 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 span(item.subtitle, className = "record subtitle")
             }
 
-            span(item.status, className = statusClass)
+            span(content = item.status, className = statusClass)
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(item.userId)
+                Navigator.showDoctorPatient(item.userId, null)
             }
         }
     }
@@ -121,14 +121,14 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             ?.mapNotNull { it.firstOrNull()?.uppercaseChar() }
             ?.take(2)
             ?.joinToString("")
-            ?.ifBlank { "PT" }
-            ?: "PT"
+            ?.ifBlank { "ПЦ" }
+            ?: "ПЦ"
 
         patients.add(
             DoctorPatientListItem(
                 userId = userId,
                 patientRecordId = recordId ?: 0,
-                name = name ?: "Patient #$userId",
+                name = name ?: "Пациент #$userId",
                 subtitle = note ?: "Подробнее...",
                 status = "active",
                 initials = initials,
@@ -196,7 +196,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         when {
             isLoadingPatients -> {
                 patientsContainer.div(className = "doctor-empty-state") {
-                    span("Загрузка пациентов...", className = "doctor-patient-condition")
+                    span("Пациентов нет", className = "doctor-patient-condition")
                 }
             }
             patientsError != null -> {
@@ -270,7 +270,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             div(className = "sidebar card") {
                 div(className = "avatar circle") { +doctorInitials }
                 h4(doctorName, className = "account name")
-                span("Role: DOCTOR", className = "account id")
+                //span("Роль: ВРАЧ", className = "account id")
                 if (doctorSubtitle.isNotBlank()) {
                     span(doctorSubtitle, className = "account id")
                 }
@@ -278,7 +278,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 nav {
                     ul(className = "side menu") {
                         li(className = "side_item is-active") {
-                            span("Overview")
+                            span("Обзор")
                             span("\uD83D\uDC64", className = "side icon")
                             onClick {
                                 overviewContainer.visible = true
@@ -286,7 +286,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             }
                         }
                         li(className = "side_item") {
-                            span("Schedule")
+                            span("Расписание")
                             span("\uD83D\uDCC5", className = "side icon")
                             onClick {
                                 overviewContainer.visible = false
@@ -295,25 +295,25 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             }
                         }
                         li(className = "side_item") {
-                            span("Patients")
+                            span("Пациенты")
                             span("\uD83D\uDC65", className = "side icon")
                             onClick {
                                 if (patients.isNotEmpty()) {
                                     cleanup()
                                     val first = patients.first()
-                                    Navigator.showDoctorPatient(first.userId)
+                                    Navigator.showDoctorPatient(first.userId, null)
                                 } else {
                                     loadPatients(true)
                                 }
                             }
                         }
                         li(className = "side_item") {
-                            span("My Records")
+                            span("Мои записи")
                             span("\uD83D\uDCDD", className = "side icon")
                             onClick { Navigator.showStub("Профиль в разработке") }
                         }
                         li(className = "side_item") {
-                            span("Edit Profile")
+                            span("Редактировать профиль")
                             span("\uD83D\uDC64", className = "side icon")
                             onClick { Navigator.showDoctorProfileEdit() }
                         }
@@ -321,10 +321,10 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
 
                 div(className = "side button")
-                button("Create Appointment", className = "btn-primary-lg").onClick {
+                button("Создать приём", className = "btn-primary-lg").onClick {
                     Navigator.showStub("Создание приема скоро будет доступно")
                 }
-                button("Timetable", className = "btn-secondary-lg timetable-trigger").onClick {
+                button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
                     timetableController.open(doctorName)
                 }
             }
@@ -332,22 +332,23 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             div(className = "main column") {
 
                 overviewContainer = div {
-                    h1("Dashboard Overview", className = "account title")
+                    h1("Аккаунт", className = "account title")
 
                     div(className = "statistics grid") {
-                        doctorStatisticsCard("4", "Today", "\uD83D\uDCC5")
-                        doctorStatisticsCard(patients.size.toString(), "Patients", "\uD83D\uDC65")
-                        doctorStatisticsCard("4.9", "Rating", "⭐")
+                        doctorStatisticsCard("0", "Сегодня", "\uD83D\uDCC5")
+                        doctorStatisticsCard(patients.size.toString(), "Пациенты", "\uD83D\uDC65")
+                        doctorStatisticsCard("0", "Рейтинг", "⭐")
                     }
 
                     div(className = "card block appointment-block") {
-                        h4("Today's Appointments", className = "block title")
-                        appointments.forEach { appointment ->
-                            doctorAppointmentCard(appointment)
-                        }
+                        h4("Приёмы на сегодня", className = "block title")
+
+//                        appointments.forEach { appointment ->
+//                            doctorAppointmentCard(appointment)
+//                        }
                     }
 
-                    h4("Patients from database", className = "block title")
+                    h4("Пациенты из базы данных", className = "block title")
                     div(className = "card block") {
                         patientsContainer = div(className = "records list")
                     }
@@ -356,10 +357,10 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 scheduleContainer = div {
                     visible = false
 
-                    h1("Schedule", className = "account title")
+                    h1("Расписание", className = "account title")
 
                     div(className = "card block appointment-block") {
-                        h4("Scheduled Patients", className = "block title")
+                        h4("Запланированные пациенты", className = "block title")
                         scheduleListContainer = div(className = "records list")
                     }
                 }
