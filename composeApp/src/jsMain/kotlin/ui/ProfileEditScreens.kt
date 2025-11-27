@@ -142,6 +142,19 @@ private fun Container.profileEditScreenCommon(
                                 avatar = avatarField.value,
                                 gender = genderField.value,
                                 dateOfBirth = convertDate(birthDateField.getValueAsString()),
+                                bloodType = null,
+                                height = null,
+                                weight = null,
+                                emergencyContactName = null,
+                                emergencyContactNumber = null,
+                                address = null,
+                                snils = null,
+                                passport = null,
+                                dmsOms = null,
+                                profession = null,
+                                info = null,
+                                experience = null,
+                                price = null
                             )
 
                             val result = profileApi.updateProfile(userId, dto)

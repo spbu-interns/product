@@ -14,7 +14,7 @@ class ProfileApiClient {
     suspend fun updateProfile(
         userId: Long,
         patch: ProfileUpdateDto
-    ): Result<ProfileDto> = withContext(Dispatchers.Default) {
+    ): Result<UserResponseDto> = withContext(Dispatchers.Default) {
         try {
             val response = client.patch(ApiConfig.Endpoints.userProfile(userId)) {
                 contentType(ContentType.Application.Json)
@@ -27,7 +27,7 @@ class ProfileApiClient {
                 )
             }
 
-            val apiResp = response.body<ApiResponse<ProfileDto>>()
+            val apiResp = response.body<ApiResponse<UserResponseDto>>()
 
             if (apiResp.success) {
                 val profile = apiResp.data

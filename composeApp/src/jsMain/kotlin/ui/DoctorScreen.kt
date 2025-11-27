@@ -1,7 +1,6 @@
 ﻿package ui
 
 import api.ApiConfig
-import api.PatientApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.html.button
@@ -17,6 +16,8 @@ import io.kvision.toast.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import state.DoctorState
+import state.DoctorState.dashboardData
 import ui.components.timetableModal
 
 private data class DoctorPatientListItem(
@@ -37,26 +38,32 @@ private data class DoctorAppointmentCard(
 
 fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     val uiScope = MainScope()
-    val apiClient = PatientApiClient()
+    val state = DoctorState
     val timetableController = timetableModal()
 
     fun cleanup() {
         uiScope.cancel()
     }
 
-    val doctorName = Session.fullName() ?: Session.email ?: "Врач"
+    // Загружаем данные при создании экрана
+    val doctorId = Session.userId
+    if (doctorId != null) {
+        state.loadDoctorDashboard(doctorId)
+    }
+
+    // Используем данные из состояния или сессии как fallback
+    val dashboard = state.dashboardData
+    val doctorName = dashboard?.user?.let { user ->
+        listOfNotNull(user.surname, user.name, user.patronymic).takeIf { it.isNotEmpty() }?.joinToString(" ")
+    } ?: Session.fullName() ?: Session.email ?: "Врач"
+
     val doctorInitials = doctorName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .take(2)
         .joinToString("")
         .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "ВР" }
-    val doctorSubtitle = Session.email ?: ""
-
-    val patients = mutableListOf<DoctorPatientListItem>()
-    var patientsLoaded = false
-    var isLoadingPatients = false
-    var patientsError: String? = null
+    val doctorSubtitle = dashboard?.doctor?.profession ?: Session.email ?: ""
 
     lateinit var patientsContainer: Container
     lateinit var overviewContainer: Container
@@ -65,13 +72,6 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
     var renderPatients: () -> Unit = {}
     var renderSchedule: () -> Unit = {}
-
-//    val appointments = listOf(
-//        DoctorAppointmentCard("ИС", "Иван Сидоров", "09:00 · Консультация · 30 мин", "confirmed"),
-//        DoctorAppointmentCard("СП", "Светлана Петрова", "10:30 · Плановый осмотр · 15 мин", "confirmed"),
-//        DoctorAppointmentCard("МЖ", "Михаил Жуков", "13:00 · Повторный приём · 20 мин", "pending"),
-//        DoctorAppointmentCard("ЕД", "Елена Дмитриева", "15:30 · Консультация · 45 мин", "confirmed"),
-//    )
 
     fun DoctorPatientListItem.render() {
         val statusClass = when (status.lowercase()) {
@@ -115,108 +115,48 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         }
     }
 
-    fun addPatientItem(userId: Long, recordId: Long?, name: String?, note: String?) {
-        val initials = name
-            ?.split(' ', '-', '_')
-            ?.mapNotNull { it.firstOrNull()?.uppercaseChar() }
-            ?.take(2)
-            ?.joinToString("")
-            ?.ifBlank { "ПЦ" }
-            ?: "ПЦ"
-
-        patients.add(
-            DoctorPatientListItem(
-                userId = userId,
-                patientRecordId = recordId ?: 0,
-                name = name ?: "Пациент #$userId",
-                subtitle = note ?: "Подробнее...",
-                status = "active",
-                initials = initials,
-            )
-        )
-    }
-
-    fun loadPatients(force: Boolean) {
-        if (isLoadingPatients) return
-        if (patientsLoaded && !force) return
-
-        isLoadingPatients = true
-        patientsError = null
-        renderPatients()
-
-        uiScope.launch {
-            val result = apiClient.listPatients()
-            result.fold(
-                onSuccess = { list ->
-                    patientsLoaded = true
-                    patients.clear()
-                    list.forEach { patient ->
-                        val p = patient.asDynamic()
-                        val user = p.user
-
-                        val userId = (user.id as Number).toLong()
-                        val recordId = (p.id as Number?)?.toLong()
-
-                        val name = buildString {
-                            val firstName = user.firstName as String?
-                            val lastName = user.lastName as String?
-
-                            val nameParts = listOfNotNull<String>(firstName, lastName)
-
-                            if (nameParts.isNotEmpty()) {
-                                append(nameParts.joinToString(" "))
-                            } else {
-                                append(user.login as String)
-                            }
-                        }
-
-                        val email = user.email as String?
-
-                        addPatientItem(
-                            userId = userId,
-                            recordId = recordId,
-                            name = name,
-                            note = email,
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    patientsError = error.message ?: "Не удалось загрузить пациентов"
-                    Toast.danger(patientsError ?: "Ошибка загрузки")
-                }
-            )
-            isLoadingPatients = false
-            renderPatients()
-            renderSchedule()
-        }
-    }
-
     renderPatients = fun() {
         patientsContainer.removeAll()
+
         when {
-            isLoadingPatients -> {
+            state.isLoading -> {
                 patientsContainer.div(className = "doctor-empty-state") {
-                    span("Пациентов нет", className = "doctor-patient-condition")
+                    span("Загрузка пациентов...", className = "doctor-patient-condition")
                 }
             }
-            patientsError != null -> {
+            state.error != null -> {
                 patientsContainer.div(className = "record item") {
-                    span("Загрузка пациентов...", className = "record subtitle")
+                    span("Ошибка загрузки", className = "record subtitle")
                     button("Повторить", className = "btn-ghost-sm").onClick {
-                        patientsError = null
-                        loadPatients(true)
+                        doctorId?.let { state.loadDoctorDashboard(it) }
                     }
                 }
             }
-            patients.isEmpty() -> {
+            dashboard?.patients.isNullOrEmpty() -> {
                 patientsContainer.div(className = "record item") {
                     span("Пациенты не найдены", className = "record subtitle")
                     button("Обновить", className = "btn-ghost-sm").onClick {
-                        loadPatients(true)
+                        doctorId?.let { state.loadDoctorDashboard(it) }
                     }
                 }
             }
-            else -> patients.forEach { it.render() }
+            else -> {
+                dashboard?.patients?.forEach { patient ->
+                    val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
+                    val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
+                        .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
+                    val subtitle = patient.phoneNumber ?: patient.dateOfBirth ?: "Подробнее..."
+
+                    DoctorPatientListItem(
+                        userId = patient.userId,
+                        patientRecordId = patient.clientId,
+                        name = name,
+                        subtitle = subtitle,
+                        status = "active",
+                        initials = initials
+                    ).render()
+                }
+            }
         }
     }
 
@@ -224,31 +164,40 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         scheduleListContainer.removeAll()
 
         when {
-            isLoadingPatients -> {
+            state.isLoading -> {
                 scheduleListContainer.div(className = "doctor-empty-state") {
-                    span("Загрузка пациентов...", className = "doctor-patient-condition")
+                    span("Загрузка расписания...", className = "doctor-patient-condition")
                 }
             }
-
-            patientsError != null -> {
+            state.error != null -> {
                 scheduleListContainer.div(className = "record item") {
-                    span(patientsError ?: "Не удалось загрузить пациентов", className = "record subtitle")
+                    span(state.error ?: "Не удалось загрузить расписание", className = "record subtitle")
                     button("Повторить", className = "btn-ghost-sm").onClick {
-                        patientsError = null
-                        loadPatients(true)
+                        doctorId?.let { state.loadDoctorDashboard(it) }
                     }
                 }
             }
-
-            patients.isEmpty() -> {
+            dashboard?.patients.isNullOrEmpty() -> {
                 scheduleListContainer.div(className = "record item") {
                     span("Пока нет записанных пациентов", className = "record subtitle")
                 }
             }
-
             else -> {
-                patients.forEach { patient ->
-                    scheduleListContainer.renderSchedulePatient(patient)
+                dashboard?.patients?.forEach { patient ->
+                    val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
+                    val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
+                        .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
+                    val subtitle = patient.phoneNumber ?: patient.dateOfBirth ?: "Подробнее..."
+
+                    val patientItem = DoctorPatientListItem(
+                        userId = patient.userId,
+                        patientRecordId = patient.clientId,
+                        name = name,
+                        subtitle = subtitle,
+                        status = "active",
+                        initials = initials
+                    )
+                    renderSchedulePatient(patientItem)
                 }
             }
         }
@@ -297,12 +246,11 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Пациенты")
                             span("\uD83D\uDC65", className = "side icon")
                             onClick {
-                                if (patients.isNotEmpty()) {
+                                dashboard?.patients?.firstOrNull()?.let { firstPatient ->
                                     cleanup()
-                                    val first = patients.first()
-                                    Navigator.showDoctorPatient(first.userId, null)
-                                } else {
-                                    loadPatients(true)
+                                    Navigator.showDoctorPatient(firstPatient.userId, null)
+                                } ?: run {
+                                    Toast.info("Нет пациентов для отображения")
                                 }
                             }
                         }
@@ -333,21 +281,42 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 overviewContainer = div {
                     h1("Аккаунт", className = "account title")
 
+                    // Статистика
+                    val todayAppointments = dashboardData?.appointments?.filter {
+                        // Фильтр для сегодняшних записей (нужно добавить логику дат)
+                        it.status == "BOOKED"
+                    } ?: emptyList()
+
+                    val totalPatients = dashboardData?.patients?.size ?: 0
+                    val doctorRating = dashboardData?.doctor?.rating ?: 0.0
+
                     div(className = "statistics grid") {
-                        doctorStatisticsCard("0", "Сегодня", "\uD83D\uDCC5")
-                        doctorStatisticsCard(patients.size.toString(), "Пациенты", "\uD83D\uDC65")
-                        doctorStatisticsCard("0", "Рейтинг", "⭐")
+                        doctorStatisticsCard(todayAppointments.size.toString(), "Сегодня", "\uD83D\uDCC5")
+                        doctorStatisticsCard(totalPatients.toString(), "Пациенты", "\uD83D\uDC65")
+                        doctorStatisticsCard(doctorRating.toString(), "Рейтинг", "⭐")
                     }
 
+                    // Приемы на сегодня
                     div(className = "card block appointment-block") {
                         h4("Приёмы на сегодня", className = "block title")
 
-//                        appointments.forEach { appointment ->
-//                            doctorAppointmentCard(appointment)
-//                        }
+                        if (todayAppointments.isNotEmpty()) {
+                            todayAppointments.forEach { appointment ->
+                                // TODO: Создать карточку приема с реальными данными
+                                div(className = "appointment card") {
+                                    span("Приём #${appointment.id}", className = "record title")
+                                    span("Статус: ${appointment.status}", className = "record subtitle")
+                                }
+                            }
+                        } else {
+                            div(className = "empty-state") {
+                                span("Нет приемов на сегодня")
+                            }
+                        }
                     }
 
-                    h4("Пациенты из базы данных", className = "block title")
+                    // Пациенты
+                    h4("Пациенты", className = "block title")
                     div(className = "card block") {
                         patientsContainer = div(className = "records list")
                     }
@@ -355,6 +324,25 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
                 scheduleContainer = div {
                     visible = false
+
+                    if (state.isLoading) {
+                        div(className = "loading-state") {
+                            span("Загрузка расписания...", className = "doctor-patient-condition")
+                        }
+                        return@div
+                    }
+
+                    state.error?.let { errorMessage ->
+                        div(className = "error-state") {
+                            span("Ошибка: $errorMessage", className = "record subtitle")
+                            button("Повторить", className = "btn-primary") {
+                                onClick {
+                                    doctorId?.let { state.loadDoctorDashboard(it) }
+                                }
+                            }
+                        }
+                        return@div
+                    }
 
                     h1("Расписание", className = "account title")
 
@@ -367,7 +355,11 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         }
     }
 
-    loadPatients(false)
+    state.onUpdate = {
+        renderPatients()
+        renderSchedule()
+    }
+
     renderPatients()
     renderSchedule()
 }
@@ -377,27 +369,5 @@ private fun Container.doctorStatisticsCard(value: String, label: String, icon: S
         span(icon, className = "statistics icon")
         h4(value, className = "statistics value")
         span(label, className = "statistics label")
-    }
-}
-
-private fun Container.doctorAppointmentCard(appointment: DoctorAppointmentCard) {
-    val statusClass = when (appointment.status.lowercase()) {
-        "confirmed" -> "status success"
-        "pending" -> "status info"
-        "cancelled" -> "status neutral"
-        else -> "status neutral"
-    }
-
-    div(className = "appointment card") {
-        div(className = "appointment row") {
-            div(className = "appointment avatar") { +appointment.initials }
-            div(className = "appointment info") {
-                span(appointment.name, className = "appointment doctor")
-                span(appointment.notes, className = "appointment meta")
-            }
-            div(className = "appointment actions") {
-                span(appointment.status, className = statusClass)
-            }
-        }
     }
 }

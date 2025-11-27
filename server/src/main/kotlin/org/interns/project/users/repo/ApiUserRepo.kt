@@ -386,8 +386,8 @@ class ApiUserRepo(
     }
 
     // PATCH /users/{id}/profile — частичное обновление профиля
-    suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): UserOutDto {
-        val patchMap = mutableMapOf<String, Any>()
+    suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): UserResponseDto {
+        val patchMap = mutableMapOf<String, Any?>()
 
         patch.firstName?.let { patchMap["name"] = it }
         patch.lastName?.let { patchMap["surname"] = it }
@@ -398,25 +398,70 @@ class ApiUserRepo(
         patch.avatar?.let { patchMap["avatar"] = it }
         patch.gender?.let { patchMap["gender"] = it }
 
+        // Убираем null значения из map
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+
         println("=== PATCH USER PROFILE ===")
         println("User ID: $userId")
-        println("Patch map: $patchMap")
+        println("Clean patch map: $cleanPatchMap")
 
-        if (patchMap.isEmpty()) {
+        if (cleanPatchMap.isEmpty()) {
             throw IllegalArgumentException("No fields to update")
         }
 
-        return doPatch("/users/$userId/profile", patchMap) { resp ->
-            resp.body<UserOutDto>()
+        return doPatch("/users/$userId/profile", cleanPatchMap) { resp ->
+            resp.body<UserResponseDto>()
         }
     }
+
     // === clients ===
-    suspend fun patchClientByUserId(userId: Long, patch: ClientPatch): ClientOut =
-        doPatch("/clients/by-user/$userId", patch) { it.body() }
+    suspend fun patchClientByUserId(userId: Long, patch: ClientPatch): ClientProfileDto {
+        val patchMap = mutableMapOf<String, Any?>()
+
+        patch.bloodType?.let { patchMap["blood_type"] = it }
+        patch.height?.let { patchMap["height"] = it }
+        patch.weight?.let { patchMap["weight"] = it }
+        patch.emergencyContactName?.let { patchMap["emergency_contact_name"] = it }
+        patch.emergencyContactNumber?.let { patchMap["emergency_contact_number"] = it }
+        patch.address?.let { patchMap["address"] = it }
+        patch.snils?.let { patchMap["snils"] = it }
+        patch.passport?.let { patchMap["passport"] = it }
+        patch.dmsOms?.let { patchMap["dms_oms"] = it }
+
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+
+        println("=== PATCH CLIENT PROFILE ===")
+        println("User ID: $userId")
+        println("Clean patch map: $cleanPatchMap")
+
+        if (cleanPatchMap.isEmpty()) {
+            throw IllegalArgumentException("No client fields to update")
+        }
+
+        return doPatch("/clients/by-user/$userId", cleanPatchMap) { it.body() }
+    }
 
     // === doctors ===
-    suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorOut =
-        doPatch("/doctors/by-user/$userId", patch) { it.body() }
+    suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorProfileDto {
+        val patchMap = mutableMapOf<String, Any?>()
+
+        patch.profession?.let { patchMap["profession"] = it }
+        patch.info?.let { patchMap["info"] = it }
+        patch.experience?.let { patchMap["experience"] = it }
+        patch.price?.let { patchMap["price"] = it }
+
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+
+        println("=== PATCH DOCTOR PROFILE ===")
+        println("User ID: $userId")
+        println("Clean patch map: $cleanPatchMap")
+
+        if (cleanPatchMap.isEmpty()) {
+            throw IllegalArgumentException("No doctor fields to update")
+        }
+
+        return doPatch("/doctors/by-user/$userId", cleanPatchMap) { it.body() }
+    }
 
     // ===== ДЛЯ ЖАЛОБ ПАЦИЕНТА =====
     // POST /patients/{id}/complaints

@@ -51,4 +51,18 @@ class DoctorApiClient {
                 Result.failure(e)
             }
         }
+    suspend fun getDoctorDashboard(userId: Long): Result<FullUserProfileDto> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/api/users/$userId/dashboard")
+
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("HTTP error: ${response.status.value}")
+        }
+
+        val body = response.body<ApiResponse<FullUserProfileDto>>()
+        if (body.success) {
+            body.data ?: throw IllegalStateException("Empty dashboard response")
+        } else {
+            throw IllegalStateException(body.error ?: "Failed to load dashboard data")
+        }
+    }
 }

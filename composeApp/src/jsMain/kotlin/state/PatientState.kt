@@ -7,7 +7,7 @@ import kotlinx.coroutines.launch
 import org.interns.project.dto.AppointmentDto
 import org.interns.project.dto.FullUserProfileDto
 import org.interns.project.dto.MedicalRecordDto
-import org.interns.project.dto.ProfileDto
+import org.interns.project.dto.UserResponseDto
 import ui.Session
 
 object PatientState {
@@ -36,10 +36,13 @@ object PatientState {
                 dashboardData = apiClient.getPatientDashboard(userId).getOrThrow()
                 dashboardData?.user?.let { user ->
                     Session.updateFrom(
-                        ProfileDto(
+                        UserResponseDto(
                             id = user.id,
-                            firstName = user.name,
-                            lastName = user.surname)
+                            name = user.name,
+                            surname = user.surname,
+                            email = user.email,
+                            login = user.login,
+                            role = user.role)
                     )
                 }
                 error = null

@@ -7,7 +7,7 @@ import io.kvision.form.text.text
 import io.kvision.html.*
 import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
-import org.interns.project.dto.ProfileDto
+import org.interns.project.dto.UserResponseDto
 
 fun Container.homeScreen() {
     headerBar(
@@ -114,6 +114,7 @@ object Session {
     var gender: String? = null        // M/F
     var dateOfBirth: String? = null   // YYYY-MM-DD
     var isActive: Boolean = true
+
     fun fullName(): String? = listOfNotNull(firstName, lastName)
         .joinToString(" ")
         .takeIf { it.isNotBlank()}
@@ -147,15 +148,17 @@ object Session {
         this.isLoggedIn = true
     }
 
-    fun updateFrom(profile: ProfileDto) {
-        this.firstName = profile.firstName
-        this.lastName = profile.lastName
-        this.patronymic = profile.patronymic
-        this.phoneNumber = profile.phoneNumber
-        this.avatar = profile.avatar
-        this.gender = profile.gender
-        this.dateOfBirth = profile.dateOfBirth
-        this.isActive = profile.isActive
+    fun updateFrom(userResponse: UserResponseDto) {
+        this.firstName = userResponse.name
+        this.lastName = userResponse.surname
+        this.patronymic = userResponse.patronymic
+        this.phoneNumber = userResponse.phoneNumber
+        this.avatar = userResponse.avatar
+        this.gender = userResponse.gender
+        this.dateOfBirth = userResponse.dateOfBirth
+        this.isActive = userResponse.isActive
+        this.email = userResponse.email
+        this.accountType = userResponse.role
     }
 
     fun clear() {
@@ -175,7 +178,6 @@ object Session {
         isActive = true
     }
 }
-
 
 private fun Container.specialtyCard(
     title: String,
