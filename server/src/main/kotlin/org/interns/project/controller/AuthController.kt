@@ -1,17 +1,30 @@
-package org.interns.project.auth.routes
+package org.interns.project.controller
 
-import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import org.interns.project.auth.reset.PasswordResetService
 import org.interns.project.auth.verification.EmailVerificationService
 import org.interns.project.dto.ApiResponse
+import org.interns.project.dto.LoginRequest
+import org.interns.project.dto.LoginResponse
+import org.interns.project.dto.RegisterRequest
+import org.interns.project.dto.RegisterResponse
+import org.interns.project.dto.RequestPasswordResetRequest
+import org.interns.project.dto.RequestPasswordResetResponse
+import org.interns.project.dto.ResetPasswordRequest
+import org.interns.project.dto.ResetPasswordResponse
+import org.interns.project.dto.VerifyEmailRequest
+import org.interns.project.dto.VerifyEmailResponse
 import org.interns.project.security.token.JwtService
 import org.interns.project.users.model.User
+import org.interns.project.users.model.UserCreateRequest
 import org.interns.project.users.repo.ApiUserRepo
-import java.util.*
 import org.slf4j.LoggerFactory
+import java.util.Base64
 
 class AuthController(
     private val apiUserRepo: ApiUserRepo,
@@ -43,10 +56,10 @@ class AuthController(
     fun registerRoutes(route: Route) {
         route.route("/api/auth") {
             post("/login") {
-                val apiRequest = call.receive<org.interns.project.dto.LoginRequest>()
-                
+                val apiRequest = call.receive<LoginRequest>()
+
                 println("📝 Login attempt: email=${apiRequest.email}, accountType=${apiRequest.accountType}")
-                
+
                 try {
                     val mappedRole = mapRoleToDbRole(apiRequest.accountType).uppercase()
                     println("📝 Mapped role: ${apiRequest.accountType} -> $mappedRole")
@@ -58,8 +71,8 @@ class AuthController(
                     if (!apiResponse.success) {
                         val error = apiResponse.error ?: "Invalid email or password"
                         call.respond(
-                            HttpStatusCode.Unauthorized,
-                            ApiResponse<org.interns.project.dto.LoginResponse>(
+                            HttpStatusCode.Companion.Unauthorized,
+                            ApiResponse<LoginResponse>(
                                 success = false,
                                 error = error
                             )
@@ -69,8 +82,8 @@ class AuthController(
                     val user = apiUserRepo.findByEmail(apiRequest.email)
                     if (user == null) {
                         call.respond(
-                            HttpStatusCode.Unauthorized,
-                            ApiResponse<org.interns.project.dto.LoginResponse>(
+                            HttpStatusCode.Companion.Unauthorized,
+                            ApiResponse<LoginResponse>(
                                 success = false,
                                 error = "Invalid email or password"
                             )
@@ -88,8 +101,8 @@ class AuthController(
                             "Вход доступен только для роли \"$actualName\"."
                         }
                         call.respond(
-                            HttpStatusCode.Forbidden,
-                            ApiResponse<org.interns.project.dto.LoginResponse>(
+                            HttpStatusCode.Companion.Forbidden,
+                            ApiResponse<LoginResponse>(
                                 success = false,
                                 error = message
                             )
@@ -104,7 +117,7 @@ class AuthController(
                             email = user.email
                         )
 
-                    val loginResponse = org.interns.project.dto.LoginResponse(
+                    val loginResponse = LoginResponse(
                         token = token,
                         userId = user.id,
                         email = user.email,
@@ -116,7 +129,7 @@ class AuthController(
                     println("🔵 Response: ${loginResponse.userId}")
                     println("🔵 Response body: ${loginResponse.email}")
                     call.respond(
-                        HttpStatusCode.OK,
+                        HttpStatusCode.Companion.OK,
                         ApiResponse(
                             success = true,
                             data = loginResponse
@@ -125,26 +138,26 @@ class AuthController(
                 } catch (e: Exception) {
                     println("❌ Login failed: ${e.message}")
                     call.respond(
-                        HttpStatusCode.Unauthorized,
-                        ApiResponse<org.interns.project.dto.LoginResponse>(
+                        HttpStatusCode.Companion.Unauthorized,
+                        ApiResponse<LoginResponse>(
                             success = false,
                             error = "Invalid email or password"
                         )
                     )
                 }
             }
-            
+
             post("/register") {
-                val apiRequest = call.receive<org.interns.project.dto.RegisterRequest>()
-                
-                val internalRequest = org.interns.project.users.model.UserCreateRequest(
+                val apiRequest = call.receive<RegisterRequest>()
+
+                val internalRequest = UserCreateRequest(
                     email = apiRequest.email,
                     login = apiRequest.email,
                     password = apiRequest.password, // Отправляем пароль без хеширования, Python-сервис сам хеширует
                     role = mapRoleToDbRole(apiRequest.accountType),
                     username = apiRequest.email
                 )
-                
+
                 try {
                     val userId = apiUserRepo.createUser(internalRequest)
 
@@ -172,39 +185,39 @@ class AuthController(
                     }
 
 
-                    val response = org.interns.project.dto.RegisterResponse(
+                    val response = RegisterResponse(
                         success = true,
                         message = "User registered successfully. Please check your email for verification.",
                         userId = userId
                     )
-                    
+
                     call.respond(
-                        HttpStatusCode.Created,
+                        HttpStatusCode.Companion.Created,
                         ApiResponse(success = true, data = response)
                     )
                 } catch (e: Exception) {
                     call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ApiResponse<org.interns.project.dto.RegisterResponse>(
+                        HttpStatusCode.Companion.InternalServerError,
+                        ApiResponse<RegisterResponse>(
                             success = false,
                             error = "Failed to register user: ${e.message}"
                         )
                     )
                 }
             }
-            
+
             route("/email") {
                 post("/start") {
-                    val apiRequest = call.receive<org.interns.project.dto.RequestPasswordResetRequest>()
-                    
+                    val apiRequest = call.receive<RequestPasswordResetRequest>()
+
                     val ok = verificationService.sendCodeByEmail(apiRequest.email)
-                    
+
                     if (ok) {
                         call.respond(
-                            HttpStatusCode.OK,
+                            HttpStatusCode.Companion.OK,
                             ApiResponse(
                                 success = true,
-                                data = org.interns.project.dto.VerifyEmailResponse(
+                                data = VerifyEmailResponse(
                                     success = true,
                                     message = "Verification email sent"
                                 )
@@ -212,25 +225,25 @@ class AuthController(
                         )
                     } else {
                         call.respond(
-                            HttpStatusCode.NotFound,
-                            ApiResponse<org.interns.project.dto.VerifyEmailResponse>(
+                            HttpStatusCode.Companion.NotFound,
+                            ApiResponse<VerifyEmailResponse>(
                                 success = false,
                                 error = "User not found or already verified"
                             )
                         )
                     }
                 }
-                
+
                 post("/verify") {
-                    val apiRequest = call.receive<org.interns.project.dto.VerifyEmailRequest>()
+                    val apiRequest = call.receive<VerifyEmailRequest>()
                     val ok = verificationService.verifyByToken(apiRequest.token.trim())
-                    
+
                     if (ok) {
                         call.respond(
-                            HttpStatusCode.OK,
+                            HttpStatusCode.Companion.OK,
                             ApiResponse(
                                 success = true,
-                                data = org.interns.project.dto.VerifyEmailResponse(
+                                data = VerifyEmailResponse(
                                     success = true,
                                     message = "Email verified successfully"
                                 )
@@ -238,8 +251,8 @@ class AuthController(
                         )
                     } else {
                         call.respond(
-                            HttpStatusCode.BadRequest,
-                            ApiResponse<org.interns.project.dto.VerifyEmailResponse>(
+                            HttpStatusCode.Companion.BadRequest,
+                            ApiResponse<VerifyEmailResponse>(
                                 success = false,
                                 error = "Invalid or expired token"
                             )
@@ -247,44 +260,44 @@ class AuthController(
                     }
                 }
             }
-            
+
             route("/password") {
                 post("/forgot") {
-                    val apiRequest = call.receive<org.interns.project.dto.RequestPasswordResetRequest>()
+                    val apiRequest = call.receive<RequestPasswordResetRequest>()
                     val ok = passwordResetService.requestByEmail(apiRequest.email)
 
                     call.respond(
-                        HttpStatusCode.OK,
+                        HttpStatusCode.Companion.OK,
                         ApiResponse(
                             success = true,
-                            data = org.interns.project.dto.RequestPasswordResetResponse(
+                            data = RequestPasswordResetResponse(
                                 success = true,
                                 message = "If the email exists, a password reset link has been sent"
                             )
                         )
                     )
                 }
-                
+
                 post("/reset") {
-                    val apiRequest = call.receive<org.interns.project.dto.ResetPasswordRequest>()
+                    val apiRequest = call.receive<ResetPasswordRequest>()
                     val userId = passwordResetService.verifyLink(apiRequest.token)
-                    
+
                     if (userId == null) {
                         call.respond(
-                            HttpStatusCode.BadRequest,
-                            ApiResponse<org.interns.project.dto.ResetPasswordResponse>(
+                            HttpStatusCode.Companion.BadRequest,
+                            ApiResponse<ResetPasswordResponse>(
                                 success = false,
                                 error = "Invalid or expired token"
                             )
                         )
                     } else {
                         passwordResetService.completeReset(userId, apiRequest.newPassword)
-                        
+
                         call.respond(
-                            HttpStatusCode.OK,
+                            HttpStatusCode.Companion.OK,
                             ApiResponse(
                                 success = true,
-                                data = org.interns.project.dto.ResetPasswordResponse(
+                                data = ResetPasswordResponse(
                                     success = true,
                                     message = "Password changed successfully"
                                 )

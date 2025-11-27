@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ```
 4. Запустить API
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8001
 ```
 API будет доступен на:
 	•	Swagger ui → http://127.0.0.1:8001/docs

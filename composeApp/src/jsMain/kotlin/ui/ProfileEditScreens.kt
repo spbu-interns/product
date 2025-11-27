@@ -50,7 +50,7 @@ private fun Container.profileEditScreenCommon(
         }
     )
 
-    val displayName = Session.fullName ?: Session.email ?: "Пользователь"
+    val displayName = Session.fullName() ?: Session.email ?: "Пользователь"
     val userIdText = Session.userId?.let { "ID: $it" } ?: ""
     val initials = displayName
         .split(' ', '-', '_')

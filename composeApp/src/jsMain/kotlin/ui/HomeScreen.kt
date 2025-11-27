@@ -114,11 +114,9 @@ object Session {
     var gender: String? = null        // M/F
     var dateOfBirth: String? = null   // YYYY-MM-DD
     var isActive: Boolean = true
-
-    val fullName: String?
-        get() = listOfNotNull(firstName, lastName)
-            .joinToString(" ")
-            .takeIf { it.isNotBlank() }
+    fun fullName(): String? = listOfNotNull(firstName, lastName)
+        .joinToString(" ")
+        .takeIf { it.isNotBlank()}
 
     fun setSession(
         token: String?,

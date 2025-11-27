@@ -16,12 +16,11 @@ fun Container.patientSidebar(
     onMyRecords: () -> Unit,
     onFindDoctor: () -> Unit
 ) {
-    val displayName = Session.fullName ?: Session.email ?: "Пользователь"
+    val displayName = Session.fullName() ?: Session.email ?: "Пользователь"
 
     div(className = "sidebar card") {
         div(className = "avatar circle") { +"ИИ" }
         h3(displayName, className = "account name")
-        p("ID пациента: $patientId", className = "account id")
 
         nav {
             ul(className = "side menu") {

@@ -31,7 +31,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
                 implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
                 implementation("io.ktor:ktor-client-logging:2.3.12")
-
+                implementation("io.kvision:kvision-state:9.1.1")
                 implementation("io.kvision:kvision-datetime:9.1.1")
             }
         }

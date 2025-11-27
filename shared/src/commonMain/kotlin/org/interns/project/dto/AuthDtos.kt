@@ -33,10 +33,10 @@ data class LoginResponse(
     @SerialName("account_type")
     val accountType: String,
     
-    @SerialName("first_name")
+    @SerialName("name")
     val firstName: String? = null,
     
-    @SerialName("last_name")
+    @SerialName("surname")
     val lastName: String? = null
 )
 

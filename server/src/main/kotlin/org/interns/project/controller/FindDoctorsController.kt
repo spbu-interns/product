@@ -1,8 +1,10 @@
-package org.interns.project.findDoctors
+package org.interns.project.controller
 
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.application.log
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Routing
+import io.ktor.server.routing.get
+import io.ktor.server.routing.route
 import org.interns.project.dto.ApiResponse
 import org.interns.project.users.model.DoctorSearchFilter
 import org.interns.project.users.repo.ApiUserRepo
@@ -14,7 +16,8 @@ class FindDoctorsController(private val apiUserRepo: ApiUserRepo) {
             get("/search") {
                 try {
                     val filter = DoctorSearchFilter(
-                        specializationIds = call.request.queryParameters.getAll("specialization_ids")?.map { it.toInt() },
+                        specializationIds = call.request.queryParameters.getAll("specialization_ids")
+                            ?.map { it.toInt() },
                         city = call.request.queryParameters["city"],
                         region = call.request.queryParameters["region"],
                         metro = call.request.queryParameters["metro"],
@@ -43,11 +46,13 @@ class FindDoctorsController(private val apiUserRepo: ApiUserRepo) {
                     )
                 } catch (e: Exception) {
                     call.application.log.error("Search doctors error", e)
-                    call.respond(ApiResponse(
-                        success = false,
-                        data = null,
-                        error = "Search failed: ${e.message}"
-                    ))
+                    call.respond(
+                        ApiResponse(
+                            success = false,
+                            data = null,
+                            error = "Search failed: ${e.message}"
+                        )
+                    )
                 }
             }
         }

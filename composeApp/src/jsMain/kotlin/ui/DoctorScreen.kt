@@ -44,7 +44,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         uiScope.cancel()
     }
 
-    val doctorName = Session.fullName ?: Session.email ?: "Врач"
+    val doctorName = Session.fullName() ?: Session.email ?: "Врач"
     val doctorInitials = doctorName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
@@ -270,7 +270,6 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             div(className = "sidebar card") {
                 div(className = "avatar circle") { +doctorInitials }
                 h4(doctorName, className = "account name")
-                //span("Роль: ВРАЧ", className = "account id")
                 if (doctorSubtitle.isNotBlank()) {
                     span(doctorSubtitle, className = "account id")
                 }

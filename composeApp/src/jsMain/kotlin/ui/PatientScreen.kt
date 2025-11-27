@@ -10,8 +10,17 @@ import io.kvision.html.h4
 import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.panel.vPanel
+import state.PatientState
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
+    val state = PatientState
+
+    // Загружаем данные при создании экрана
+    val patientId = Session.userId
+    if (patientId != null) {
+        state.loadPatientDashboard(patientId) // Используем новый метод
+    }
+
     headerBar(
         mode = HeaderMode.PATIENT,
         active = NavTab.NONE,
@@ -25,31 +34,105 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
     patientAccountLayout(active = PatientSection.OVERVIEW) {
         h1("Аккаунт", className = "account title")
 
+        val dashboard = state.dashboardData
+
+        val upcomingAppointments = dashboard?.appointments?.filter { it.status == "BOOKED" } ?: emptyList()
+        val recentMedicalRecords = dashboard?.medicalRecords?.take(3) ?: emptyList()
+        val nextAppointment = upcomingAppointments.firstOrNull()
+
         div(className = "statistics grid") {
-            // TODO: Заменить на реальные данные из API
-            statisticsCard("0", "Предстоящие", "\uD83D\uDCC5")
-            statisticsCard("0", "Записи", "\uD83D\uDCC4")
-            statisticsCard("0", "Врачи", "\uD83D\uDC64")
+            statisticsCard(
+                upcomingAppointments.size.toString(),
+                "Предстоящие",
+                "\uD83D\uDCC5"
+            )
+            statisticsCard(
+                (dashboard?.medicalRecords?.size ?: 0).toString(),
+                "Мед. записи",
+                "\uD83D\uDCC4"
+            )
         }
 
         div(className = "card block appointment-block") {
             h4("Следующий приём", className = "block title")
-            // TODO: Заменить на реальные данные из API
-            div(className = "empty-state") {
-                p("Нет предстоящих приёмов")
-                button("Найти врача", className = "btn-primary-lg").onClick {
-                    Navigator.showFind()
+
+            nextAppointment?.let { appointment ->
+                div(className = "appointment-info") {
+                    div(className = "appointment-header") {
+                        h4("Запись #${appointment.id}", className = "appointment-title")
+                        span("${appointment.status}", className = "appointment-status")
+                    }
+                    appointment.comments?.takeIf { it.isNotBlank() }?.let { comments ->
+                        p("Комментарии: $comments", className = "appointment-comments")
+                    }
+                    div(className = "appointment-actions") {
+                        button("Подробнее", className = "btn-secondary") {
+                            onClick {
+                                // TODO: Переход к деталям записи
+                            }
+                        }
+                        button("Отменить", className = "btn-outline") {
+                            onClick {
+                                // TODO: Логика отмены записи
+                            }
+                        }
+                    }
+                }
+            } ?: run {
+                div(className = "empty-state") {
+                    p("Нет предстоящих приёмов")
+                    button("Найти врача", className = "btn-primary-lg").onClick {
+                        Navigator.showFind()
+                    }
                 }
             }
         }
 
         h4("Последние медицинские записи", className = "block title")
-
         div(className = "card block") {
             div(className = "records list") {
-                // TODO: Заменить на реальные данные из API
-                div(className = "empty-state") {
-                    p("Нет медицинских записей")
+                if (recentMedicalRecords.isNotEmpty()) {
+                    recentMedicalRecords.forEach { record ->
+                        div(className = "medical-record") {
+                            div(className = "record-header") {
+                                h4("Запись #${record.id}", className = "record-title")
+                                record.createdAt?.let { createdAt ->
+                                    span("$createdAt", className = "record-date")
+                                }
+                            }
+                            div(className = "record-content") {
+                                record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->
+                                    div(className = "record-field") {
+                                        span("Диагноз: ", className = "field-label")
+                                        span(diagnosis, className = "field-value")
+                                    }
+                                }
+                                record.symptoms?.takeIf { it.isNotBlank() }?.let { symptoms ->
+                                    div(className = "record-field") {
+                                        span("Симптомы: ", className = "field-label")
+                                        span(symptoms, className = "field-value")
+                                    }
+                                }
+                                record.treatment?.takeIf { it.isNotBlank() }?.let { treatment ->
+                                    div(className = "record-field") {
+                                        span("Лечение: ", className = "field-label")
+                                        span(treatment, className = "field-value")
+                                    }
+                                }
+                            }
+                            div(className = "record-actions") {
+                                button("Подробнее", className = "btn-text") {
+                                    onClick {
+                                        // TODO: Переход к полной информации о записи
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    div(className = "empty-state") {
+                        p("Нет медицинских записей")
+                    }
                 }
             }
         }

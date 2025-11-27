@@ -10,6 +10,7 @@ import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.html.ul
 import io.kvision.html.li
+import state.PatientState
 
 enum class PatientSection { OVERVIEW, APPOINTMENTS, MEDICAL_RECORDS, MY_RECORDS, EDIT_PROFILE }
 
@@ -32,8 +33,14 @@ fun Container.patientAccountLayout(
 
 fun Container.patientSidebar(active: PatientSection) {
     div(className = "avatar circle") { +"ИИ" }
-    h3(Session.fullName ?: Session.email ?: "Пользователь", className = "account name")
-    p("ID пациента: ${Session.userId}", className = "account id")
+    val state = PatientState
+    val dashboard = state.dashboardData
+
+    val displayName = dashboard?.user?.let { user ->
+        listOfNotNull(user.surname, user.name, user.patronymic).takeIf { it.isNotEmpty() }?.joinToString(" ")
+    } ?: Session.fullName() ?: Session.email ?: "Пользователь"
+
+    h3(displayName, className = "account name")
 
     nav {
         ul(className = "side menu") {

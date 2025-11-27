@@ -5,9 +5,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ProfileUpdateDto(
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
-    val patronymic: String? = null,
+    @SerialName("name") val firstName: String? = null,
+    @SerialName("surname") val lastName: String? = null,
+    @SerialName("patronymic") val patronymic: String? = null,
     @SerialName("phone_number") val phoneNumber: String? = null,
 
     @SerialName("clinic_id") val clinicId: Long? = null, // важно!
@@ -21,9 +21,9 @@ data class ProfileUpdateDto(
 data class ProfileDto(
     val id: Long,
 
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
-    val patronymic: String? = null,
+    @SerialName("name") val firstName: String? = null,
+    @SerialName("surname") val lastName: String? = null,
+    @SerialName("patronymic") val patronymic: String? = null,
 
     @SerialName("phone_number") val phoneNumber: String? = null,
     @SerialName("date_of_birth") val dateOfBirth: String? = null,

@@ -283,4 +283,61 @@ class PatientApiClient {
             recentMedicalRecords = recentRecords
         )
     }
+
+
+    // Получение статистики для дашборда
+    suspend fun getPatientStats(userId: Long): Result<PatientStats> = runCatching {
+        // Получаем clientId
+        val clientId = getClientId(userId).getOrThrow()
+            ?: throw IllegalStateException("Client not found for user $userId")
+
+        // Параллельно загружаем все данные
+        val upcomingAppointments = getUpcomingAppointments(clientId).getOrThrow()
+        val allAppointments = getAllAppointments(clientId).getOrThrow()
+        val medicalRecords = getMedicalRecords(clientId).getOrThrow()
+
+        val upcomingCount = upcomingAppointments.size
+        val totalAppointments = allAppointments.size
+        val uniqueDoctors = allAppointments.map { it.id }.distinct().size
+        val medicalRecordsCount = medicalRecords.size
+
+        PatientStats(
+            upcomingAppointments = upcomingCount,
+            totalAppointments = totalAppointments,
+            uniqueDoctors = uniqueDoctors,
+            medicalRecords = medicalRecordsCount
+        )
+    }
+
+    // Получение всех записей (для статистики)
+    suspend fun getAllAppointments(clientId: Long): Result<List<AppointmentDto>> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/appointments")
+        if (response.status.isSuccess()) {
+            response.body<List<AppointmentDto>>()
+        } else {
+            emptyList()
+        }
+    }
+
+    suspend fun getPatientDashboard(userId: Long): Result<FullUserProfileDto> = runCatching {
+        val response = client.get("${ApiConfig.BASE_URL}/api/users/$userId/dashboard")
+
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("HTTP error: ${response.status.value}")
+        }
+
+        val body = response.body<ApiResponse<FullUserProfileDto>>()
+        if (body.success) {
+            body.data ?: throw IllegalStateException("Empty dashboard response")
+        } else {
+            throw IllegalStateException(body.error ?: "Failed to load dashboard data")
+        }
+    }
+    // DTO для статистики
+    data class PatientStats(
+        val upcomingAppointments: Int,
+        val totalAppointments: Int,
+        val uniqueDoctors: Int,
+        val medicalRecords: Int
+    )
 }

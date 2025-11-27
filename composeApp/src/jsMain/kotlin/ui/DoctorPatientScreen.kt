@@ -116,7 +116,7 @@ private fun buildDoctorPatientProfile(
     client: ClientProfileDto?,
     fallbackRecordId: Long?
 ): DoctorPatientProfile {
-    val nameParts = listOfNotNull(user.firstName ?: user.name, user.lastName ?: user.surname)
+    val nameParts = listOfNotNull(user.name, user.surname)
     val fullName = nameParts.joinToString(" ").ifBlank { user.login }
     val initials = fullName
         .split(' ', '-', '_')
@@ -244,7 +244,7 @@ fun Container.doctorPatientScreen(
     val uiScope = MainScope()
     val apiClient = PatientApiClient()
     var currentPatientRecordId: Long? = patientRecordId
-    val doctorLabel = listOfNotNull(Session.fullName, Session.email, Session.userId?.let { "Врач #$it" })
+    val doctorLabel = listOfNotNull(Session.fullName(), Session.email, Session.userId?.let { "Врач #$it" })
         .firstOrNull() ?: "Врач"
 
     fun cleanup() {
