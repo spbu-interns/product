@@ -11,9 +11,9 @@ import io.kvision.html.span
 import io.kvision.panel.vPanel
 
 private enum class AppointmentStatus(val label: String, val cssClass: String) {
-    CONFIRMED("confirmed", "status confirmed"),
-    PENDING("pending", "status pending"),
-    COMPLETED("completed", "status completed")
+    CONFIRMED("подтверждено", "status confirmed"),
+    PENDING("ожидание", "status pending"),
+    COMPLETED("завершено", "status completed")
 }
 
 private data class Appointment(
@@ -23,44 +23,6 @@ private data class Appointment(
     val time: String,
     val location: String,
     val status: AppointmentStatus
-)
-
-private val upcomingAppointments = listOf(
-    Appointment(
-        doctorName = "Dr. Sarah Johnson",
-        specialty = "Cardiology",
-        date = "September 18, 2025",
-        time = "10:00 AM",
-        location = "Heart Center",
-        status = AppointmentStatus.CONFIRMED,
-    ),
-    Appointment(
-        doctorName = "Dr. Michael Chen",
-        specialty = "Pediatrics",
-        date = "September 25, 2025",
-        time = "2:30 PM",
-        location = "Children's Medical Center",
-        status = AppointmentStatus.PENDING,
-    ),
-)
-
-private val pastAppointments = listOf(
-    Appointment(
-        doctorName = "Dr. Anna Smith",
-        specialty = "Dermatology",
-        date = "August 2, 2025",
-        time = "4:00 PM",
-        location = "Sunrise Clinic",
-        status = AppointmentStatus.COMPLETED,
-    ),
-    Appointment(
-        doctorName = "Dr. James Patel",
-        specialty = "Orthopedics",
-        date = "July 14, 2025",
-        time = "11:15 AM",
-        location = "City Hospital",
-        status = AppointmentStatus.COMPLETED,
-    ),
 )
 
 fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
@@ -75,20 +37,20 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
     )
 
     patientAccountLayout(active = PatientSection.APPOINTMENTS) {
-        h1("My Appointments", className = "account title appointments-title")
+        h1("Мои приёмы", className = "account title appointments-title")
 
         div(className = "appointments tabs") {
-            val upcomingTab = button("Upcoming", className = "tab-button is-active")
-            val pastTab = button("Past", className = "tab-button")
+            val upcomingTab = button("Предстоящие", className = "tab-button is-active")
+            val pastTab = button("Прошедшие", className = "tab-button")
 
             val upcomingList = div(className = "appointments list") {
-                upcomingAppointments.forEach { appointmentCard(it, isPast = false) }
+                // TODO: Заменить на реальные данные из API
+                p("Нет предстоящих приёмов", className = "empty-state")
             }
 
             val pastList = div(className = "appointments list") {
-                pastAppointments.forEach {
-                    pastAppointmentCard(it)
-                }
+                // TODO: Заменить на реальные данные из API
+                p("Нет завершённых приёмов", className = "empty-state")
             }.apply { visible = false }
 
             fun activateUpcoming() {
@@ -140,11 +102,11 @@ private fun Container.appointmentCard(appointment: Appointment, isPast: Boolean)
 
                 if (!isPast) {
                     div(className = "appointment buttons") {
-                        button("Reschedule", className = "btn ghost small")
-                        button("Cancel", className = "btn danger small")
+                        button("Перенести", className = "btn ghost small")
+                        button("Отменить", className = "btn danger small")
                     }
                 } else {
-                    p("Completed appointment", className = "appointment note")
+                    p("Завершённый приём", className = "appointment note")
                 }
             }
         }
@@ -153,7 +115,6 @@ private fun Container.appointmentCard(appointment: Appointment, isPast: Boolean)
 
 private fun Container.pastAppointmentCard(appointment: Appointment) {
     div(className = "appointment card full") {
-
         div(className = "appointment row") {
             div(className = "appointment avatar colored") { +"👤" }
 
@@ -169,18 +130,18 @@ private fun Container.pastAppointmentCard(appointment: Appointment) {
             }
 
             div(className = "appointment actions") {
-                span("Completed", className = "status completed")
+                span("Завершено", className = "status completed")
             }
         }
 
         div(className = "appointment details") {
             div(className = "details column") {
-                span("Diagnosis", className = "details title")
-                span("Migraine management", className = "details text")
+                span("Диагноз", className = "details title")
+                span("Лечение мигрени", className = "details text")
             }
             div(className = "details column") {
-                span("Treatment", className = "details title")
-                span("Prescription medication provided", className = "details text")
+                span("Лечение", className = "details title")
+                span("Назначены лекарственные препараты", className = "details text")
             }
         }
     }

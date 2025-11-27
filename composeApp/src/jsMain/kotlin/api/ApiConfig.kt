@@ -26,6 +26,7 @@ object ApiConfig {
         const val PASSWORD_FORGOT = "$BASE_URL/api/auth/password/forgot"
         const val PASSWORD_RESET = "$BASE_URL/api/auth/password/reset"
         const val EMAIL_START_VERIFICATION = "$BASE_URL/api/auth/email/start"
+        const val DOCTOR_SEARCH = "$BASE_URL/doctors/search"
 
         fun patientComplaints(patientId: Long) = "$BASE_URL/api/patient/$patientId/complaints"
         fun patientComplaint(complaintId: Long) = "$BASE_URL/api/patient/complaints/$complaintId"

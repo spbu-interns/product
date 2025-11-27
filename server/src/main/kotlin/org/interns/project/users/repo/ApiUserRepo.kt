@@ -11,7 +11,13 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.interns.project.dto.AppointmentCreateRequest
+import org.interns.project.dto.AppointmentDto
 import org.interns.project.dto.SlotCreateRequest
+import org.interns.project.dto.UserResponseDto
+import org.interns.project.dto.ClientProfileDto
+import org.interns.project.dto.DoctorPatientDto
+import org.interns.project.dto.DoctorProfileDto
+import org.interns.project.dto.MedicalRecordDto
 import org.interns.project.users.model.User
 import org.interns.project.users.model.UserInDto
 import org.interns.project.users.model.UserOutDto
@@ -67,11 +73,8 @@ class ApiUserRepo(
             passwordHash = "",          // пароль не приходит из api
             role = d.role,
 
-            // поддерживаем и старые, и новые поля
-            firstName = d.firstName ?: d.name,
-            lastName = d.lastName ?: d.surname,
-            name = d.name ?: d.firstName,
-            surname = d.surname ?: d.lastName,
+            name = d.name,
+            surname = d.surname,
             patronymic = d.patronymic,
             phoneNumber = d.phoneNumber,
             clinicId = d.clinicId,
@@ -106,7 +109,7 @@ class ApiUserRepo(
         )
     }
 
-    private fun fromAppointmentDto(dto: AppointmentOutDto): Appointment {
+    private fun fromAppointmentDto(dto: AppointmentOut): Appointment {
         val created = dto.createdAt.toInstantOrNull()
         val updated = dto.updatedAt.toInstantOrNull()
         val canceled = dto.canceledAt.toInstantOrNull()
@@ -172,13 +175,20 @@ class ApiUserRepo(
         body: Any?,
         parse: suspend (HttpResponse) -> T
     ): T {
+        // Логируем тело запроса
+        println("=== DEBUG DO PATCH ===")
+        println("Path: $path")
+        println("Body object: $body")
+
         val resp = client.patch("$baseUrl$path") {
-            contentType(ContentType.Application.Json)
+            contentType(ContentType.Application.Json.withCharset(Charsets.UTF_8)) // Явно указываем кодировку
+            accept(ContentType.Application.Json.withCharset(Charsets.UTF_8))
             setBody(body ?: emptyMap<String, Any>())
         }
+
         println("🟣 PATCH $baseUrl$path -> ${resp.status}")
-        println("🟣 Body: ${body.toString()}")
-        println("🟣 Resp: ${resp.bodyAsText()}")
+        println("🟣 Response: ${resp.bodyAsText()}")
+
         return when (resp.status) {
             HttpStatusCode.OK -> parse(resp)
             HttpStatusCode.UnprocessableEntity ->
@@ -188,7 +198,7 @@ class ApiUserRepo(
             HttpStatusCode.Unauthorized ->
                 throw IllegalArgumentException("401 Unauthorized")
             HttpStatusCode.NotFound ->
-                throw IllegalArgumentException("404 Not Found")
+                throw IllegalArgumentException("404 Not Found: ${resp.bodyAsText()}")
             else ->
                 throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
         }
@@ -327,12 +337,12 @@ class ApiUserRepo(
     }
 
     // GET /users/{id}/profile — полный профиль
-    suspend fun getUserProfile(userId: Long): User? =
+    suspend fun getUserProfile(userId: Long): UserResponseDto? =
         doGet("/users/$userId/profile") { resp ->
-            resp.body<UserOutDto>().let(::fromOutDto)
+            resp.body<UserResponseDto>()
         }
 
-    suspend fun findClientByUserId(userId: Long): ClientOut? {
+    suspend fun findClientByUserId(userId: Long): ClientProfileDto? {
         val path = "/clients/by-user/$userId"
         val resp = client.get("$baseUrl$path")
         return when (resp.status) {
@@ -343,6 +353,7 @@ class ApiUserRepo(
     }
 
     suspend fun searchDoctors(filter: DoctorSearchFilter): List<DoctorSearchResult> {
+        println("🎯 Starting searchDoctors with filter: $filter")
         val resp = client.get("$baseUrl/doctors/search") {
             filter.specializationIds?.forEach { parameter("specialization_ids", it) }
             filter.city?.let { parameter("city", it) }
@@ -363,6 +374,9 @@ class ApiUserRepo(
             parameter("limit", filter.limit)
             parameter("offset", filter.offset)
         }
+        println("🔍 Response status: ${resp.status}")
+        val responseBody = resp.bodyAsText()
+        println("🔍 Raw response body: $responseBody")
 
         if (resp.status != HttpStatusCode.OK) {
             throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
@@ -372,17 +386,82 @@ class ApiUserRepo(
     }
 
     // PATCH /users/{id}/profile — частичное обновление профиля
-    suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): User =
-        doPatch("/users/$userId/profile", patch) { resp ->
-            resp.body<UserOutDto>().let(::fromOutDto)
+    suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): UserResponseDto {
+        val patchMap = mutableMapOf<String, Any?>()
+
+        patch.firstName?.let { patchMap["name"] = it }
+        patch.lastName?.let { patchMap["surname"] = it }
+        patch.patronymic?.let { patchMap["patronymic"] = it }
+        patch.phoneNumber?.let { patchMap["phone_number"] = it }
+        patch.clinicId?.let { patchMap["clinic_id"] = it }
+        patch.dateOfBirth?.let { patchMap["date_of_birth"] = it }
+        patch.avatar?.let { patchMap["avatar"] = it }
+        patch.gender?.let { patchMap["gender"] = it }
+
+        // Убираем null значения из map
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+
+        println("=== PATCH USER PROFILE ===")
+        println("User ID: $userId")
+        println("Clean patch map: $cleanPatchMap")
+
+        if (cleanPatchMap.isEmpty()) {
+            throw IllegalArgumentException("No fields to update")
         }
+
+        return doPatch("/users/$userId/profile", cleanPatchMap) { resp ->
+            resp.body<UserResponseDto>()
+        }
+    }
+
     // === clients ===
-    suspend fun patchClientByUserId(userId: Long, patch: ClientPatch): ClientOut =
-        doPatch("/clients/by-user/$userId", patch) { it.body() }
+    suspend fun patchClientByUserId(userId: Long, patch: ClientPatch): ClientProfileDto {
+        val patchMap = mutableMapOf<String, Any?>()
+
+        patch.bloodType?.let { patchMap["blood_type"] = it }
+        patch.height?.let { patchMap["height"] = it }
+        patch.weight?.let { patchMap["weight"] = it }
+        patch.emergencyContactName?.let { patchMap["emergency_contact_name"] = it }
+        patch.emergencyContactNumber?.let { patchMap["emergency_contact_number"] = it }
+        patch.address?.let { patchMap["address"] = it }
+        patch.snils?.let { patchMap["snils"] = it }
+        patch.passport?.let { patchMap["passport"] = it }
+        patch.dmsOms?.let { patchMap["dms_oms"] = it }
+
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+
+        println("=== PATCH CLIENT PROFILE ===")
+        println("User ID: $userId")
+        println("Clean patch map: $cleanPatchMap")
+
+        if (cleanPatchMap.isEmpty()) {
+            throw IllegalArgumentException("No client fields to update")
+        }
+
+        return doPatch("/clients/by-user/$userId", cleanPatchMap) { it.body() }
+    }
 
     // === doctors ===
-    suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorOut =
-        doPatch("/doctors/by-user/$userId", patch) { it.body() }
+    suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorProfileDto {
+        val patchMap = mutableMapOf<String, Any?>()
+
+        patch.profession?.let { patchMap["profession"] = it }
+        patch.info?.let { patchMap["info"] = it }
+        patch.experience?.let { patchMap["experience"] = it }
+        patch.price?.let { patchMap["price"] = it }
+
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+
+        println("=== PATCH DOCTOR PROFILE ===")
+        println("User ID: $userId")
+        println("Clean patch map: $cleanPatchMap")
+
+        if (cleanPatchMap.isEmpty()) {
+            throw IllegalArgumentException("No doctor fields to update")
+        }
+
+        return doPatch("/doctors/by-user/$userId", cleanPatchMap) { it.body() }
+    }
 
     // ===== ДЛЯ ЖАЛОБ ПАЦИЕНТА =====
     // POST /patients/{id}/complaints
@@ -409,7 +488,7 @@ class ApiUserRepo(
         doDelete("/complaints/$complaintId")
 
     //===== ДЛЯ ЗАПИСЕЙ ВРАЧЕЙ ====
-    suspend fun findDoctorByUserId(userId: Long): DoctorOut? {
+    suspend fun findDoctorByUserId(userId: Long): DoctorProfileDto? {
         val path = "/doctors/by-user/$userId"
         val resp = client.get("$baseUrl$path")
         println("🟢 GET $baseUrl$path -> ${resp.status}")
@@ -459,7 +538,7 @@ class ApiUserRepo(
 
     // ===== appointments & records =====
 
-    suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentOutDto> {
+    suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentDto> {
         val path = "/clients/$clientId/appointments"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {
@@ -468,7 +547,7 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordOut> {
+    suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordDto> {
         val path = "/clients/$clientId/medical-records"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {
@@ -477,7 +556,7 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentOutDto> {
+    suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentDto> {
         val path = "/doctors/$doctorId/appointments"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {
@@ -486,7 +565,7 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    suspend fun listPatientsForDoctor(doctorId: Long): List<DoctorPatientOut> {
+    suspend fun listPatientsForDoctor(doctorId: Long): List<DoctorPatientDto> {
         val path = "/doctors/$doctorId/patients"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {

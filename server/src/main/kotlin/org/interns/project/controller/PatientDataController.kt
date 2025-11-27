@@ -1,10 +1,15 @@
-package org.interns.project.patient
+package org.interns.project.controller
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import io.ktor.server.routing.*
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import org.interns.project.dto.ApiResponse
 import org.interns.project.dto.ComplaintCreateRequest
 import org.interns.project.dto.ComplaintPatchRequest
@@ -40,11 +45,14 @@ class PatientDataController(
                                 input = request.toModel()
                             ).toDto()
                         }.onSuccess { dto ->
-                            call.respond(HttpStatusCode.Created, ApiResponse(success = true, data = dto))
+                            call.respond(HttpStatusCode.Companion.Created, ApiResponse(success = true, data = dto))
                         }.onFailure { error ->
                             call.respond(
-                                HttpStatusCode.InternalServerError,
-                                ApiResponse<ComplaintResponse>(success = false, error = error.message ?: "Failed to create complaint")
+                                HttpStatusCode.Companion.InternalServerError,
+                                ApiResponse<ComplaintResponse>(
+                                    success = false,
+                                    error = error.message ?: "Failed to create complaint"
+                                )
                             )
                         }
                     }
@@ -56,11 +64,14 @@ class PatientDataController(
                         runCatching {
                             apiUserRepo.listComplaints(patientId, null).map { it.toDto() }
                         }.onSuccess { list ->
-                            call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = list))
+                            call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = list))
                         }.onFailure { error ->
                             call.respond(
-                                HttpStatusCode.InternalServerError,
-                                ApiResponse<List<ComplaintResponse>>(success = false, error = error.message ?: "Failed to load complaints")
+                                HttpStatusCode.Companion.InternalServerError,
+                                ApiResponse<List<ComplaintResponse>>(
+                                    success = false,
+                                    error = error.message ?: "Failed to load complaints"
+                                )
                             )
                         }
                     }
@@ -75,11 +86,14 @@ class PatientDataController(
                         runCatching {
                             apiUserRepo.createNote(patientId = patientId, input = request.toModel()).toDto()
                         }.onSuccess { dto ->
-                            call.respond(HttpStatusCode.Created, ApiResponse(success = true, data = dto))
+                            call.respond(HttpStatusCode.Companion.Created, ApiResponse(success = true, data = dto))
                         }.onFailure { error ->
                             call.respond(
-                                HttpStatusCode.InternalServerError,
-                                ApiResponse<DoctorNoteResponse>(success = false, error = error.message ?: "Failed to create note")
+                                HttpStatusCode.Companion.InternalServerError,
+                                ApiResponse<DoctorNoteResponse>(
+                                    success = false,
+                                    error = error.message ?: "Failed to create note"
+                                )
                             )
                         }
                     }
@@ -92,11 +106,14 @@ class PatientDataController(
                         runCatching {
                             apiUserRepo.listNotes(patientId, includeInternal).map { it.toDto() }
                         }.onSuccess { list ->
-                            call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = list))
+                            call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = list))
                         }.onFailure { error ->
                             call.respond(
-                                HttpStatusCode.InternalServerError,
-                                ApiResponse<List<DoctorNoteResponse>>(success = false, error = error.message ?: "Failed to load notes")
+                                HttpStatusCode.Companion.InternalServerError,
+                                ApiResponse<List<DoctorNoteResponse>>(
+                                    success = false,
+                                    error = error.message ?: "Failed to load notes"
+                                )
                             )
                         }
                     }
@@ -112,11 +129,14 @@ class PatientDataController(
                     runCatching {
                         apiUserRepo.patchComplaint(complaintId, request.toModel()).toDto()
                     }.onSuccess { dto ->
-                        call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = dto))
+                        call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = dto))
                     }.onFailure { error ->
                         call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ApiResponse<ComplaintResponse>(success = false, error = error.message ?: "Failed to update complaint")
+                            HttpStatusCode.Companion.InternalServerError,
+                            ApiResponse<ComplaintResponse>(
+                                success = false,
+                                error = error.message ?: "Failed to update complaint"
+                            )
                         )
                     }
                 }
@@ -128,15 +148,21 @@ class PatientDataController(
                     runCatching { apiUserRepo.deleteComplaint(complaintId) }
                         .onSuccess { deleted ->
                             if (deleted) {
-                                call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = true))
+                                call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = true))
                             } else {
-                                call.respond(HttpStatusCode.NotFound, ApiResponse<Boolean>(success = false, error = "Complaint not found"))
+                                call.respond(
+                                    HttpStatusCode.Companion.NotFound,
+                                    ApiResponse<Boolean>(success = false, error = "Complaint not found")
+                                )
                             }
                         }
                         .onFailure { error ->
                             call.respond(
-                                HttpStatusCode.InternalServerError,
-                                ApiResponse<Boolean>(success = false, error = error.message ?: "Failed to delete complaint")
+                                HttpStatusCode.Companion.InternalServerError,
+                                ApiResponse<Boolean>(
+                                    success = false,
+                                    error = error.message ?: "Failed to delete complaint"
+                                )
                             )
                         }
                 }
@@ -151,11 +177,14 @@ class PatientDataController(
                     runCatching {
                         apiUserRepo.patchNote(noteId, request.toModel()).toDto()
                     }.onSuccess { dto ->
-                        call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = dto))
+                        call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = dto))
                     }.onFailure { error ->
                         call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ApiResponse<DoctorNoteResponse>(success = false, error = error.message ?: "Failed to update note")
+                            HttpStatusCode.Companion.InternalServerError,
+                            ApiResponse<DoctorNoteResponse>(
+                                success = false,
+                                error = error.message ?: "Failed to update note"
+                            )
                         )
                     }
                 }
@@ -167,14 +196,17 @@ class PatientDataController(
                     runCatching { apiUserRepo.deleteNote(noteId) }
                         .onSuccess { deleted ->
                             if (deleted) {
-                                call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = true))
+                                call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = true))
                             } else {
-                                call.respond(HttpStatusCode.NotFound, ApiResponse<Boolean>(success = false, error = "Note not found"))
+                                call.respond(
+                                    HttpStatusCode.Companion.NotFound,
+                                    ApiResponse<Boolean>(success = false, error = "Note not found")
+                                )
                             }
                         }
                         .onFailure { error ->
                             call.respond(
-                                HttpStatusCode.InternalServerError,
+                                HttpStatusCode.Companion.InternalServerError,
                                 ApiResponse<Boolean>(success = false, error = error.message ?: "Failed to delete note")
                             )
                         }
@@ -184,7 +216,7 @@ class PatientDataController(
     }
 
     private suspend fun respondBadRequest(call: ApplicationCall, message: String) {
-        call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(success = false, error = message))
+        call.respond(HttpStatusCode.Companion.BadRequest, ApiResponse<Unit>(success = false, error = message))
     }
 
     // --------- mappers (без статусов) ---------

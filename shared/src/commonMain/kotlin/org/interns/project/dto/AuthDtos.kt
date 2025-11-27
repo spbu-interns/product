@@ -33,10 +33,10 @@ data class LoginResponse(
     @SerialName("account_type")
     val accountType: String,
     
-    @SerialName("first_name")
+    @SerialName("name")
     val firstName: String? = null,
     
-    @SerialName("last_name")
+    @SerialName("surname")
     val lastName: String? = null
 )
 
@@ -116,7 +116,7 @@ data class ResetPasswordResponse(
 data class ApiResponse<T>(
     @SerialName("success")
     val success: Boolean,
-    
+
     @SerialName("data")
     val data: T? = null,
     

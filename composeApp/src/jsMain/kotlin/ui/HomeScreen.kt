@@ -7,6 +7,7 @@ import io.kvision.form.text.text
 import io.kvision.html.*
 import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
+import org.interns.project.dto.UserResponseDto
 
 fun Container.homeScreen() {
     headerBar(
@@ -21,8 +22,8 @@ fun Container.homeScreen() {
 
     div(className = "hero") {
         div(className = "hero_content container") {
-            h1("Find the Right Doctor for You", className = "hero_title")
-            p("Connect with qualified healthcare professionals. Search by specialty, location, or ratings to find the perfect doctor for your needs.", className = "hero_subtitle")
+            h1("Найдите подходящего врача для вас", className = "hero_title")
+            p("Свяжитесь с квалифицированными медицинскими специалистами. Ищите по специальности, местоположению или рейтингу, чтобы найти идеального врача для ваших потребностей.", className = "hero_subtitle")
 
             div(className = "searchbar") {
                 div(className = "searchbar_icon") {
@@ -30,10 +31,10 @@ fun Container.homeScreen() {
                 }
                 text {
                     type = InputType.SEARCH
-                    placeholder = "Find a doctor by specialty, location, or rating"
+                    placeholder = "Найдите врача по специальности, местоположению или рейтингу"
                     addCssClass("searchbar_input")
                 }
-                button("Find Doctor", className = "searchbar_button").onClick {
+                button("Найти врача", className = "searchbar_button").onClick {
                     Navigator.showFind()
                 }
             }
@@ -41,48 +42,48 @@ fun Container.homeScreen() {
     }
 
     div(className = "container") {
-        h2("Featured Specialties", className = "section_title")
-        p("Browse doctors by medical specialty", className = "section_subtitle")
+        h2("Популярные специальности", className = "section_title")
+        p("Просмотрите врачей по медицинским специальностям", className = "section_subtitle")
 
         div(className = "specialties_grid") {
             specialtyCard(
-                title = "Cardiology",
-                subtitle = "Heart and cardiovascular care",
+                title = "Кардиология",
+                subtitle = "Забота о сердце и сердечно-сосудистой системе",
                 icon = "❤",
                 imagePath = "/images/cardiology.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
-                title = "Pediatrics",
-                subtitle = "Children’s health and development",
+                title = "Педиатрия",
+                subtitle = "Здоровье и развитие детей",
                 icon = "👶",
                 imagePath = "/images/pediatrics.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
-                title = "Neurology",
-                subtitle = "Brain and nervous system care",
+                title = "Неврология",
+                subtitle = "Забота о мозге и нервной системе",
                 icon = "🧠",
                 imagePath = "/images/neurology.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
-                title = "Ophthalmology",
-                subtitle = "Eye and vision care",
+                title = "Офтальмология",
+                subtitle = "Забота о глазах и зрении",
                 icon = "👁️",
                 imagePath = "/images/ophthalmology.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
-                title = "Orthopedics",
-                subtitle = "Bone and joint care",
+                title = "Ортопедия",
+                subtitle = "Забота о костях и суставах",
                 icon = "🦴",
                 imagePath = "/images/orthopedics.jpg",
                 onSelect = { Navigator.showFind() }
             )
             specialtyCard(
-                title = "General Medicine",
-                subtitle = "Primary healthcare services",
+                title = "Общая терапия",
+                subtitle = "Первичная медицинская помощь",
                 icon = "🩺",
                 imagePath = "/images/general.jpg",
                 onSelect = { Navigator.showFind() }
@@ -97,19 +98,26 @@ fun Container.homeScreen() {
 }
 
 object Session {
+    // ---- Auth ----
     var isLoggedIn: Boolean = false
     var token: String? = null
     var userId: Long? = null
     var email: String? = null
-    var accountType: String? = null
+    var accountType: String? = null  // DOCTOR / PATIENT / ADMIN
 
+    // ---- Profile ----
     var firstName: String? = null
     var lastName: String? = null
+    var patronymic: String? = null
+    var phoneNumber: String? = null
+    var avatar: String? = null
+    var gender: String? = null        // M/F
+    var dateOfBirth: String? = null   // YYYY-MM-DD
+    var isActive: Boolean = true
 
-    val fullName: String?
-        get() = listOfNotNull(firstName, lastName)
-            .joinToString(" ")
-            .takeIf { it.isNotBlank() }
+    fun fullName(): String? = listOfNotNull(firstName, lastName)
+        .joinToString(" ")
+        .takeIf { it.isNotBlank()}
 
     fun setSession(
         token: String?,
@@ -118,6 +126,12 @@ object Session {
         accountType: String?,
         firstName: String? = null,
         lastName: String? = null,
+        patronymic: String? = null,
+        phoneNumber: String? = null,
+        avatar: String? = null,
+        gender: String? = null,
+        dateOfBirth: String? = null,
+        isActive: Boolean = true
     ) {
         this.token = token
         this.userId = userId
@@ -125,7 +139,26 @@ object Session {
         this.accountType = accountType?.uppercase()
         this.firstName = firstName
         this.lastName = lastName
+        this.patronymic = patronymic
+        this.phoneNumber = phoneNumber
+        this.avatar = avatar
+        this.gender = gender
+        this.dateOfBirth = dateOfBirth
+        this.isActive = isActive
         this.isLoggedIn = true
+    }
+
+    fun updateFrom(userResponse: UserResponseDto) {
+        this.firstName = userResponse.name
+        this.lastName = userResponse.surname
+        this.patronymic = userResponse.patronymic
+        this.phoneNumber = userResponse.phoneNumber
+        this.avatar = userResponse.avatar
+        this.gender = userResponse.gender
+        this.dateOfBirth = userResponse.dateOfBirth
+        this.isActive = userResponse.isActive
+        this.email = userResponse.email
+        this.accountType = userResponse.role
     }
 
     fun clear() {
@@ -134,8 +167,15 @@ object Session {
         userId = null
         email = null
         accountType = null
+
         firstName = null
         lastName = null
+        patronymic = null
+        phoneNumber = null
+        avatar = null
+        gender = null
+        dateOfBirth = null
+        isActive = true
     }
 }
 

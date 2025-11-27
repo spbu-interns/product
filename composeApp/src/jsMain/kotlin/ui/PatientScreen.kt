@@ -2,14 +2,25 @@
 
 import api.ApiConfig
 import io.kvision.core.Container
+import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
 import io.kvision.html.h3
 import io.kvision.html.h4
+import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.panel.vPanel
+import state.PatientState
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
+    val state = PatientState
+
+    // Загружаем данные при создании экрана
+    val patientId = Session.userId
+    if (patientId != null) {
+        state.loadPatientDashboard(patientId) // Используем новый метод
+    }
+
     headerBar(
         mode = HeaderMode.PATIENT,
         active = NavTab.NONE,
@@ -21,46 +32,108 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
     )
 
     patientAccountLayout(active = PatientSection.OVERVIEW) {
-        h1("Account Overview", className = "account title")
+        h1("Аккаунт", className = "account title")
+
+        val dashboard = state.dashboardData
+
+        val upcomingAppointments = dashboard?.appointments?.filter { it.status == "BOOKED" } ?: emptyList()
+        val recentMedicalRecords = dashboard?.medicalRecords?.take(3) ?: emptyList()
+        val nextAppointment = upcomingAppointments.firstOrNull()
 
         div(className = "statistics grid") {
-            statisticsCard("X", "Upcoming", "\uD83D\uDCC5")
-            statisticsCard("Y", "Records", "\uD83D\uDCC4")
-            statisticsCard("Z", "Doctors", "\uD83D\uDC64")
+            statisticsCard(
+                upcomingAppointments.size.toString(),
+                "Предстоящие",
+                "\uD83D\uDCC5"
+            )
+            statisticsCard(
+                (dashboard?.medicalRecords?.size ?: 0).toString(),
+                "Мед. записи",
+                "\uD83D\uDCC4"
+            )
         }
 
         div(className = "card block appointment-block") {
-            h4("Next Appointment", className = "block title")
-            div(className = "appointment card") {
-                div(className = "appointment row") {
-                    div(className = "appointment avatar") { +"👤" }
+            h4("Следующий приём", className = "block title")
 
-                    div(className = "appointment info") {
-                        span("Dr. X", className = "appointment doctor")
-                        span("Cardiology", className = "appointment appointment-specialty")
-                        div(className = "appointment meta") {
-                            span("📅 Date")
-                            span("⏰ Time")
+            nextAppointment?.let { appointment ->
+                div(className = "appointment-info") {
+                    div(className = "appointment-header") {
+                        h4("Запись #${appointment.id}", className = "appointment-title")
+                        span("${appointment.status}", className = "appointment-status")
+                    }
+                    appointment.comments?.takeIf { it.isNotBlank() }?.let { comments ->
+                        p("Комментарии: $comments", className = "appointment-comments")
+                    }
+                    div(className = "appointment-actions") {
+                        button("Подробнее", className = "btn-secondary") {
+                            onClick {
+                                // TODO: Переход к деталям записи
+                            }
+                        }
+                        button("Отменить", className = "btn-outline") {
+                            onClick {
+                                // TODO: Логика отмены записи
+                            }
                         }
                     }
-
-                    div(className = "appointment actions") {
-                        span("confirmed", className = "status success")
-                    }
                 }
-                button("Find New Doctor", className = "btn-primary-lg").onClick {
-                    Navigator.showFind()
+            } ?: run {
+                div(className = "empty-state") {
+                    p("Нет предстоящих приёмов")
+                    button("Найти врача", className = "btn-primary-lg").onClick {
+                        Navigator.showFind()
+                    }
                 }
             }
         }
 
-        h4("Recent Medical Records", className = "block title")
-
+        h4("Последние медицинские записи", className = "block title")
         div(className = "card block") {
             div(className = "records list") {
-                recordItem("Test 1", "Dr. X • Date", "Status 1")
-                recordItem("Test 2", "Dr. Y • Date", "Status 2")
-                recordItem("Test 3", "Dr. Z • Date", "Status 3")
+                if (recentMedicalRecords.isNotEmpty()) {
+                    recentMedicalRecords.forEach { record ->
+                        div(className = "medical-record") {
+                            div(className = "record-header") {
+                                h4("Запись #${record.id}", className = "record-title")
+                                record.createdAt?.let { createdAt ->
+                                    span("$createdAt", className = "record-date")
+                                }
+                            }
+                            div(className = "record-content") {
+                                record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->
+                                    div(className = "record-field") {
+                                        span("Диагноз: ", className = "field-label")
+                                        span(diagnosis, className = "field-value")
+                                    }
+                                }
+                                record.symptoms?.takeIf { it.isNotBlank() }?.let { symptoms ->
+                                    div(className = "record-field") {
+                                        span("Симптомы: ", className = "field-label")
+                                        span(symptoms, className = "field-value")
+                                    }
+                                }
+                                record.treatment?.takeIf { it.isNotBlank() }?.let { treatment ->
+                                    div(className = "record-field") {
+                                        span("Лечение: ", className = "field-label")
+                                        span(treatment, className = "field-value")
+                                    }
+                                }
+                            }
+                            div(className = "record-actions") {
+                                button("Подробнее", className = "btn-text") {
+                                    onClick {
+                                        // TODO: Переход к полной информации о записи
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    div(className = "empty-state") {
+                        p("Нет медицинских записей")
+                    }
+                }
             }
         }
     }
@@ -71,17 +144,5 @@ private fun Container.statisticsCard(value: String, label: String, icon: String)
         span(icon, className = "statistics icon")
         h3(value, className = "statistics value")
         span(label, className = "statistics label")
-    }
-}
-
-private fun Container.recordItem(title: String, subtitle: String, status: String) {
-    div(className = "record item") {
-        vPanel {
-            span(title, className = "record title")
-            span(subtitle, className = "record subtitle")
-        }
-        div(className = "spacer")
-        val statusClass = if (status == "Reviewed") "status info" else "status neutral"
-        span(status, className = statusClass)
     }
 }

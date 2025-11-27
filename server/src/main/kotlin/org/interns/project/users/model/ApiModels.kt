@@ -10,8 +10,8 @@ data class UserInDto(
     val login: String,
     val password: String,
     val role: String,
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
+    @SerialName("name") val firstName: String? = null,
+    @SerialName("surname") val lastName: String? = null,
     @SerialName("clinic_id") val clinicId: Int? = null,
     @SerialName("is_active") val isActive: Boolean = true
 )
@@ -19,8 +19,8 @@ data class UserInDto(
 @Serializable
 data class UserProfilePatch(
     // старые поля для совместимости
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
+    @SerialName("name") val firstName: String? = null,
+    @SerialName("surname") val lastName: String? = null,
     val patronymic: String? = null,
     @SerialName("phone_number") val phoneNumber: String? = null,
     @SerialName("clinic_id") val clinicId: Long? = null,
@@ -38,14 +38,9 @@ data class UserOutDto(
     val login: String,
     val role: String,
 
-    // старые поля (совместимость)
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
-    val patronymic: String? = null,
+    @SerialName("patronymic") val patronymic: String? = null,
     @SerialName("phone_number") val phoneNumber: String? = null,
     @SerialName("clinic_id") val clinicId: Long? = null,
-
-    // новые поля профиля
     val name: String? = null,
     val surname: String? = null,
     @SerialName("date_of_birth") val dateOfBirth: String? = null, // YYYY-MM-DD
@@ -241,14 +236,14 @@ data class Slot(
 )
 
 @Serializable
-data class AppointmentOutDto(
-    val id: Long,
+data class AppointmentOut(
+    @SerialName("id") val id: Long,
     @SerialName("slot_id") val slotId: Long,
     @SerialName("client_id") val clientId: Long,
-    val status: String,
-    val comments: String? = null,
-    @SerialName("created_at") val createdAt: String,
-    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("status") val status: String,
+    @SerialName("comments") val comments: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("canceled_at") val canceledAt: String? = null,
     @SerialName("completed_at") val completedAt: String? = null,
     @SerialName("appointment_type_id") val appointmentTypeId: Long? = null

@@ -1,21 +1,27 @@
-package org.interns.project.users
+package org.interns.project.controller
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
 import io.ktor.server.application.log
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import org.interns.project.dto.ApiResponse
+import org.interns.project.dto.AppointmentDto
 import org.interns.project.dto.ClientProfileDto
+import org.interns.project.dto.DoctorPatientDto
+import org.interns.project.dto.DoctorProfileDto
+import org.interns.project.dto.FullUserProfileDto
+import org.interns.project.dto.MedicalRecordDto
 import org.interns.project.dto.UserResponseDto
+import org.interns.project.users.model.AppointmentOut
 import org.interns.project.users.model.ClientOut
+import org.interns.project.users.model.DoctorOut
+import org.interns.project.users.model.DoctorPatientOut
+import org.interns.project.users.model.MedicalRecordOut
 import org.interns.project.users.model.User
 import org.interns.project.users.repo.ApiUserRepo
-import org.interns.project.dto.*
-import org.interns.project.users.model.*
 
 class UserController(
     private val apiUserRepo: ApiUserRepo
@@ -27,13 +33,16 @@ class UserController(
                 runCatching { apiUserRepo.listUsers(role) }
                     .onSuccess { users ->
                         val payload = users.map { it.toDto() }
-                        call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = payload))
+                        call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = payload))
                     }
                     .onFailure { error ->
                         call.application.log.error("Failed to load users", error)
                         call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ApiResponse<List<UserResponseDto>>(success = false, error = error.message ?: "Failed to load users")
+                            HttpStatusCode.Companion.InternalServerError,
+                            ApiResponse<List<UserResponseDto>>(
+                                success = false,
+                                error = error.message ?: "Failed to load users"
+                            )
                         )
                     }
             }
@@ -52,15 +61,18 @@ class UserController(
                         } else {
                             call.respond(
                                 HttpStatusCode.OK,
-                                ApiResponse(success = true, data = user.toDto())
+                                ApiResponse(success = true, data = user)
                             )
                         }
                     }
                     .onFailure { error ->
                         call.application.log.error("Failed to load user profile", error)
                         call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ApiResponse<UserResponseDto>(success = false, error = error.message ?: "Failed to load user profile")
+                            HttpStatusCode.Companion.InternalServerError,
+                            ApiResponse<UserResponseDto>(
+                                success = false,
+                                error = error.message ?: "Failed to load user profile"
+                            )
                         )
                     }
             }
@@ -103,22 +115,22 @@ class UserController(
                         }
 
                     val dto = FullUserProfileDto(
-                        user = user.toDto(),
-                        client = client?.toDto(),
-                        doctor = doctor?.toDto(),
-                        appointments = appointmentsModel.map { it.toDto() },
-                        medicalRecords = recordsModel.map { it.toDto() },
-                        patients = patientsModel.map { it.toDto() },
+                        user = user,
+                        client = client,
+                        doctor = doctor,
+                        appointments = appointmentsModel as List<AppointmentDto>,
+                        medicalRecords = recordsModel as List<MedicalRecordDto>,
+                        patients = patientsModel as List<DoctorPatientDto>,
                     )
 
                     call.respond(
-                        HttpStatusCode.OK,
+                        HttpStatusCode.Companion.OK,
                         ApiResponse(success = true, data = dto),
                     )
                 }.onFailure { e ->
                     call.application.log.error("Failed to load full profile for user $userId", e)
                     call.respond(
-                        HttpStatusCode.InternalServerError,
+                        HttpStatusCode.Companion.InternalServerError,
                         ApiResponse<FullUserProfileDto>(
                             success = false,
                             error = e.message ?: "Failed to load full profile",
@@ -137,28 +149,31 @@ class UserController(
                 .onSuccess { client ->
                     if (client == null) {
                         call.respond(
-                            HttpStatusCode.NotFound,
+                            HttpStatusCode.Companion.NotFound,
                             ApiResponse<ClientProfileDto?>(success = false, error = "Client not found")
                         )
                     } else {
                         call.respond(
-                            HttpStatusCode.OK,
-                            ApiResponse(success = true, data = client.toDto())
+                            HttpStatusCode.Companion.OK,
+                            ApiResponse(success = true, data = client)
                         )
                     }
                 }
                 .onFailure { error ->
                     call.application.log.error("Failed to load client profile", error)
                     call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ApiResponse<ClientProfileDto?>(success = false, error = error.message ?: "Failed to load client profile")
+                        HttpStatusCode.Companion.InternalServerError,
+                        ApiResponse<ClientProfileDto?>(
+                            success = false,
+                            error = error.message ?: "Failed to load client profile"
+                        )
                     )
                 }
         }
     }
 
     private suspend fun respondBadRequest(call: ApplicationCall, message: String) {
-        call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(success = false, error = message))
+        call.respond(HttpStatusCode.Companion.BadRequest, ApiResponse<Unit>(success = false, error = message))
     }
 
     private fun User.toDto() = UserResponseDto(
@@ -166,8 +181,6 @@ class UserController(
         email = email,
         login = login,
         role = role,
-        firstName = firstName,
-        lastName = lastName,
         patronymic = patronymic,
         phoneNumber = phoneNumber,
         clinicId = clinicId,
@@ -252,5 +265,5 @@ class UserController(
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
-    
+
 }
