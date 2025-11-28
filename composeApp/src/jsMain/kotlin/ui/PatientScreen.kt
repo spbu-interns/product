@@ -12,6 +12,7 @@ import io.kvision.html.span
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import state.PatientState
+import utils.normalizeGender
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     val state = PatientState
@@ -44,7 +45,7 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
         val recentMedicalRecords = dashboard?.medicalRecords?.take(3) ?: emptyList()
         val nextAppointment = upcomingAppointments.firstOrNull()
 
-        div(className = "statistics grid") {
+        div(className = "statistics grid patient-grid") {
             statisticsCard(
                 upcomingAppointments.size.toString(),
                 "Предстоящие",

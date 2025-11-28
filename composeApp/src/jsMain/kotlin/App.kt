@@ -217,12 +217,16 @@ class App : Application() {
             }
 
             val role = Session.accountType?.uppercase()
+            val normalizedRole = when (role) {
+                "CLIENT" -> "PATIENT"
+                else -> role
+            }
             val redirected = when {
-                path.startsWith("/patient") && role == "DOCTOR" -> {
+                path.startsWith("/patient") && normalizedRole == "DOCTOR" -> {
                     go("/doctor")
                     true
                 }
-                path.startsWith("/doctor") && role == "PATIENT" -> {
+                path.startsWith("/doctor") && normalizedRole == "PATIENT" -> {
                     go("/patient")
                     true
                 }

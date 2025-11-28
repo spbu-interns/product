@@ -14,16 +14,21 @@ import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
 import io.kvision.html.h3
+import io.kvision.html.li
+import io.kvision.html.nav
 import io.kvision.html.p
 import io.kvision.html.span
+import io.kvision.html.ul
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
+import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.interns.project.dto.ProfileUpdateDto
-import ui.PatientSection
 import ui.components.patientSidebar
 import kotlin.js.Date
+import kotlin.text.Regex
+import utils.normalizeGender
 
 val profileApi = ProfileApiClient()
 fun Container.patientProfileEditScreen(onBack: () -> Unit = { Navigator.showPatient() }) {
@@ -67,6 +72,35 @@ private fun Container.profileEditScreenCommon(
         .joinToString("")
         .ifBlank { "ПС" }
     val patientApi = PatientApiClient()
+    val phoneRegex = Regex("""^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$""")
+
+    fun formatPhone(raw: String?): String {
+        val digits = raw.orEmpty().filter { it.isDigit() }
+        val national = when {
+            digits.startsWith("7") && digits.length > 1 -> digits.drop(1)
+            digits.startsWith("8") -> digits.drop(1)
+            else -> digits
+        }.take(10)
+
+        val part1 = national.take(3)
+        val part2 = national.drop(3).take(3)
+        val part3 = national.drop(6).take(2)
+        val part4 = national.drop(8).take(2)
+
+        return buildString {
+            if (national.isNotEmpty()) append("+7 ") else return@buildString
+            append("(")
+            append(part1)
+            if (part1.length == 3) append(") ") else return@buildString
+            append(part2)
+            if (part2.length == 3) append("-") else return@buildString
+            append(part3)
+            if (part3.length == 2) append("-") else return@buildString
+            append(part4)
+        }.trimEnd()
+    }
+
+
 
     div(className = "account container") {
         div(className = "account grid") {
@@ -102,6 +136,43 @@ private fun Container.profileEditScreenCommon(
                         h3(displayName, className = "account name")
                         if (userIdText.isNotBlank()) {
                             p(userIdText, className = "account id")
+                        }
+
+                        nav {
+                            ul(className = "side menu") {
+                                li(className = "side_item") {
+                                    span("Обзор"); span("\uD83D\uDC64", className = "side icon")
+                                    onClick {
+                                        window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+                                        Navigator.showDoctor()
+                                    }
+                                }
+                                li(className = "side_item") {
+                                    span("Расписание"); span("\uD83D\uDCC5", className = "side icon")
+                                    onClick {
+                                        window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+                                        Navigator.showDoctor()
+                                    }
+                                }
+                                li(className = "side_item") {
+                                    span("Пациенты"); span("\uD83D\uDC65", className = "side icon")
+                                    onClick {
+                                        window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+                                        Toast.info("История посещений пациентов скоро будет доступна")
+                                    }
+                                }
+                                li(className = "side_item is-active") {
+                                    span("Мой профиль"); span("\uD83D\uDC64", className = "side icon")
+                                }
+                            }
+                        }
+
+                        div(className = "side button")
+                        button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
+                            Navigator.showDoctor()
+                        }
+                        button("Выйти", className = "btn-logout-sm").onClick {
+                            ApiConfig.clearToken(); Session.clear(); Navigator.showHome()
                         }
                     }
                 }
@@ -207,7 +278,25 @@ private fun Container.profileEditScreenCommon(
 
                         val phoneField = text(label = "Номер телефона") {
                             placeholder = "+7 (XXX) XXX-XX-XX"
-                            value = Session.phoneNumber ?: ""
+                            value = formatPhone(Session.phoneNumber)
+                            addCssClass("kv-input")
+                            onEvent {
+                                input = {
+                                    val formatted = formatPhone(value)
+                                    if (formatted != value) value = formatted
+                                }
+                                keydown = { event ->
+                                    val key = event.asDynamic().key?.toString()
+                                    val allowedControl = event.asDynamic().ctrlKey == true || event.asDynamic().metaKey == true
+                                    val isEditingKey = key in listOf("Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab")
+                                    val isDigit = key?.singleOrNull()?.isDigit() == true
+                                    val allowedSign = key in listOf("+", " ", "(", ")", "-")
+
+                                    if (key != null && !isDigit && !isEditingKey && !allowedSign && !allowedControl) {
+                                        event.preventDefault()
+                                    }
+                                }
+                            }
                         }
 
                         val avatarField = text(label = "Ссылка на ваше фото") {
@@ -223,7 +312,7 @@ private fun Container.profileEditScreenCommon(
                             label = "Пол"
                         ) {
                             placeholder = "Выберите пол"
-                            value = Session.gender
+                            value = normalizeGender(Session.gender)
                         }
 
                         uiScope.launch {
@@ -234,8 +323,8 @@ private fun Container.profileEditScreenCommon(
                                 lastNameField.value = Session.lastName ?: profile?.user?.surname ?: ""
                                 patronymicField.value = Session.patronymic ?: profile?.user?.patronymic ?: ""
                                 noPatronymicCheck.value = Session.patronymic.isNullOrBlank() && Session.hasNoPatronymic
-                                phoneField.value = Session.phoneNumber ?: profile?.user?.phoneNumber ?: ""
-                                genderField.value = Session.gender ?: profile?.user?.gender
+                                phoneField.value = formatPhone(Session.phoneNumber ?: profile?.user?.phoneNumber)
+                                genderField.value = normalizeGender(Session.gender ?: profile?.user?.gender)
                                 birthDateField.value = humanizeIso(Session.dateOfBirth ?: profile?.user?.dateOfBirth)
                                 avatarField.value = Session.avatar ?: profile?.user?.avatar ?: ""
                             }.onFailure {
@@ -254,6 +343,7 @@ private fun Container.profileEditScreenCommon(
                             val patronymic = patronymicField.value?.trim().orEmpty()
                             val noPatronymic = noPatronymicCheck.value
                             val isoBirthDate = toIsoDate(birthDateField.getValueAsString())
+                            val formattedPhone = formatPhone(phoneField.value)
 
                             when {
                                 first.isBlank() -> {
@@ -267,7 +357,13 @@ private fun Container.profileEditScreenCommon(
                                 }
 
                                 isoBirthDate.isNullOrBlank() -> {
-                                    errorText.content = "Выберите дату рождения"
+                                    errorText.content = "Уточните дату рождения в формате ДД.ММ.ГГГГ"
+                                    return@onClickLaunch
+                                }
+
+                                formattedPhone.isNotBlank() && !phoneRegex.matches(formattedPhone) -> {
+                                    errorText.content = "Введите номер в формате +7 (XXX) XXX-XX-XX"
+                                    phoneField.value = formattedPhone
                                     return@onClickLaunch
                                 }
 
@@ -287,9 +383,9 @@ private fun Container.profileEditScreenCommon(
                                 firstName = first,
                                 lastName = last,
                                 patronymic = patronymic.takeIf { it.isNotBlank() && !noPatronymic },
-                                phoneNumber = phoneField.value,
+                                phoneNumber = formattedPhone.takeIf { it.isNotBlank() },
                                 avatar = avatarField.value,
-                                gender = genderField.value,
+                                gender = normalizeGender(genderField.value),
                                 dateOfBirth = isoBirthDate,
                                 bloodType = null,
                                 height = null,

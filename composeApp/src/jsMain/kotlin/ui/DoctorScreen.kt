@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import state.DoctorState
 import state.DoctorState.dashboardData
 import ui.components.timetableModal
+import utils.normalizeGender
 
 private data class DoctorPatientListItem(
     val userId: Long,
@@ -142,7 +143,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
             }
             else -> {
-                dashboard?.patients?.forEach { patient ->
+                dashboard.patients.forEach { patient ->
                     val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
                     val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
                         .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
@@ -185,7 +186,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
             }
             else -> {
-                dashboard?.patients?.forEach { patient ->
+                dashboard.patients.forEach { patient ->
                     val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
                     val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
                         .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
@@ -251,18 +252,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("\uD83D\uDC65", className = "side icon")
                             onClick {
                                 window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
-                                dashboard?.patients?.firstOrNull()?.let { firstPatient ->
-                                    cleanup()
-                                    Navigator.showDoctorPatient(firstPatient.userId, null)
-                                } ?: run {
-                                    Toast.info("Нет пациентов для отображения")
-                                }
+                                Toast.info("История посещений пациентов скоро будет доступна")
                             }
-                        }
-                        li(className = "side_item") {
-                            span("Мои записи")
-                            span("\uD83D\uDCDD", className = "side icon")
-                            onClick { Navigator.showStub("Профиль в разработке") }
                         }
                         li(className = "side_item") {
                             span("Мой профиль")
@@ -301,7 +292,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                     val totalPatients = dashboardData?.patients?.size ?: 0
                     val doctorRating = dashboardData?.doctor?.rating ?: 0.0
 
-                    div(className = "statistics grid") {
+                    div(className = "statistics grid doctor-grid") {
                         doctorStatisticsCard(todayAppointments.size.toString(), "Сегодня", "\uD83D\uDCC5")
                         doctorStatisticsCard(totalPatients.toString(), "Пациенты", "\uD83D\uDC65")
                         doctorStatisticsCard(doctorRating.toString(), "Рейтинг", "⭐")

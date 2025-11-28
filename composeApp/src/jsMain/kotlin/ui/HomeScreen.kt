@@ -12,6 +12,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.interns.project.dto.UserResponseDto
+import utils.normalizeGender
 
 fun Container.homeScreen() {
     headerBar(
@@ -139,6 +140,8 @@ object Session {
         .joinToString(" ")
         .takeIf { it.isNotBlank()}
 
+
+
     fun setSession(
         token: String?,
         userId: Long?,
@@ -163,7 +166,7 @@ object Session {
         this.patronymic = patronymic
         this.phoneNumber = phoneNumber
         this.avatar = avatar
-        this.gender = gender
+        this.gender = normalizeGender(gender)
         this.dateOfBirth = dateOfBirth
         this.isActive = isActive
         this.hasNoPatronymic = hasNoPatronymic
@@ -178,7 +181,7 @@ object Session {
         this.patronymic = userResponse.patronymic
         this.phoneNumber = userResponse.phoneNumber
         this.avatar = userResponse.avatar
-        this.gender = userResponse.gender
+        this.gender = normalizeGender(userResponse.gender)
         this.dateOfBirth = userResponse.dateOfBirth
         this.isActive = userResponse.isActive
         this.email = userResponse.email
@@ -267,7 +270,7 @@ object Session {
         patronymic = snapshot.patronymic
         phoneNumber = snapshot.phoneNumber
         avatar = snapshot.avatar
-        gender = snapshot.gender
+        gender = normalizeGender(snapshot.gender)
         dateOfBirth = snapshot.dateOfBirth
         isActive = snapshot.isActive
         hasNoPatronymic = snapshot.hasNoPatronymic

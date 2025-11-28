@@ -57,9 +57,11 @@
 
 .statistics.grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+.statistics.grid.patient-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 .statistics.card {
   border-radius: 18px; padding: 16px;
