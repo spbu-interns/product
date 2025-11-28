@@ -6,6 +6,7 @@ import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.image
 import io.kvision.html.link
+import io.kvision.html.span
 import io.kvision.html.nav
 
 enum class HeaderMode { PUBLIC, PATIENT, DOCTOR }
@@ -25,9 +26,7 @@ fun Container.headerBar(
                 image(src = "/images/logo.jpg") {
                     addCssClass("brand_logo")
                 }
-                link(label = "INTERNS", url = "#", className = "brand_text").onClick {
-                    it.preventDefault(); Navigator.showHome()
-                }
+                span("INTERNS", className = "brand_text")
             }
 
             div(className = "topnav_links") {
@@ -61,9 +60,6 @@ fun Container.headerBar(
                         button("Личный кабинет", className = "btn-ghost-sm").onClick {
                             Navigator.showPatient()
                         }
-                        button("Выйти", className = "btn-logout-sm").onClick {
-                            onLogout?.invoke() ?: run { Navigator.showHome() }
-                        }
                     }
                 }
 
@@ -71,9 +67,6 @@ fun Container.headerBar(
                     div(className = "topnav_auth") {
                         button("Личный кабинет", className = "btn-ghost-sm").onClick {
                             Navigator.showDoctor()
-                        }
-                        button("Выйти", className = "btn-logout-sm").onClick {
-                            onLogout?.invoke() ?: run { Navigator.showHome() }
                         }
                     }
                 }

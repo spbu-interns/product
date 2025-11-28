@@ -36,7 +36,7 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
         }
     )
 
-    patientAccountLayout(active = PatientSection.APPOINTMENTS) {
+    patientAccountLayout(active = PatientSection.APPOINTMENTS, onLogout = onLogout) {
         h1("Мои приёмы", className = "account title appointments-title")
 
         div(className = "appointments tabs") {

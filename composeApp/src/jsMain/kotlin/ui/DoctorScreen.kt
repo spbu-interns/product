@@ -13,6 +13,7 @@ import io.kvision.html.span
 import io.kvision.html.ul
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
+import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -230,6 +231,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Обзор")
                             span("\uD83D\uDC64", className = "side icon")
                             onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
                                 overviewContainer.visible = true
                                 scheduleContainer.visible = false
                             }
@@ -238,6 +240,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Расписание")
                             span("\uD83D\uDCC5", className = "side icon")
                             onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
                                 overviewContainer.visible = false
                                 scheduleContainer.visible = true
                                 renderSchedule()
@@ -247,6 +250,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Пациенты")
                             span("\uD83D\uDC65", className = "side icon")
                             onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
                                 dashboard?.patients?.firstOrNull()?.let { firstPatient ->
                                     cleanup()
                                     Navigator.showDoctorPatient(firstPatient.userId, null)
@@ -261,9 +265,12 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             onClick { Navigator.showStub("Профиль в разработке") }
                         }
                         li(className = "side_item") {
-                            span("Редактировать профиль")
+                            span("Мой профиль")
                             span("\uD83D\uDC64", className = "side icon")
-                            onClick { Navigator.showDoctorProfileEdit() }
+                            onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+                                Navigator.showDoctorProfileEdit()
+                            }
                         }
                     }
                 }
@@ -274,6 +281,9 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
                 button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
                     timetableController.open(doctorName)
+                }
+                button("Выйти", className = "btn-logout-sm").onClick {
+                    ApiConfig.clearToken(); Session.clear(); cleanup(); onLogout()
                 }
             }
 

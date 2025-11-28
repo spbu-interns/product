@@ -17,6 +17,8 @@ import ui.passwordResetSuccessScreen
 import ui.patientAppointmentsScreen
 import ui.findPatientScreen
 import kotlinx.browser.window
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import org.w3c.dom.url.URLSearchParams
 import ui.findDoctorScreen
 import ui.myRecordsScreen
@@ -29,6 +31,7 @@ class App : Application() {
     override fun start(state: Map<String, Any>) {
         I18n.language = "en"
         val r = root("kvapp")
+        val appScope = MainScope()
         val initialParams = URLSearchParams(window.location.search)
         Session.restoreFromStorage()
         if (window.location.pathname != "/auth/password/reset") {
@@ -189,26 +192,20 @@ class App : Application() {
                         lastName = data.lastName
                     )
 
-                    val needsProfile = Session.requiresProfileCompletion()
-                    when (data.accountType.uppercase()) {
-                        "DOCTOR" -> if (needsProfile) go("/doctor/profile") else go("/doctor")
-                        else -> if (needsProfile) go("/patient/profile") else go("/patient")
+                    appScope.launch {
+                        Session.hydrateFromBackend()
+                        val needsProfile = Session.requiresProfileCompletion()
+                        when (data.accountType.uppercase()) {
+                            "DOCTOR" -> if (needsProfile) go("/doctor/profile") else go("/doctor")
+                            else -> if (needsProfile) go("/patient/profile") else go("/patient")
+                        }
                     }
                 },
-                onRegister = { data ->
-                    Session.setSession(
-                        token = data.token,
-                        userId = data.userId,
-                        email = data.email,
-                        accountType = data.accountType,
-                        firstName = data.firstName,
-                        lastName = data.lastName
+                onRegister = { email, _, accountType ->
+                    go(
+                        "/auth/confirm",
+                        URLSearchParams().apply { set("email", email); set("role", accountType) }
                     )
-
-                    when (data.accountType.uppercase()) {
-                        "DOCTOR" -> go("/doctor/profile")
-                        else -> go("/patient/profile")
-                    }
                 },
                 onGoHome = { go("/") }
             )

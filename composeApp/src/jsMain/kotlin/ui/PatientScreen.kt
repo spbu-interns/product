@@ -32,7 +32,10 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
         }
     )
 
-    patientAccountLayout(active = PatientSection.OVERVIEW) {
+    patientAccountLayout(
+        active = PatientSection.OVERVIEW,
+        onLogout = onLogout
+    ) {
         h1("Аккаунт", className = "account title")
 
         val dashboard = state.dashboardData

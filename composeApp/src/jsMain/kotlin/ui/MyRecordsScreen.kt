@@ -103,7 +103,7 @@ fun Container.myRecordsScreen(
         }
     }
 
-    patientAccountLayout(active = PatientSection.MY_RECORDS) {
+    patientAccountLayout(active = PatientSection.MY_RECORDS, onLogout = onLogout) {
         val titleInput: Text = text(label = "Заголовок") {
             placeholder = "Например, боль в спине"
             addCssClass("kv-input")

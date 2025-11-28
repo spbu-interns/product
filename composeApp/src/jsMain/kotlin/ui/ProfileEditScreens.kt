@@ -83,7 +83,10 @@ private fun Container.profileEditScreenCommon(
                             onMedicalRecords = { Navigator.showStub("Раздел медицинской карты находится в разработке") },
                             onMyRecords = { Navigator.showMyRecords() },
                             onFindDoctor = { Navigator.showFind() },
-                            onProfile = { Navigator.showPatientProfileEdit() }
+                            onProfile = { Navigator.showPatientProfileEdit() },
+                            onLogout = {
+                                ApiConfig.clearToken(); Session.clear(); Navigator.showHome()
+                            }
                         )
                     } else {
                         div(className = "sidebar card") {

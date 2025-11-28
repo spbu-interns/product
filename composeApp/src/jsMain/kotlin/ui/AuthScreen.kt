@@ -23,7 +23,7 @@ enum class AuthTab { LOGIN, REGISTER }
 fun Container.authScreen(
     initial: AuthTab = AuthTab.LOGIN,
     onLogin: (LoginResponse) -> Unit,
-    onRegister: (LoginResponse) -> Unit,
+    onRegister: (email: String, password: String, accountType: String) -> Unit,
     onGoHome: () -> Unit
 ) = vPanel(spacing = 16) {
     val uiScope = MainScope()
@@ -189,32 +189,10 @@ fun Container.authScreen(
                                         result.fold(
                                             onSuccess = { response ->
                                                 if (response.success) {
-                                                    val loginResult = authClient.login(
-                                                        LoginRequest(
-                                                            email = email,
-                                                            password = password,
-                                                            accountType = accType
-                                                        )
-                                                    )
-
-                                                    loginResult.fold(
-                                                        onSuccess = { loginData ->
-                                                            Session.setSession(
-                                                                token = loginData.token,
-                                                                userId = loginData.userId,
-                                                                email = loginData.email,
-                                                                accountType = loginData.accountType,
-                                                                firstName = loginData.firstName,
-                                                                lastName = loginData.lastName
-                                                            )
-                                                            uiScope.cancel()
-                                                            onRegister(loginData)
-                                                        },
-                                                        onFailure = { authError ->
-                                                            error.content = authError.message ?: "Не удалось выполнить автоматический вход"
-                                                            this@apply.disabled = false
-                                                        }
-                                                    )
+                                                    authClient.startEmailVerification(email)
+                                                    Session.pendingRegistration = Session.PendingRegistration(email, password, accType)
+                                                    uiScope.cancel()
+                                                    onRegister(email, password, accType)
                                                 } else {
                                                     error.content = response.message ?: "Ошибка регистрации"
                                                     this@apply.disabled = false

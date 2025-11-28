@@ -1,6 +1,7 @@
 package ui
 
 import api.ApiConfig
+import api.PatientApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.form.text.text
@@ -14,7 +15,11 @@ import org.interns.project.dto.UserResponseDto
 
 fun Container.homeScreen() {
     headerBar(
-        mode = if (Session.isLoggedIn) HeaderMode.PATIENT else HeaderMode.PUBLIC,
+        mode = when {
+            Session.accountType.equals("DOCTOR", ignoreCase = true) -> HeaderMode.DOCTOR
+            Session.isLoggedIn -> HeaderMode.PATIENT
+            else -> HeaderMode.PUBLIC
+        },
         active = NavTab.HOME,
         onLogout = {
             ApiConfig.clearToken()
@@ -32,12 +37,13 @@ fun Container.homeScreen() {
                 div(className = "searchbar_icon") {
                     +"\uD83D\uDD0D"
                 }
-                text {
+                val searchField = text {
                     type = InputType.SEARCH
                     placeholder = "Найдите врача по специальности, местоположению или рейтингу"
                     addCssClass("searchbar_input")
                 }
                 button("Найти врача", className = "searchbar_button").onClick {
+                    Session.pendingDoctorSearchQuery = searchField.value
                     Navigator.showFind()
                 }
             }
@@ -118,6 +124,14 @@ object Session {
     var dateOfBirth: String? = null   // YYYY-MM-DD
     var isActive: Boolean = true
     var hasNoPatronymic: Boolean = false
+    var pendingDoctorSearchQuery: String? = null
+    var pendingRegistration: PendingRegistration? = null
+
+    data class PendingRegistration(
+        val email: String,
+        val password: String,
+        val accountType: String
+    )
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -189,6 +203,8 @@ object Session {
         dateOfBirth = null
         isActive = true
         hasNoPatronymic = false
+        pendingDoctorSearchQuery = null
+        pendingRegistration = null
         ApiConfig.clearToken()
         ApiConfig.clearSessionData()
     }
@@ -198,6 +214,7 @@ object Session {
         this.token = tokenValue
         this.isLoggedIn = true
         ApiConfig.setToken(tokenValue)
+        decodeJwtClaims(tokenValue)
         saveToStorage()
     }
 
@@ -214,11 +231,22 @@ object Session {
         } else if (storedToken != null) {
             this.token = storedToken
             this.isLoggedIn = true
+            decodeJwtClaims(storedToken)
         }
 
         if (token == null && storedToken != null) {
             token = storedToken
         }
+    }
+
+    suspend fun hydrateFromBackend(): Boolean {
+        val id = userId ?: return false
+        val api = PatientApiClient()
+        val result = api.getFullUserProfile(id)
+        result.onSuccess { profile ->
+            profile?.user?.let { updateFrom(it) }
+        }
+        return result.isSuccess
     }
 
     fun requiresProfileCompletion(): Boolean {
@@ -245,6 +273,22 @@ object Session {
         hasNoPatronymic = snapshot.hasNoPatronymic
         isLoggedIn = token != null
         snapshot.token?.let { ApiConfig.setToken(it) }
+    }
+
+    private fun decodeJwtClaims(tokenValue: String) {
+        runCatching {
+            val payload = tokenValue.split(".").getOrNull(1) ?: return
+            val decoded = js("JSON.parse(atob(payload))")
+            val claims = decoded.asDynamic()
+            val userIdRaw = claims.userId
+            if (userIdRaw != undefined) userId = userIdRaw.toString().toLongOrNull()
+            val roleRaw = claims.role
+            if (roleRaw != undefined) accountType = roleRaw.toString().uppercase()
+            val emailRaw = claims.email
+            if (emailRaw != undefined) email = emailRaw.toString()
+            val loginRaw = claims.login
+            if (loginRaw != undefined && firstName.isNullOrBlank()) firstName = loginRaw.toString()
+        }.onFailure { /* ignore decode issues */ }
     }
 
     private fun saveToStorage() {

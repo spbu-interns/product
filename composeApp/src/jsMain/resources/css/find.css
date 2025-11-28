@@ -12,7 +12,9 @@
 
 .find-search-bar {
     display: flex;
-    gap: 12px;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
     padding: 16px;
     background: #fff;
     border-radius: 16px;
