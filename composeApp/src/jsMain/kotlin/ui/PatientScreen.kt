@@ -10,6 +10,7 @@ import io.kvision.html.h4
 import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.panel.vPanel
+import io.kvision.utils.perc
 import state.PatientState
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
@@ -54,13 +55,14 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
         }
 
         div(className = "card block appointment-block") {
+            width = 100.perc
             h4("Следующий приём", className = "block title")
 
             nextAppointment?.let { appointment ->
                 div(className = "appointment-info") {
                     div(className = "appointment-header") {
                         h4("Запись #${appointment.id}", className = "appointment-title")
-                        span("${appointment.status}", className = "appointment-status")
+                        span(appointment.status, className = "appointment-status")
                     }
                     appointment.comments?.takeIf { it.isNotBlank() }?.let { comments ->
                         p("Комментарии: $comments", className = "appointment-comments")
@@ -90,15 +92,14 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
 
         h4("Последние медицинские записи", className = "block title")
         div(className = "card block") {
+            width = 100.perc
             div(className = "records list") {
                 if (recentMedicalRecords.isNotEmpty()) {
                     recentMedicalRecords.forEach { record ->
                         div(className = "medical-record") {
                             div(className = "record-header") {
                                 h4("Запись #${record.id}", className = "record-title")
-                                record.createdAt?.let { createdAt ->
-                                    span("$createdAt", className = "record-date")
-                                }
+                                span(record.createdAt, className = "record-date")
                             }
                             div(className = "record-content") {
                                 record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->

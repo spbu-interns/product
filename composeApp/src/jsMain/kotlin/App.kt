@@ -15,6 +15,7 @@ import ui.doctorScreen
 import ui.passwordResetFormScreen
 import ui.passwordResetSuccessScreen
 import ui.patientAppointmentsScreen
+import ui.findPatientScreen
 import kotlinx.browser.window
 import org.w3c.dom.url.URLSearchParams
 import ui.findDoctorScreen
@@ -46,7 +47,28 @@ class App : Application() {
 
         fun showFind() {
             r.removeAll()
-            r.findDoctorScreen(
+            if (Session.accountType == "DOCTOR") {
+                r.findPatientScreen(
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    }
+                )
+            } else {
+                r.findDoctorScreen(
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    }
+                )
+            }
+        }
+
+        fun showFindPatients() {
+            r.removeAll()
+            r.findPatientScreen(
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -131,7 +153,7 @@ class App : Application() {
 
         fun showStub(message: String) {
             r.removeAll()
-            r.stubScreen(message = message) { go("/") }
+            r.stubScreen(message = message) { window.history.back() }
         }
 
         fun showConfirmEmail(email: String) {
@@ -197,36 +219,52 @@ class App : Application() {
                 Session.ensureTokenFromLink(params.get("token"))
             }
 
-            when {
-                path == "/" -> showHome()
-                path == "/find" -> showFind()
-                path == "/auth/login" -> showAuth(AuthTab.LOGIN)
-                path == "/auth/register" -> showAuth(AuthTab.REGISTER)
-                path == "/auth/password/forgot" -> showResetPassword()
-                path == "/auth/password/reset" -> showPasswordResetForm(params.get("token"))
-                path == "/auth/password/reset/success" -> showPasswordResetSuccess()
-                path == "/auth/confirm" -> showConfirmEmail(params.get("email") ?: Session.email ?: "")
-                path == "/patient" -> showPatient()
-                path == "/patient/appointments" -> showAppointments()
-                path == "/patient/records" -> showMyRecords()
-                path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
-                path == "/patient/profile" -> showPatientProfileEdit()
-                path == "/doctor" -> showDoctor()
-                path.startsWith("/doctor/patient/") -> {
-                    val patientId = path.removePrefix("/doctor/patient/").toLongOrNull()
-                    val recordId = params.get("recordId")?.toLongOrNull()
-                    if (patientId != null) {
-                        showDoctorPatient(patientId, recordId)
-                    } else {
-                        showDoctor()
-                    }
+            val role = Session.accountType?.uppercase()
+            val redirected = when {
+                path.startsWith("/patient") && role == "DOCTOR" -> {
+                    go("/doctor")
+                    true
                 }
-                path == "/doctor/profile" -> showDoctorProfileEdit()
-                path == "/stub" -> showStub(params.get("message") ?: "Раздел в разработке")
-                path == "/auth" -> showAuth(AuthTab.LOGIN)
-                else -> {
-                    window.history.replaceState(null, "", "/")
-                    showHome()
+                path.startsWith("/doctor") && role == "PATIENT" -> {
+                    go("/patient")
+                    true
+                }
+                else -> false
+            }
+
+            if (!redirected) {
+                when {
+                    path == "/" -> showHome()
+                    path == "/find" -> showFind()
+                    path == "/doctor/find" -> showFindPatients()
+                    path == "/auth/login" -> showAuth(AuthTab.LOGIN)
+                    path == "/auth/register" -> showAuth(AuthTab.REGISTER)
+                    path == "/auth/password/forgot" -> showResetPassword()
+                    path == "/auth/password/reset" -> showPasswordResetForm(params.get("token"))
+                    path == "/auth/password/reset/success" -> showPasswordResetSuccess()
+                    path == "/auth/confirm" -> showConfirmEmail(params.get("email") ?: Session.email ?: "")
+                    path == "/patient" -> showPatient()
+                    path == "/patient/appointments" -> showAppointments()
+                    path == "/patient/records" -> showMyRecords()
+                    path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
+                    path == "/patient/profile" -> showPatientProfileEdit()
+                    path == "/doctor" -> showDoctor()
+                    path.startsWith("/doctor/patient/") -> {
+                        val patientId = path.removePrefix("/doctor/patient/").toLongOrNull()
+                        val recordId = params.get("recordId")?.toLongOrNull()
+                        if (patientId != null) {
+                            showDoctorPatient(patientId, recordId)
+                        } else {
+                            showDoctor()
+                        }
+                    }
+                    path == "/doctor/profile" -> showDoctorProfileEdit()
+                    path == "/stub" -> showStub(params.get("message") ?: "Раздел в разработке")
+                    path == "/auth" -> showAuth(AuthTab.LOGIN)
+                    else -> {
+                        window.history.replaceState(null, "", "/")
+                        showHome()
+                    }
                 }
             }
         }
@@ -248,6 +286,7 @@ class App : Application() {
 
         Navigator.showHome = { go("/") }
         Navigator.showFind = { go("/find") }
+        Navigator.showFindPatient = { go("/doctor/find") }
         Navigator.showLogin = { go("/auth/login") }
         Navigator.showPatient = { go("/patient") }
         Navigator.showResetPassword = { go("/auth/password/forgot") }

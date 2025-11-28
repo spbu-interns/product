@@ -121,7 +121,7 @@ object Session {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun fullName(): String? = listOfNotNull(firstName, lastName)
+    fun fullName(): String? = listOfNotNull(lastName, firstName, patronymic)
         .joinToString(" ")
         .takeIf { it.isNotBlank()}
 
@@ -168,7 +168,7 @@ object Session {
         this.dateOfBirth = userResponse.dateOfBirth
         this.isActive = userResponse.isActive
         this.email = userResponse.email
-        this.accountType = userResponse.role
+        this.accountType = userResponse.role.uppercase()
         this.hasNoPatronymic = userResponse.patronymic.isNullOrBlank()
         saveToStorage()
     }

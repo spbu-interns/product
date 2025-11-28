@@ -20,8 +20,8 @@ import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import ui.PatientSection
 import ui.components.patientSidebar
-import ui.components.SidebarTab
 import org.interns.project.dto.ComplaintPatchRequest
 import org.interns.project.dto.ComplaintResponse
 
@@ -46,12 +46,13 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
         div(className = "account grid") {
             patientSidebar(
                 patientId = patientId,
-                active = SidebarTab.MYRECORDS,
+                active = PatientSection.MY_RECORDS,
                 onOverview = { Navigator.showPatient() },
-                onAppointments = { /* TODO */ },
-                onMedicalRecords = { /* TODO */ },
+                onAppointments = { Navigator.showAppointments() },
+                onMedicalRecords = { Navigator.showStub("Раздел медицинской карты находится в разработке") },
                 onMyRecords = { Navigator.showMyRecords() },
-                onFindDoctor = { Navigator.showFind() }
+                onFindDoctor = { Navigator.showFind() },
+                onProfile = { Navigator.showPatientProfileEdit() }
             )
 
             div(className = "main column") {

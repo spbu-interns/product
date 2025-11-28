@@ -68,7 +68,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     lateinit var patientsContainer: Container
     lateinit var overviewContainer: Container
     lateinit var scheduleContainer: Container
-    lateinit var scheduleListContainer: Container
+    var scheduleListContainer: Container? = null
 
     var renderPatients: () -> Unit = {}
     var renderSchedule: () -> Unit = {}
@@ -161,16 +161,17 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     renderSchedule = fun() {
-        scheduleListContainer.removeAll()
+        val listContainer = scheduleListContainer ?: return
+        listContainer.removeAll()
 
         when {
             state.isLoading -> {
-                scheduleListContainer.div(className = "doctor-empty-state") {
+                listContainer.div(className = "doctor-empty-state") {
                     span("Загрузка расписания...", className = "doctor-patient-condition")
                 }
             }
             state.error != null -> {
-                scheduleListContainer.div(className = "record item") {
+                listContainer.div(className = "record item") {
                     span(state.error ?: "Не удалось загрузить расписание", className = "record subtitle")
                     button("Повторить", className = "btn-ghost-sm").onClick {
                         doctorId?.let { state.loadDoctorDashboard(it) }
@@ -178,7 +179,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
             }
             dashboard?.patients.isNullOrEmpty() -> {
-                scheduleListContainer.div(className = "record item") {
+                listContainer.div(className = "record item") {
                     span("Пока нет записанных пациентов", className = "record subtitle")
                 }
             }
@@ -197,7 +198,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                         status = "active",
                         initials = initials
                     )
-                    renderSchedulePatient(patientItem)
+                    listContainer.renderSchedulePatient(patientItem)
                 }
             }
         }

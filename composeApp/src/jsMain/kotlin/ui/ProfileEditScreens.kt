@@ -2,13 +2,14 @@ package ui
 
 import api.ApiConfig
 import api.ProfileApiClient
+import api.PatientApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.core.onClickLaunch
+import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.select.select
 import io.kvision.form.text.text
-import io.kvision.form.time.dateTime
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
@@ -17,9 +18,10 @@ import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.interns.project.dto.ProfileUpdateDto
-import ui.components.SidebarTab
+import ui.PatientSection
 import ui.components.patientSidebar
 import kotlin.js.Date
 
@@ -45,6 +47,7 @@ private fun Container.profileEditScreenCommon(
     title: String,
     onBack: () -> Unit
 ) {
+    val uiScope = MainScope()
     headerBar(
         mode = mode,
         active = NavTab.NONE,
@@ -63,6 +66,7 @@ private fun Container.profileEditScreenCommon(
         .take(2)
         .joinToString("")
         .ifBlank { "ПС" }
+    val patientApi = PatientApiClient()
 
     div(className = "account container") {
         div(className = "account grid") {
@@ -73,7 +77,7 @@ private fun Container.profileEditScreenCommon(
                     if (patientId != null) {
                         patientSidebar(
                             patientId = patientId,
-                            active = SidebarTab.PROFILE,
+                            active = PatientSection.EDIT_PROFILE,
                             onOverview = { Navigator.showPatient() },
                             onAppointments = { Navigator.showAppointments() },
                             onMedicalRecords = { Navigator.showStub("Раздел медицинской карты находится в разработке") },
@@ -126,29 +130,76 @@ private fun Container.profileEditScreenCommon(
                             value = Session.patronymic.isNullOrBlank() && Session.hasNoPatronymic
                         }
 
-                        fun toJsDate(raw: String?): Date? {
-                            if (raw.isNullOrBlank()) return null
-                            return runCatching { Date("${raw}T00:00:00") }.getOrNull()
-                        }
+                        fun normalizeBirthInput(raw: String?): String {
+                            if (raw.isNullOrBlank()) return ""
+                            val digits = raw.filter { it.isDigit() }.take(8)
+                            val hasSeparator = raw.contains('.')
 
-                        fun toIsoDate(value: String?): String? {
-                            if (value.isNullOrBlank()) return null
-                            val cleaned = value.substringBefore("T")
-                            return when {
-                                cleaned.contains(".") -> cleaned.split(".").takeIf { it.size == 3 }
-                                    ?.let { (day, month, year) -> "$year-$month-$day" }
-                                cleaned.contains("-") -> cleaned
-                                else -> null
+                            val dayRaw = digits.take(2)
+                            val monthRaw = digits.drop(2).take(2)
+                            val yearRaw = digits.drop(4)
+
+                            val day = if (dayRaw.length == 1 && hasSeparator) "0$dayRaw" else dayRaw
+                            val month = if (monthRaw.length == 1 && (hasSeparator || digits.length > 3)) "0$monthRaw" else monthRaw
+
+                            return buildString {
+                                if (day.isNotEmpty()) {
+                                    append(day.take(2))
+                                    if (day.length >= 2) append('.')
+                                }
+                                if (month.isNotEmpty()) {
+                                    append(month.take(2))
+                                    if (month.length >= 2) append('.')
+                                }
+                                if (yearRaw.isNotEmpty()) append(yearRaw.take(4))
                             }
                         }
 
-                        val birthDateField = dateTime(
-                            format = "DD.MM.YYYY",
-                            label = "Дата рождения"
-                        ) {
-                            placeholder = "Выберите дату рождения"
-                            showClear = false
-                            value = toJsDate(Session.dateOfBirth)
+                        fun humanizeIso(value: String?): String {
+                            if (value.isNullOrBlank()) return ""
+                            val parts = value.split("-")
+                            return if (parts.size == 3) "${parts[2]}.${parts[1]}.${parts[0]}" else ""
+                        }
+
+                        fun toIsoDate(value: String?): String? {
+                            val digits = value?.filter { it.isDigit() } ?: return null
+                            if (digits.length < 6) return null
+
+                            val day = digits.take(2).padStart(2, '0')
+                            val month = digits.drop(2).take(2).padStart(2, '0')
+                            val yearCandidate = digits.drop(4)
+                            val year = when (yearCandidate.length) {
+                                2 -> {
+                                    val suffix = yearCandidate.padStart(2, '0').toInt()
+                                    val century = if (suffix <= 25) "20" else "19"
+                                    "$century${suffix.toString().padStart(2, '0')}"
+                                }
+                                4 -> yearCandidate
+                                else -> return null
+                            }
+
+                            val iso = "$year-$month-$day"
+
+                            val age = runCatching {
+                                val today = Date()
+                                val birth = Date(year.toInt(), month.toInt() - 1, day.toInt())
+                                val millisInYear = 365.25 * 24 * 60 * 60 * 1000
+                                ((today.getTime() - birth.getTime()) / millisInYear).toInt()
+                            }.getOrDefault(0)
+
+                            return if (age in 16..150) iso else null
+                        }
+
+                        val birthDateField = text(label = "Дата рождения") {
+                            placeholder = "ДД.ММ.ГГГГ"
+                            value = humanizeIso(Session.dateOfBirth)
+                            addCssClass("kv-input")
+                            onEvent {
+                                input = {
+                                    val next = normalizeBirthInput(value)
+                                    if (value != next) value = next
+                                }
+                            }
                         }
 
                         val phoneField = text(label = "Номер телефона") {
@@ -170,6 +221,23 @@ private fun Container.profileEditScreenCommon(
                         ) {
                             placeholder = "Выберите пол"
                             value = Session.gender
+                        }
+
+                        uiScope.launch {
+                            val userId = Session.userId ?: return@launch
+                            patientApi.getFullUserProfile(userId).onSuccess { profile ->
+                                profile?.user?.let { Session.updateFrom(it) }
+                                firstNameField.value = Session.firstName ?: profile?.user?.name ?: ""
+                                lastNameField.value = Session.lastName ?: profile?.user?.surname ?: ""
+                                patronymicField.value = Session.patronymic ?: profile?.user?.patronymic ?: ""
+                                noPatronymicCheck.value = Session.patronymic.isNullOrBlank() && Session.hasNoPatronymic
+                                phoneField.value = Session.phoneNumber ?: profile?.user?.phoneNumber ?: ""
+                                genderField.value = Session.gender ?: profile?.user?.gender
+                                birthDateField.value = humanizeIso(Session.dateOfBirth ?: profile?.user?.dateOfBirth)
+                                avatarField.value = Session.avatar ?: profile?.user?.avatar ?: ""
+                            }.onFailure {
+                                Toast.warning(it.message ?: "Не удалось загрузить профиль")
+                            }
                         }
 
                         val errorText = span("").apply { addCssClass("text-danger") }
