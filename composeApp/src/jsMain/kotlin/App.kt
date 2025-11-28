@@ -28,8 +28,16 @@ class App : Application() {
     override fun start(state: Map<String, Any>) {
         I18n.language = "en"
         val r = root("kvapp")
+        val initialParams = URLSearchParams(window.location.search)
+        Session.restoreFromStorage()
+        if (window.location.pathname != "/auth/password/reset") {
+            Session.ensureTokenFromLink(initialParams.get("token"))
+        }
 
-        var showAuth: (AuthTab) -> Unit = {}
+        lateinit var renderRoute: (String, URLSearchParams) -> Unit
+        lateinit var navigate: (String, URLSearchParams) -> Unit
+
+        fun go(path: String, params: URLSearchParams = URLSearchParams()) = navigate(path, params)
 
         fun showHome() {
             r.removeAll()
@@ -42,7 +50,7 @@ class App : Application() {
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
-                    showHome()
+                    go("/")
                 }
             )
         }
@@ -53,7 +61,7 @@ class App : Application() {
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
-                    showHome()
+                    go("/")
                 }
             )
         }
@@ -64,7 +72,7 @@ class App : Application() {
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
-                    showHome()
+                    go("/")
                 }
             )
         }
@@ -72,7 +80,7 @@ class App : Application() {
         fun showDoctor() {
             r.removeAll()
             r.doctorScreen(
-                onLogout = { showHome() }
+                onLogout = { go("/") }
             )
         }
 
@@ -84,23 +92,9 @@ class App : Application() {
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
-                    showHome()
+                    go("/")
                 },
-                onBack = { showDoctor() }
-            )
-        }
-
-        fun showDoctorPatient(patientId: Long) {
-            r.removeAll()
-            r.doctorPatientScreen(
-                patientUserId = patientId,
-                patientRecordId = null,
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    showHome()
-                },
-                onBack = { showDoctor() }
+                onBack = { go("/doctor") }
             )
         }
 
@@ -110,14 +104,14 @@ class App : Application() {
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
-                    showHome()
+                    go("/")
                 }
             )
         }
 
         fun showRecordEditor(id: String) {
             r.removeAll()
-            r.recordEditorScreen(recordId = id) { showMyRecords() }
+            r.recordEditorScreen(recordId = id) { go("/patient/records") }
         }
 
         fun showResetPassword() {
@@ -137,7 +131,7 @@ class App : Application() {
 
         fun showStub(message: String) {
             r.removeAll()
-            r.stubScreen(message = message) { showHome() }
+            r.stubScreen(message = message) { go("/") }
         }
 
         fun showConfirmEmail(email: String) {
@@ -148,62 +142,137 @@ class App : Application() {
         fun showPatientProfileEdit() {
             r.removeAll()
             r.patientProfileEditScreen(
-                onBack = { showPatient() }
+                onBack = { go("/patient") }
             )
         }
 
         fun showDoctorProfileEdit() {
             r.removeAll()
             r.doctorProfileEditScreen(
-                onBack = { showDoctor() }
+                onBack = { go("/doctor") }
             )
         }
 
-        showAuth = { tab ->
+        fun showAuth(tab: AuthTab) {
             r.removeAll()
             r.authScreen(
                 initial = tab,
                 onLogin = { data ->
-                    Session.isLoggedIn = true
+                    Session.setSession(
+                        token = data.token,
+                        userId = data.userId,
+                        email = data.email,
+                        accountType = data.accountType,
+                        firstName = data.firstName,
+                        lastName = data.lastName
+                    )
+
+                    val needsProfile = Session.requiresProfileCompletion()
                     when (data.accountType.uppercase()) {
-                        "DOCTOR" -> showDoctor()
-                        else -> showPatient()
+                        "DOCTOR" -> if (needsProfile) go("/doctor/profile") else go("/doctor")
+                        else -> if (needsProfile) go("/patient/profile") else go("/patient")
                     }
                 },
-                onRegister = { Session.isLoggedIn = true
-                    showPatient() },
-                onGoHome = { showHome() }
+                onRegister = { data ->
+                    Session.setSession(
+                        token = data.token,
+                        userId = data.userId,
+                        email = data.email,
+                        accountType = data.accountType,
+                        firstName = data.firstName,
+                        lastName = data.lastName
+                    )
+
+                    when (data.accountType.uppercase()) {
+                        "DOCTOR" -> go("/doctor/profile")
+                        else -> go("/patient/profile")
+                    }
+                },
+                onGoHome = { go("/") }
             )
         }
 
-        Navigator.showHome = ::showHome
-        Navigator.showFind = ::showFind
-        Navigator.showLogin = {
-            showAuth(AuthTab.LOGIN) }
-        Navigator.showPatient = ::showPatient
-        Navigator.showResetPassword = ::showResetPassword
-        Navigator.showStub = ::showStub
-        Navigator.showRegister = {
-            showAuth(AuthTab.REGISTER)
-        }
-        Navigator.showConfirmEmail = ::showConfirmEmail
-        Navigator.showMyRecords = ::showMyRecords
-        Navigator.showRecordEditor = ::showRecordEditor
-        Navigator.showDoctor = ::showDoctor
-        Navigator.showDoctorPatient = ::showDoctorPatient
-        Navigator.showAppointments = ::showAppointments
+        renderRoute = { path: String, params: URLSearchParams ->
+            if (path != "/auth/password/reset") {
+                Session.ensureTokenFromLink(params.get("token"))
+            }
 
-        Navigator.showPatientProfileEdit = ::showPatientProfileEdit
-        Navigator.showDoctorProfileEdit = ::showDoctorProfileEdit
-        Navigator.showPasswordResetSuccess = ::showPasswordResetSuccess
-
-        val currentPath = window.location.pathname
-        if (currentPath == "/auth/password/reset") {
-            val params = URLSearchParams(window.location.search)
-            val token = params.get("token")
-            showPasswordResetForm(token)
-        } else {
-            showDoctor()
+            when {
+                path == "/" -> showHome()
+                path == "/find" -> showFind()
+                path == "/auth/login" -> showAuth(AuthTab.LOGIN)
+                path == "/auth/register" -> showAuth(AuthTab.REGISTER)
+                path == "/auth/password/forgot" -> showResetPassword()
+                path == "/auth/password/reset" -> showPasswordResetForm(params.get("token"))
+                path == "/auth/password/reset/success" -> showPasswordResetSuccess()
+                path == "/auth/confirm" -> showConfirmEmail(params.get("email") ?: Session.email ?: "")
+                path == "/patient" -> showPatient()
+                path == "/patient/appointments" -> showAppointments()
+                path == "/patient/records" -> showMyRecords()
+                path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
+                path == "/patient/profile" -> showPatientProfileEdit()
+                path == "/doctor" -> showDoctor()
+                path.startsWith("/doctor/patient/") -> {
+                    val patientId = path.removePrefix("/doctor/patient/").toLongOrNull()
+                    val recordId = params.get("recordId")?.toLongOrNull()
+                    if (patientId != null) {
+                        showDoctorPatient(patientId, recordId)
+                    } else {
+                        showDoctor()
+                    }
+                }
+                path == "/doctor/profile" -> showDoctorProfileEdit()
+                path == "/stub" -> showStub(params.get("message") ?: "Раздел в разработке")
+                path == "/auth" -> showAuth(AuthTab.LOGIN)
+                else -> {
+                    window.history.replaceState(null, "", "/")
+                    showHome()
+                }
+            }
         }
+
+        navigate = { path: String, params: URLSearchParams ->
+            val merged = URLSearchParams(params)
+            (Session.token ?: ApiConfig.getToken())?.let { merged.set("token", it) }
+
+            val queryString = merged.toString()
+            val url = if (queryString.isNotEmpty()) "$path?$queryString" else path
+
+            val currentQuery = window.location.search.removePrefix("?")
+            if (window.location.pathname != path || currentQuery != queryString) {
+                window.history.pushState(null, "", url)
+            }
+
+            renderRoute(path, merged)
+        }
+
+        Navigator.showHome = { go("/") }
+        Navigator.showFind = { go("/find") }
+        Navigator.showLogin = { go("/auth/login") }
+        Navigator.showPatient = { go("/patient") }
+        Navigator.showResetPassword = { go("/auth/password/forgot") }
+        Navigator.showStub = { message -> go("/stub", URLSearchParams().apply { set("message", message) }) }
+        Navigator.showRegister = { go("/auth/register") }
+        Navigator.showConfirmEmail = { email ->
+            go("/auth/confirm", URLSearchParams().apply { set("email", email) })
+        }
+        Navigator.showMyRecords = { go("/patient/records") }
+        Navigator.showRecordEditor = { id -> go("/patient/records/$id") }
+        Navigator.showDoctor = { go("/doctor") }
+        Navigator.showDoctorPatient = { patientId, patientRecordId ->
+            val params = URLSearchParams()
+            patientRecordId?.let { params.set("recordId", it.toString()) }
+            go("/doctor/patient/$patientId", params)
+        }
+        Navigator.showAppointments = { go("/patient/appointments") }
+        Navigator.showPatientProfileEdit = { go("/patient/profile") }
+        Navigator.showDoctorProfileEdit = { go("/doctor/profile") }
+        Navigator.showPasswordResetSuccess = { go("/auth/password/reset/success") }
+
+        window.onpopstate = {
+            renderRoute(window.location.pathname.ifBlank { "/" }, URLSearchParams(window.location.search))
+        }
+
+        renderRoute(window.location.pathname.ifBlank { "/" }, initialParams)
     }
 }

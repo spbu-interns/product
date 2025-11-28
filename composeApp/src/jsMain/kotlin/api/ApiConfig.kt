@@ -38,6 +38,7 @@ object ApiConfig {
     }
 
     const val TOKEN_STORAGE_KEY = "auth_token"
+    const val SESSION_STORAGE_KEY = "session_state"
 
     val httpClient = HttpClient(Js) {
         install(ContentNegotiation) {
@@ -72,6 +73,15 @@ object ApiConfig {
 
     fun clearToken() =
         localStorage.removeItem(TOKEN_STORAGE_KEY)
+
+    fun getSessionData(): String? =
+        localStorage.getItem(SESSION_STORAGE_KEY)
+
+    fun setSessionData(data: String) =
+        localStorage.setItem(SESSION_STORAGE_KEY, data)
+
+    fun clearSessionData() =
+        localStorage.removeItem(SESSION_STORAGE_KEY)
 
     fun isAuthenticated(): Boolean =
         getToken() != null
