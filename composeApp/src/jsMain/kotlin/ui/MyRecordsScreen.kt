@@ -135,14 +135,13 @@ fun Container.myRecordsScreen(
             val title = titleInput.value?.trim().orEmpty()
             val body = bodyInput.value?.trim().orEmpty()
             if (title.isBlank()) {
-                formError.content = "Введите заголовок"
+                Toast.warning("Введите заголовок")
                 return@onClick
             }
             if (body.isBlank()) {
-                formError.content = "Опишите вашу жалобу"
+                Toast.warning("Введите жалобу")
                 return@onClick
             }
-            formError.content = ""
             addButton.disabled = true
             uiScope.launch {
                 val result = apiClient.createComplaint(patientId, ComplaintCreateRequest(title, body))
@@ -158,8 +157,7 @@ fun Container.myRecordsScreen(
                     },
                     onFailure = { error ->
                         addButton.disabled = false
-                        formError.content = error.message ?: "Не удалось добавить жалобу"
-                        Toast.danger(formError.content ?: "Ошибка")
+                        Toast.danger("Не удалось добавить жалобу")
                     }
                 )
             }

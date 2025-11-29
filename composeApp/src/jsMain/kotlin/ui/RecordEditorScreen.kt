@@ -129,7 +129,10 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     add(editor)
                 }
 
-                val errorLabel = span("").apply { addCssClass("text-danger") }
+                val errorLabel = span("").apply {
+                    addCssClass("text-danger")
+                    display = Display.NONE
+                }
                 add(errorLabel)
 
                 editor.onEvent {
@@ -183,11 +186,11 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     val body = getEditorHtml(editor)
 
                     if (title.isBlank()) {
-                        errorLabel.content = "Введите заголовок"
+                        Toast.danger("Введите заголовок")
                         return@onClick
                     }
                     if (body.isBlank()) {
-                        errorLabel.content = "Заполните описание"
+                        Toast.danger("Введите описание")
                         return@onClick
                     }
                     errorLabel.content = ""

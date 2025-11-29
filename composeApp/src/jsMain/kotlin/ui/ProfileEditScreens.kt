@@ -77,9 +77,10 @@ private fun Container.profileEditScreenCommon(
 
     fun formatPhone(raw: String?): String {
         val digits = raw.orEmpty().filter { it.isDigit() }
+        if (digits.isEmpty()) return ""
+
         val national = when {
-            digits.startsWith("7") && digits.length > 1 -> digits.drop(1)
-            digits.startsWith("8") -> digits.drop(1)
+            digits.startsWith("7") || digits.startsWith("8") -> digits.drop(1)
             else -> digits
         }.take(10)
 
@@ -89,8 +90,9 @@ private fun Container.profileEditScreenCommon(
         val part4 = national.drop(8).take(2)
 
         return buildString {
-            if (national.isNotEmpty()) append("+7 ") else return@buildString
-            append("(")
+            append("+7")
+            if (national.isEmpty()) return@buildString
+            append(" (")
             append(part1)
             if (part1.length == 3) append(") ") else return@buildString
             append(part2)
