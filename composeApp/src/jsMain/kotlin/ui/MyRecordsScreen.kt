@@ -113,8 +113,6 @@ fun Container.myRecordsScreen(
             placeholder = "Опишите проблему"
             addCssClass("kv-input")
             addCssClass("complaint-body")
-            height = 120.px
-            setAttribute("style", "resize: vertical;")
         }
 
         val addButton = button("Добавить", className = "btn-primary")
