@@ -187,7 +187,17 @@ private val recordJson = Json { ignoreUnknownKeys = true }
 private fun formatRecordDate(isoString: String?): String {
     if (isoString.isNullOrBlank()) return "—"
     return runCatching {
-        val date = Date(isoString)
+        val timePartStart = isoString.indexOf('T')
+        val hasOffset = timePartStart != -1 &&
+                isoString.indexOfAny(charArrayOf('+', '-'), startIndex = timePartStart) != -1
+
+        val normalized = when {
+            isoString.endsWith("Z") || isoString.endsWith("z") -> isoString
+            hasOffset -> isoString
+            else -> isoString + "Z"
+        }
+
+        val date = Date(normalized)
         val time = date.getTime()
         if (time.isNaN()) return isoString
         val day = date.getDate().toString().padStart(2, '0')
@@ -440,15 +450,6 @@ fun Container.doctorPatientScreen(
                         recordsError = null
                         loadRecords(force = true)
                     }
-                }
-            }
-
-            records.isEmpty() -> {
-                recordsContainer.div(className = "doctor-record-empty card") {
-                    p(
-                        "Медицинских записей пока нет. Добавьте первую запись для отслеживания истории пациента.",
-                        className = "doctor-record-empty-text"
-                    )
                 }
             }
 
