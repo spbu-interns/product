@@ -336,6 +336,20 @@
 
 .doctor-record-actions { width: 100%; }
 
+.btn-danger-sm {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #ef4444;
+    background: #fff;
+    color: #b91c1c;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-danger-sm:hover {
+    background: #fee2e2;
+}
+
 .doctor-record-empty { padding: 28px; border-radius: 20px; background: #f8fafc; border: 1px dashed #cbd5f5; }
 .doctor-record-empty-text { margin: 0; text-align: center; color: #475569; }
 

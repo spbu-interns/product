@@ -9,6 +9,7 @@ import io.kvision.core.onClickLaunch
 import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.select.select
+import io.kvision.form.text.Text
 import io.kvision.form.text.text
 import io.kvision.html.button
 import io.kvision.html.div
@@ -26,6 +27,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.interns.project.dto.ProfileUpdateDto
 import org.w3c.dom.HTMLInputElement
+import state.DoctorState
 import ui.components.patientSidebar
 import kotlin.js.Date
 import kotlin.text.Regex
@@ -54,6 +56,7 @@ private fun Container.profileEditScreenCommon(
     onBack: () -> Unit
 ) {
     val uiScope = MainScope()
+    val isDoctorMode = mode == HeaderMode.DOCTOR
     headerBar(
         mode = mode,
         active = NavTab.NONE,
@@ -376,6 +379,23 @@ private fun Container.profileEditScreenCommon(
                             value = normalizeGender(Session.gender)
                         }
 
+                        val doctorProfessionField = if (isDoctorMode) {
+                            select(
+                                options = listOf(
+                                    "Кардиолог" to "Кардиолог",
+                                    "Педиатр" to "Педиатр",
+                                    "Невролог" to "Невролог",
+                                    "Ортопед" to "Ортопед",
+                                    "Офтальмолог" to "Офтальмолог",
+                                    "Терапевт" to "Терапевт",
+                                ),
+                                label = "Специальность"
+                            ) {
+                                placeholder = "Выберите специальность"
+                                value = "" // по умолчанию ничего не выбрано
+                            }
+                        } else null
+
                         uiScope.launch {
                             val userId = Session.userId ?: return@launch
                             patientApi.getFullUserProfile(userId).onSuccess { profile ->
@@ -391,6 +411,7 @@ private fun Container.profileEditScreenCommon(
                                 genderField.value = normalizeGender(Session.gender ?: profile?.user?.gender)
                                 birthDateField.value = humanizeIso(Session.dateOfBirth ?: profile?.user?.dateOfBirth)
                                 avatarField.value = Session.avatar ?: profile?.user?.avatar ?: ""
+                                doctorProfessionField?.value = profile?.doctor?.profession ?: doctorProfessionField.value
                             }.onFailure {
                                 Toast.warning(it.message ?: "Не удалось загрузить профиль")
                             }
@@ -435,6 +456,11 @@ private fun Container.profileEditScreenCommon(
                                     errorText.content = "Заполните отчество или отметьте, что его нет"
                                     return@onClickLaunch
                                 }
+
+                                isDoctorMode && doctorProfessionField?.value?.trim().isNullOrBlank() == true -> {
+                                    errorText.content = "Укажите специальность"
+                                    return@onClickLaunch
+                                }
                             }
 
                             errorText.content = ""
@@ -442,6 +468,7 @@ private fun Container.profileEditScreenCommon(
                                 errorText.content = "Не удалось определить пользователя"
                                 return@onClickLaunch
                             }
+                            val professionValue = doctorProfessionField?.value?.trim()
 
                             val dto = ProfileUpdateDto(
                                 firstName = first,
@@ -460,7 +487,7 @@ private fun Container.profileEditScreenCommon(
                                 snils = null,
                                 passport = null,
                                 dmsOms = null,
-                                profession = null,
+                                profession = if (isDoctorMode) professionValue else null,
                                 info = null,
                                 experience = null,
                                 price = null
@@ -471,6 +498,9 @@ private fun Container.profileEditScreenCommon(
                             result.onSuccess { updated ->
                                 Session.hasNoPatronymic = noPatronymic
                                 Session.updateFrom(updated)
+                                if (isDoctorMode && Session.userId != null) {
+                                    Session.userId?.let { DoctorState.refresh(it) }
+                                }
                                 onBack()
                             }
 

@@ -95,6 +95,28 @@
     padding-bottom: 4px;
 }
 
+.form.column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form.column .form.field {
+    width: 100%;
+    min-width: 0;
+}
+
+.form.column textarea {
+    width: 100%;
+    min-height: 120px;
+    box-sizing: border-box;
+}
+
+.form.column .form.actions {
+    align-items: flex-start;
+    padding-bottom: 0;
+}
+
 .form.actions .btn {
     white-space: nowrap;
 }

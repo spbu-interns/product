@@ -112,6 +112,7 @@ fun Container.myRecordsScreen(
         val bodyInput = textArea(label = "Описание жалобы") {
             placeholder = "Опишите проблему"
             addCssClass("kv-input")
+            addCssClass("complaint-body")
             height = 120.px
             setAttribute("style", "resize: vertical;")
         }

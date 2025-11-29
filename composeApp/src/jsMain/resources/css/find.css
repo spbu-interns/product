@@ -57,10 +57,13 @@
     padding: 18px;
     border-radius: 16px;
     box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .find-filter-title {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 16px;
 }
 
@@ -70,6 +73,10 @@
     border: none;
     padding: 10px 12px;
     font-size: 14px;
+}
+
+.find-filter-card .find-select {
+    margin-top: 0;
 }
 
 .find-checkbox {
