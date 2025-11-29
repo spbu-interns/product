@@ -194,15 +194,17 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                     h3("Фильтры", className = "find-sidebar-title")
 
                     div(className = "find-filter-card") {
-                        h3("Сортировка", className = "find-filter-title")
-                        val sortSelect = select(options = SortOption.entries.map { it.name to it.label }) {
-                            value = sortOption.name
-                            addCssClass("find-select")
-                        }
-                        sortSelect.onEvent {
-                            change = {
-                                sortOption = SortOption.from(sortSelect.value)
-                                renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+                        div(className = "find-filter-header") {
+                            h3("Сортировка", className = "find-filter-title")
+                            val sortSelect = select(options = SortOption.entries.map { it.name to it.label }) {
+                                value = sortOption.name
+                                addCssClass("find-select")
+                            }
+                            sortSelect.onEvent {
+                                change = {
+                                    sortOption = SortOption.from(sortSelect.value)
+                                    renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+                                }
                             }
                         }
                     }
@@ -239,28 +241,30 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
 
                     // ---------- City ----------
                     div(className = "find-filter-card") {
-                        h3("Локация", className = "find-filter-title")
-                        val locationSelect = select(
-                            options = listOf("" to "Все города") + cities.map { it to it }
-                        ) {
-                            addCssClass("find-select")
-                            value = ""
-                        }
+                        div(className = "find-filter-header") {
+                            h3("Локация", className = "find-filter-title")
+                            val locationSelect = select(
+                                options = listOf("" to "Все города") + cities.map { it to it }
+                            ) {
+                                addCssClass("find-select")
+                                value = ""
+                            }
 
-                        locationSelect.onEvent {
-                            change = {
-                                selectedLocation = locationSelect.value?.takeIf { it.isNotBlank() }
+                            locationSelect.onEvent {
+                                change = {
+                                    selectedLocation = locationSelect.value?.takeIf { it.isNotBlank() }
 
-                                MainScope().launch {
-                                    val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
-                                    println(result)
-                                    result.onSuccess {
-                                        loadedDoctors = it
-                                        enrichProfiles(loadedDoctors)
+                                    MainScope().launch {
+                                        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+                                        println(result)
+                                        result.onSuccess {
+                                            loadedDoctors = it
+                                            enrichProfiles(loadedDoctors)
+                                        }
+                                            .onFailure { println("Ошибка: ${it.message}") }
+
+                                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
                                     }
-                                        .onFailure { println("Ошибка: ${it.message}") }
-
-                                    renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
                                 }
                             }
                         }

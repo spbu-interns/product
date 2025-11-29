@@ -59,32 +59,38 @@
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
-    gap: 10px;
 }
 
 .find-filter-title {
-    margin: 0;
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .find-select {
     width: 100%;
     border-radius: 10px;
     border: none;
-    padding: 10px 12px;
-    font-size: 14px;
+    /*padding: 10px 12px;*/
+    font-size: 0;
 }
 
 .find-filter-card .find-select {
     margin-top: 0;
 }
 
+.find-filter-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+}
+
 .find-checkbox {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
-    font-size: 14px;
+    margin-top: 8px;
+    font-size: 15px;
 }
 
 .find-results {
@@ -202,6 +208,6 @@
     }
 
     .find-filter-card {
-        flex: 1 1 260px;
+        flex: 1 1 auto;
     }
 }
