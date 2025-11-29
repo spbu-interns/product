@@ -167,6 +167,9 @@ class PatientApiClient {
 
     suspend fun getPatientProfile(userId: Long): Result<UserResponseDto> = runCatching {
         val response = client.get(ApiConfig.Endpoints.userProfile(userId))
+        if (response.status == HttpStatusCode.NotFound) {
+            throw IllegalStateException("Пациент не найден")
+        }
         parseOne(response, emptyMessage = "Empty patient profile", failureMessage = "Failed to load patient profile")
     }
 

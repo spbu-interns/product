@@ -3,7 +3,6 @@ package ui
 import api.ApiConfig
 import api.PatientApiClient
 import io.kvision.core.Container
-import io.kvision.core.onClick
 import io.kvision.form.text.text
 import io.kvision.html.button
 import io.kvision.html.div
@@ -93,12 +92,18 @@ fun Container.findPatientScreen(onLogout: () -> Unit = { Navigator.showHome() })
             uiScope.launch {
                 val idValue = query.toLongOrNull()
                 val result = if (idValue != null) {
-                    api.getPatientProfile(idValue).map { listOf(it) }
+                    api.getPatientProfile(idValue).mapCatching { user ->
+                        val clientProfile = api.getClientProfile(user.id).getOrThrow()
+                        if (user.role != "CLIENT" || clientProfile == null) {
+                            throw IllegalStateException("Пользователь не является пациентом")
+                        }
+                        listOf(user)
+                    }
                 } else {
                     api.listPatients().map { list ->
                         list.filter {
                             val fullName = listOfNotNull(it.surname, it.name, it.patronymic).joinToString(" ").lowercase()
-                            fullName.contains(query.lowercase()) || (it.id?.toString() == query)
+                            fullName.contains(query.lowercase()) || (it.id.toString() == query)
                         }
                     }
                 }
