@@ -314,12 +314,7 @@ fun Container.doctorPatientScreen(
             }
             return
         }
-        val recordId = currentPatientRecordId
-        if (recordId == null) {
-            recordsError = "Запись пациента не найдена"
-            renderRecordItems()
-            return
-        }
+        val recordId = profile?.userId ?: patientUserId
 
         isLoadingRecords = true
         recordsError = null
@@ -637,16 +632,7 @@ fun Container.doctorPatientScreen(
             )
 
             uiScope.launch {
-                val recordId = currentPatientRecordId ?: apiClient.getClientProfile(patientUserId)
-                    .getOrNull()
-                    ?.id
-                    ?.also { currentPatientRecordId = it }
-
-                if (recordId == null) {
-                    addButton.disabled = false
-                    Toast.danger("Запись пациента не найдена")
-                    return@launch
-                }
+                val recordId = profile?.userId ?: patientUserId
 
                 val result = apiClient.createNote(
                     recordId,
