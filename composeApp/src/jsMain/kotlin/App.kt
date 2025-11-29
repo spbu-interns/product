@@ -28,6 +28,7 @@ import ui.patientProfileEditScreen
 import ui.doctorProfileEditScreen
 
 class App : Application() {
+
     override fun start(state: Map<String, Any>) {
         I18n.language = "en"
         val r = root("kvapp")
