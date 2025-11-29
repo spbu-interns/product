@@ -76,6 +76,29 @@
 .card.block.appointment-block { margin-bottom: 32px; }
 .block.title { margin: 0 0 12px; }
 
+.form.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.form.field {
+    flex: 1 1 260px;
+    min-width: 240px;
+}
+
+.form.actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding-bottom: 4px;
+}
+
+.form.actions .btn {
+    white-space: nowrap;
+}
+
 .appointment.card {
   background: #eef5ff; border:1px solid #dbeafe; border-radius: 14px; padding: 18px 18px 18px 28px;
 }

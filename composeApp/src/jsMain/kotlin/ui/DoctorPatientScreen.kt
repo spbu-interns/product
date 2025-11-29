@@ -586,7 +586,6 @@ fun Container.doctorPatientScreen(
             addCssClass("kv-input")
             height = 120.px
         }
-        val errorLabel = span("").apply { addCssClass("text-danger") }
         val addButton = button("Добавить запись", className = "btn-primary")
 
         container.div(className = "card block doctor-record-editor") {
@@ -596,7 +595,6 @@ fun Container.doctorPatientScreen(
                 add(categoryInput)
                 add(statusSelect)
                 add(notesInput)
-                add(errorLabel)
                 add(addButton)
             }
         }
@@ -609,30 +607,23 @@ fun Container.doctorPatientScreen(
 
             when {
                 title.isBlank() -> {
-                    errorLabel.content = "Введите название записи"
+                    Toast.danger("Введите название записи")
                     return@onClick
                 }
                 notes.isBlank() -> {
-                    errorLabel.content = "Добавьте описание записи"
+                    Toast.danger("Добавьте описание записи")
                     return@onClick
                 }
                 Session.userId == null -> {
-                    errorLabel.content = "Необходима авторизация"
+                    Toast.danger("Необходима авторизация")
                     return@onClick
                 }
                 profile == null -> {
-                    errorLabel.content = "Профиль пациента не загружен"
+                    Toast.danger("Профиль пациента не загружен")
                     return@onClick
                 }
             }
 
-            val recordId = currentPatientRecordId
-            if (recordId == null) {
-                errorLabel.content = "Запись пациента не найдена"
-                return@onClick
-            }
-
-            errorLabel.content = ""
             addButton.disabled = true
 
             val status = runCatching { DoctorRecordStatus.valueOf(statusValue) }
@@ -646,6 +637,17 @@ fun Container.doctorPatientScreen(
             )
 
             uiScope.launch {
+                val recordId = currentPatientRecordId ?: apiClient.getClientProfile(patientUserId)
+                    .getOrNull()
+                    ?.id
+                    ?.also { currentPatientRecordId = it }
+
+                if (recordId == null) {
+                    addButton.disabled = false
+                    Toast.danger("Запись пациента не найдена")
+                    return@launch
+                }
+
                 val result = apiClient.createNote(
                     recordId,
                     DoctorNoteCreateRequest(
@@ -668,8 +670,7 @@ fun Container.doctorPatientScreen(
                         Toast.success("Запись добавлена")
                     },
                     onFailure = { error ->
-                        errorLabel.content = error.message ?: "Не удалось добавить запись"
-                        Toast.danger(errorLabel.content ?: "Ошибка")
+                        Toast.danger(error.message ?: "Не удалось добавить запись")
                     }
                 )
 

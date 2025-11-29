@@ -90,6 +90,7 @@ class UserProfilePatch(BaseModel):
     # НОВЫЕ поля профиля
     name: Optional[str] = None
     surname: Optional[str] = None
+    patronymic: Optional[str] = None
     date_of_birth: Optional[date] = None
     avatar: Optional[str] = None
     gender: Optional[Gender] = None

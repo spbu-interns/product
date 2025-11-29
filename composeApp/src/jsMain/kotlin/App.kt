@@ -119,7 +119,7 @@ class App : Application() {
                     Session.clear()
                     go("/")
                 },
-                onBack = { go("/doctor") }
+                onBack = { go("/doctor/find") }
             )
         }
 

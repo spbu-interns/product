@@ -94,22 +94,25 @@ def list_users(s: Session, role: Optional[str]=None) -> List[Dict]:
 def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     sets = []
     params = {"id": user_id}
+    incoming = p.model_dump(exclude_unset=True)
 
     # поля, реально существующие в users
-    if p.phone_number is not None:
+    if "phone_number" in incoming:
         sets.append("phone_number = :phone_number"); params["phone_number"] = p.phone_number
-    if p.clinic_id is not None:
+    if "clinic_id" in incoming:
         sets.append("clinic_id = :clinic_id"); params["clinic_id"] = p.clinic_id
 
-    if p.name is not None:
+    if "name" in incoming:
         sets.append("name = :name"); params["name"] = p.name
-    if p.surname is not None:
+    if "surname" in incoming:
         sets.append("surname = :surname"); params["surname"] = p.surname
-    if p.date_of_birth is not None:
+    if "patronymic" in incoming:
+        sets.append("patronymic = :patronymic"); params["patronymic"] = p.patronymic
+    if "date_of_birth" in incoming:
         sets.append("date_of_birth = :dob"); params["dob"] = p.date_of_birth
-    if p.avatar is not None:
+    if "avatar" in incoming:
         sets.append("avatar = :avatar"); params["avatar"] = p.avatar
-    if p.gender is not None:
+    if "gender" in incoming:
         sets.append("gender = :gender"); params["gender"] = p.gender
 
     if not sets:

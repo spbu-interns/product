@@ -38,9 +38,11 @@ fun Container.findPatientScreen(onLogout: () -> Unit = { Navigator.showHome() })
                 span("ID: ${patient.id}", className = "record subtitle")
                 span(patient.email, className = "record subtitle")
                 button("Открыть профиль", className = "btn-secondary").onClick {
-                    patient.id.let {
+                    val userId = patient.id
+                    uiScope.launch {
+                        val clientId = api.getClientProfile(userId).getOrNull()?.id
                         uiScope.cancel()
-                        Navigator.showDoctorPatient(it, null)
+                        Navigator.showDoctorPatient(userId, clientId)
                     }
                 }
             }
@@ -67,13 +69,11 @@ fun Container.findPatientScreen(onLogout: () -> Unit = { Navigator.showHome() })
         }
 
         val searchButton = button("Поиск", className = "btn btn-primary")
-        val errorText = span("").apply { addCssClass("text-danger") }
 
         div(className = "card block") {
             div(className = "form row") {
                 div(className = "form field") { add(searchField) }
                 div(className = "form actions") {
-                    add(errorText)
                     add(searchButton)
                 }
             }
@@ -84,10 +84,9 @@ fun Container.findPatientScreen(onLogout: () -> Unit = { Navigator.showHome() })
         searchButton.onClick {
             val query = searchField.value?.trim().orEmpty()
             if (query.isBlank()) {
-                errorText.content = "Введите запрос"
+                Toast.danger("Введите ФИО или числовой ID")
                 return@onClick
             }
-            errorText.content = ""
             resultsContainer.removeAll()
             resultsContainer.div(className = "card block") { span("Поиск...") }
 

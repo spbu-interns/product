@@ -25,6 +25,7 @@ import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.interns.project.dto.ProfileUpdateDto
+import org.w3c.dom.HTMLInputElement
 import ui.components.patientSidebar
 import kotlin.js.Date
 import kotlin.text.Regex
@@ -197,11 +198,28 @@ private fun Container.profileEditScreenCommon(
                         val lastNameField = text(label = "Фамилия") {
                             value = Session.lastName ?: ""
                         }
+                        var patronymicDirty = false
                         val patronymicField = text(label = "Отчество") {
                             value = Session.patronymic ?: ""
+                            onEvent {
+                                input = { patronymicDirty = true }
+                            }
                         }
                         val noPatronymicCheck = checkBox(label = "Нет отчества") {
                             value = Session.patronymic.isNullOrBlank() && Session.hasNoPatronymic
+                        }.apply {
+                            fun syncState(checked: Boolean) {
+                                patronymicField.disabled = checked
+                                if (checked) patronymicField.value = ""
+                            }
+
+                            syncState(value)
+
+                            onClick {
+                                patronymicDirty = true
+                                val checked = value
+                                syncState(checked)
+                            }
                         }
 
                         fun normalizeBirthInput(raw: String?): String {
@@ -277,6 +295,7 @@ private fun Container.profileEditScreenCommon(
                         }
 
                         val phoneField = text(label = "Номер телефона") {
+                            val self = this
                             placeholder = "+7 (XXX) XXX-XX-XX"
                             value = formatPhone(Session.phoneNumber)
                             addCssClass("kv-input")
@@ -285,13 +304,53 @@ private fun Container.profileEditScreenCommon(
                                     val formatted = formatPhone(value)
                                     if (formatted != value) value = formatted
                                 }
-                                keydown = { event ->
+                                keydown = keydown@{ event ->
                                     val key = event.asDynamic().key?.toString()
                                     val allowedControl = event.asDynamic().ctrlKey == true || event.asDynamic().metaKey == true
                                     val isEditingKey = key in listOf("Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab")
                                     val isDigit = key?.singleOrNull()?.isDigit() == true
                                     val allowedSign = key in listOf("+", " ", "(", ")", "-")
 
+                                    if (key == "Backspace" || key == "Delete") {
+                                        val inputEl = self.getElement()?.unsafeCast<HTMLInputElement?>()
+                                        val current = self.value ?: ""
+                                        val cursor = (inputEl?.selectionStart ?: current.length)
+                                            .coerceIn(0, current.length)
+
+                                        val digitPositions = current.mapIndexedNotNull { index, ch ->
+                                            ch.takeIf { it.isDigit() }?.let { index }
+                                        }
+                                        val digits = current.filter { it.isDigit() }
+
+                                        val targetDigitIndex = when (key) {
+                                            "Backspace" -> digitPositions.indexOfLast { it < cursor }
+                                                .takeIf { it != -1 }
+                                                ?: digitPositions.lastIndex.takeIf { digitPositions.isNotEmpty() }
+
+                                            else -> digitPositions.indexOfFirst { it >= cursor }
+                                                .takeIf { it != -1 }
+                                                ?: digitPositions.firstOrNull()?.let { 0 }
+                                        }
+
+                                        if (targetDigitIndex != null) {
+                                            val newDigits = buildString {
+                                                digits.forEachIndexed { index, ch ->
+                                                    if (index != targetDigitIndex) append(ch)
+                                                }
+                                            }
+                                            val formatted = formatPhone(newDigits)
+                                            val caretPosition = formatPhone(newDigits.take(targetDigitIndex)).length
+
+                                            self.value = formatted
+                                            inputEl?.let { el ->
+                                                el.selectionStart = caretPosition
+                                                el.selectionEnd = caretPosition
+                                            }
+
+                                            event.preventDefault()
+                                            return@keydown
+                                        }
+                                    }
                                     if (key != null && !isDigit && !isEditingKey && !allowedSign && !allowedControl) {
                                         event.preventDefault()
                                     }
@@ -321,8 +380,11 @@ private fun Container.profileEditScreenCommon(
                                 profile?.user?.let { Session.updateFrom(it) }
                                 firstNameField.value = Session.firstName ?: profile?.user?.name ?: ""
                                 lastNameField.value = Session.lastName ?: profile?.user?.surname ?: ""
-                                patronymicField.value = Session.patronymic ?: profile?.user?.patronymic ?: ""
-                                noPatronymicCheck.value = Session.patronymic.isNullOrBlank() && Session.hasNoPatronymic
+                                if (!patronymicDirty) {
+                                    patronymicField.value = Session.patronymic ?: profile?.user?.patronymic ?: ""
+                                    noPatronymicCheck.value = Session.patronymic.isNullOrBlank() && Session.hasNoPatronymic
+                                    patronymicField.disabled = noPatronymicCheck.value
+                                }
                                 phoneField.value = formatPhone(Session.phoneNumber ?: profile?.user?.phoneNumber)
                                 genderField.value = normalizeGender(Session.gender ?: profile?.user?.gender)
                                 birthDateField.value = humanizeIso(Session.dateOfBirth ?: profile?.user?.dateOfBirth)

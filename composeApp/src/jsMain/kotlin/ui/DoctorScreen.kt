@@ -90,7 +90,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(userId, null)
+                Navigator.showDoctorPatient(userId, patientRecordId)
             }
         }
     }
@@ -112,7 +112,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(item.userId, null)
+                Navigator.showDoctorPatient(item.userId, item.patientRecordId)
             }
         }
     }
