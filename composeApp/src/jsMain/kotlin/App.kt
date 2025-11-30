@@ -15,6 +15,7 @@ import ui.doctorScreen
 import ui.passwordResetFormScreen
 import ui.passwordResetSuccessScreen
 import ui.patientAppointmentsScreen
+import ui.patientMedicalRecordsScreen
 import ui.findPatientScreen
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
@@ -84,6 +85,17 @@ class App : Application() {
         fun showPatient() {
             r.removeAll()
             r.patientScreen(
+                onLogout = {
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    go("/")
+                }
+            )
+        }
+
+        fun showPatientMedicalRecords() {
+            r.removeAll()
+            r.patientMedicalRecordsScreen(
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -246,6 +258,7 @@ class App : Application() {
                     path == "/auth/password/reset/success" -> showPasswordResetSuccess()
                     path == "/auth/confirm" -> showConfirmEmail(params.get("email") ?: Session.email ?: "")
                     path == "/patient" -> showPatient()
+                    path == "/patient/medical-records" -> showPatientMedicalRecords()
                     path == "/patient/appointments" -> showAppointments()
                     path == "/patient/records" -> showMyRecords()
                     path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
@@ -297,6 +310,7 @@ class App : Application() {
         Navigator.showConfirmEmail = { email ->
             go("/auth/confirm", URLSearchParams().apply { set("email", email) })
         }
+        Navigator.showPatientMedicalRecords = { go("/patient/medical-records") }
         Navigator.showMyRecords = { go("/patient/records") }
         Navigator.showRecordEditor = { id -> go("/patient/records/$id") }
         Navigator.showDoctor = { go("/doctor") }

@@ -7,6 +7,7 @@ import io.kvision.html.div
 import io.kvision.html.h3
 import io.kvision.html.li
 import io.kvision.html.nav
+import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.html.ul
 import io.kvision.toast.Toast
@@ -14,7 +15,6 @@ import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import ui.PatientSection
 import ui.Session
@@ -46,6 +46,9 @@ fun Container.patientSidebar(
     div(className = "sidebar card") {
         val avatar = div(className = "avatar circle") { +(initialsState.value) }
         val nameHeader = h3(displayName, className = "account name")
+        patientId?.let { id ->
+            p("ID: #$id", className = "account id")
+        }
 
         coroutineScope?.launch {
             displayNameState.collect { updated -> nameHeader.content = updated }

@@ -21,7 +21,7 @@ fun Container.patientAccountLayout(
                 active = active,
                 onOverview = { Navigator.showPatient() },
                 onAppointments = { Navigator.showAppointments() },
-                onMedicalRecords = { Navigator.showStub("Раздел медицинской карты находится в разработке") },
+                onMedicalRecords = { Navigator.showPatientMedicalRecords() },
                 onMyRecords = { Navigator.showMyRecords() },
                 onFindDoctor = { Navigator.showFind() },
                 onProfile = { Navigator.showPatientProfileEdit() },
