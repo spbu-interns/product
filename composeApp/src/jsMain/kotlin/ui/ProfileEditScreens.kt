@@ -4,11 +4,14 @@ import api.ApiConfig
 import api.ProfileApiClient
 import api.PatientApiClient
 import io.kvision.core.Container
+import io.kvision.core.Display
+import io.kvision.core.Position
 import io.kvision.core.onClick
 import io.kvision.core.onClickLaunch
 import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.select.select
+import io.kvision.form.text.Text
 import io.kvision.form.text.text
 import io.kvision.form.text.textArea
 import io.kvision.html.InputType
@@ -31,11 +34,15 @@ import org.interns.project.dto.ProfileUpdateDto
 import org.w3c.dom.HTMLInputElement
 import state.DoctorState
 import state.PatientState
+import ui.components.DateCalendar
+import ui.components.dateCalendar
 import ui.components.patientSidebar
+import io.kvision.utils.px
 import kotlin.js.Date
-import kotlin.text.Regex
 import kotlin.math.roundToInt
+import kotlin.text.Regex
 import utils.normalizeGender
+import io.kvision.utils.perc
 
 val profileApi = ProfileApiClient()
 
@@ -109,6 +116,32 @@ internal fun toIsoDate(value: String?): String? {
     } else {
         null
     }
+}
+
+internal fun parseBirthDate(value: String?): Date? {
+    val iso = toIsoDate(value) ?: return null
+    val parts = iso.split("-")
+    if (parts.size != 3) return null
+
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull()?.takeIf { it in 1..12 } ?: return null
+    val day = parts[2].toIntOrNull()?.takeIf { it in 1..31 } ?: return null
+
+    return Date(year, month - 1, day)
+}
+
+internal fun formatBirthDate(date: Date?): String = date?.let {
+    listOf(
+        it.getDate().toString().padStart(2, '0'),
+        (it.getMonth() + 1).toString().padStart(2, '0'),
+        it.getFullYear().toString()
+    ).joinToString(".")
+} ?: ""
+
+internal fun humanizeIso(value: String?): String {
+    if (value.isNullOrBlank()) return ""
+    val parts = value.split("-")
+    return if (parts.size == 3) "${parts[2]}.${parts[1]}.${parts[0]}" else ""
 }
 fun Container.patientProfileEditScreen(onBack: () -> Unit = { Navigator.showPatient() }) {
     profileEditScreenCommon(
@@ -331,21 +364,53 @@ private fun Container.profileEditScreenCommon(
                             }
                         }
 
-                        fun humanizeIso(value: String?): String {
-                            if (value.isNullOrBlank()) return ""
-                            val parts = value.split("-")
-                            return if (parts.size == 3) "${parts[2]}.${parts[1]}.${parts[0]}" else ""
-                        }
+                        val today = Date()
+                        val birthMaxDate = Date(today.getFullYear() - 16, today.getMonth(), today.getDate())
+                        val birthMinDate = Date(today.getFullYear() - 150, today.getMonth(), today.getDate())
+                        var birthCalendar: DateCalendar? = null
 
-                        val birthDateField = text(label = "Дата рождения") {
+// поле на всю ширину
+                        val birthDateField = Text(label = "Дата рождения").apply {
                             placeholder = "ДД.ММ.ГГГГ"
                             value = humanizeIso(Session.dateOfBirth)
                             addCssClass("kv-input")
-                            onEvent {
-                                input = {
-                                    val next = normalizeBirthInput(value)
-                                    if (value != next) value = next
+                            width = 100.perc
+                        }
+
+// обёртка — relative, чтобы календарь встал попапом под полем
+                        div(className = "birthdate-wrapper") {
+                            display = Display.BLOCK
+                            position = Position.RELATIVE
+                            width = 100.perc
+
+                            add(birthDateField)
+
+                            birthCalendar = dateCalendar(
+                                initialDate = parseBirthDate(birthDateField.value),
+                                minDate = birthMinDate,
+                                maxDate = birthMaxDate
+                            ) { date ->
+                                val formatted = formatBirthDate(date)
+                                if (birthDateField.value != formatted) {
+                                    birthDateField.value = formatted
                                 }
+                                birthCalendar?.visible = false
+                            }.apply {
+                                visible = false
+                                position = Position.ABSOLUTE
+                                top = 80.px
+                                left = 0.px
+                            }
+                        }
+
+                        birthDateField.onEvent {
+                            input = {
+                                val next = normalizeBirthInput(birthDateField.value)
+                                if (birthDateField.value != next) birthDateField.value = next
+                                birthCalendar?.setSelectedDate(parseBirthDate(next))
+                            }
+                            click = {
+                                birthCalendar?.visible = !birthCalendar.visible
                             }
                         }
 
@@ -630,6 +695,7 @@ private fun Container.profileEditScreenCommon(
                                 phoneField.value = formatPhone(Session.phoneNumber ?: profile?.user?.phoneNumber)
                                 genderField.value = normalizeGender(Session.gender ?: profile?.user?.gender)
                                 birthDateField.value = humanizeIso(Session.dateOfBirth ?: profile?.user?.dateOfBirth)
+                                birthCalendar?.setSelectedDate(parseBirthDate(birthDateField.value))
                                 avatarField.value = Session.avatar ?: profile?.user?.avatar ?: ""
                                 heightField?.value = profile?.client?.height?.takeIf { it > 0 }?.roundToInt()?.toString() ?: ""
                                 weightField?.value = profile?.client?.weight?.takeIf { it > 0 }?.roundToInt()?.toString() ?: ""
@@ -643,7 +709,7 @@ private fun Container.profileEditScreenCommon(
                                     emergencyPhoneField?.value = formatPhone(profile?.client?.emergencyContactNumber)
                                 }
                                 doctorProfessionField?.value = profile?.doctor?.profession ?: doctorProfessionField.value
-                                doctorInfoField?.value = profile?.doctor?.info ?: doctorInfoField?.value ?: ""
+                                doctorInfoField?.value = profile?.doctor?.info ?: doctorInfoField.value ?: ""
                                 doctorExperienceField?.value = profile?.doctor?.experience?.takeIf { it > 0 }?.toString() ?: ""
                                 doctorPriceField?.value = profile?.doctor?.price?.takeIf { it > 0 }
                                     ?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }
