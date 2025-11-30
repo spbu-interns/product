@@ -161,7 +161,7 @@ def get_user_profile(s: Session, user_id: int) -> Optional[Dict]:
 
 def find_auth_by_login_or_email(s: Session, v: str):
     r = s.execute(text("""
-        select id, role, password_hash, is_active
+        select id, role, password_hash, is_active, email_verified_at
         from users
         where login = :v or email = :v
         limit 1

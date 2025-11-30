@@ -54,7 +54,14 @@ class ApiUserRepo(
     fun close() = client.close()
 
     private fun String?.toInstantOrNull(): Instant? =
-        this?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        this?.let { raw ->
+            val text = raw.trim()
+            runCatching { Instant.parse(text) }
+                .getOrElse {
+                    // если нет часового пояса — пробуем добавить 'Z'
+                    runCatching { Instant.parse(text + "Z") }.getOrNull()
+                }
+        }
 
     private fun String?.toLocalDateOrNull(): LocalDate? =
         this?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -298,15 +305,22 @@ class ApiUserRepo(
             successCodes = setOf(HttpStatusCode.OK)
         ) { resp -> resp.body<ApiResponse>() }
 
+        // Если Python сказал, что логин неуспешен — просто возвращаем его ответ наверх
         if (!apiResp.success) return apiResp
 
+        // Здесь мы уже доверяем, что пароль ок и email подтверждён
         val user = if ('@' in loginOrEmail) {
             findByEmail(loginOrEmail)
         } else {
             findByLogin(loginOrEmail)
         }
 
-        val subject = (user!!.id).toString()
+        if (user == null) {
+            // на всякий случай — юзер куда-то делся между запросами
+            return ApiResponse(success = false, error = "User not found")
+        }
+
+        val subject = user.id.toString()
         val login   = user.login
         val role    = apiResp.role
         val email   = user.email

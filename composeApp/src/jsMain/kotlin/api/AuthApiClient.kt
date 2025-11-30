@@ -23,20 +23,71 @@ class AuthApiClient {
                 setBody(request)
             }
 
-            if (response.status.isSuccess()) {
-                val loginResponse = response.body<ApiResponse<LoginResponse>>()
-                if (loginResponse.success) {
-                    loginResponse.data?.let { loginData ->
-                        loginData.token?.let { ApiConfig.setToken(it) }
-                        Result.success(loginData)
-                    } ?: Result.failure(Exception("No login data returned"))
-                } else {
-                    Result.failure(Exception(loginResponse.error ?: "Login failed"))
+            val status = response.status
+            val apiResponse = runCatching { response.body<ApiResponse<LoginResponse>>() }.getOrNull()
+            val rawError = apiResponse?.error?.trim()
+
+            val isEmailNotVerified =
+                rawError.equals("EMAIL_NOT_VERIFIED", ignoreCase = true) ||
+                        (rawError?.contains("email not verified", ignoreCase = true) == true)
+
+            // 1. Явный случай: сервер сказал 403 + EMAIL_NOT_VERIFIED
+            if (status == HttpStatusCode.Forbidden && isEmailNotVerified) {
+                return@withContext Result.failure(
+                    UnverifiedEmailException(
+                        email = request.email,
+                        accountType = request.accountType.takeIf { it.isNotBlank() },
+                        message = rawError ?: "Email not verified"
+                    )
+                )
+            }
+
+            // 2. HTTP 2xx
+            if (status.isSuccess()) {
+                if (apiResponse == null) {
+                    return@withContext Result.failure(Exception("Empty response from login endpoint"))
                 }
+
+                // 2a. success=false в теле, но HTTP 200–299
+                if (!apiResponse.success) {
+                    if (isEmailNotVerified) {
+                        return@withContext Result.failure(
+                            UnverifiedEmailException(
+                                email = request.email,
+                                accountType = request.accountType.takeIf { it.isNotBlank() },
+                                message = rawError ?: "Email not verified"
+                            )
+                        )
+                    }
+
+                    val msg = rawError ?: "Login failed"
+                    return@withContext Result.failure(Exception(msg))
+                }
+
+                // 2b. всё хорошо
+                val data = apiResponse.data
+                    ?: return@withContext Result.failure(Exception("No login data returned"))
+
+                data.token?.let { ApiConfig.setToken(it) }
+                return@withContext Result.success(data)
             } else {
-                val errorBody = runCatching { response.body<ApiResponse<LoginResponse>>() }.getOrNull()
-                val message = errorBody?.error ?: "HTTP error: ${response.status.value}"
-                Result.failure(Exception(message))
+                // 3. Любые другие HTTP-ошибки
+                val message = rawError ?: "HTTP error: ${status.value}"
+
+                // ⬇️ Добавь эту проверку прямо сюда:
+                if ((status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden) &&
+                    (message.contains("не подтверж", ignoreCase = true) || message.contains("not verified", ignoreCase = true))
+                ) {
+                    return@withContext Result.failure(
+                        UnverifiedEmailException(
+                            email = request.email,
+                            accountType = request.accountType.takeIf { it.isNotBlank() },
+                            message = message
+                        )
+                    )
+                }
+
+                return@withContext Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -129,12 +180,21 @@ class AuthApiClient {
                         Result.success(it)
                     } ?: Result.failure(Exception("No verification data returned"))
                 } else {
-                    val msg = verifyResponse.error ?: "Не удалось подтвердить email."
-                    Result.failure(Exception(msg))
+                    val rawError = verifyResponse.error?.trim()
+                    val message = when {
+                        rawError.equals("EMAIL_NOT_VERIFIED", ignoreCase = true) ->
+                            // это как минимум человекочитаемо
+                            "Не удалось подтвердить email. Попробуйте войти ещё раз и запросить новый код."
+                        !rawError.isNullOrBlank() ->
+                            rawError
+                        else ->
+                            "Не удалось подтвердить email."
+                    }
+                    Result.failure(Exception(message))
                 }
             } else {
                 val api = runCatching { response.body<ApiResponse<VerifyEmailResponse>>() }.getOrNull()
-                val rawError = api?.error
+                val rawError = api?.error?.trim()
 
                 val message = when (response.status) {
                     HttpStatusCode.BadRequest ->
