@@ -40,6 +40,17 @@ class ProfileController(
                 dto.price != null
     }
 
+    private fun hasUserFields(dto: ProfileUpdateDto): Boolean {
+        return dto.firstName != null ||
+                dto.lastName != null ||
+                dto.patronymic != null ||
+                dto.phoneNumber != null ||
+                dto.clinicId != null ||
+                dto.dateOfBirth != null ||
+                dto.avatar != null ||
+                dto.gender != null
+    }
+
     fun registerRoutes(routing: Routing) {
 
         routing.route("/api/users") {
@@ -91,7 +102,18 @@ class ProfileController(
                         gender = normalizedGender
                     )
 
-                    val updatedUser = apiUserRepo.patchUserProfile(id, patch)
+                    val updatedUser = if (hasUserFields(dto)) {
+                        apiUserRepo.patchUserProfile(id, patch)
+                    } else {
+                        apiUserRepo.getUserProfile(id) ?: return@patch call.respond(
+                            HttpStatusCode.NotFound,
+                            ApiResponse<Unit>(
+                                success = false,
+                                error = "User not found"
+                            )
+                        )
+                    }
+
                     if (hasPatientFields(dto)) {
                         try {
                             val clientPatch = ClientPatch(
