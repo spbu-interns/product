@@ -71,7 +71,7 @@ class AuthController(
                     if (!apiResponse.success) {
                         val error = apiResponse.error ?: "Invalid email or password"
                         call.respond(
-                            HttpStatusCode.Unauthorized,
+                            HttpStatusCode.Companion.Unauthorized,
                             ApiResponse<LoginResponse>(
                                 success = false,
                                 error = error
@@ -79,11 +79,10 @@ class AuthController(
                         )
                         return@post
                     }
-
                     val user = apiUserRepo.findByEmail(apiRequest.email)
                     if (user == null) {
                         call.respond(
-                            HttpStatusCode.Unauthorized,
+                            HttpStatusCode.Companion.Unauthorized,
                             ApiResponse<LoginResponse>(
                                 success = false,
                                 error = "Invalid email or password"
@@ -91,20 +90,6 @@ class AuthController(
                         )
                         return@post
                     }
-
-                    // ⛔ БЛОКИРУЕМ ЛОГИН, ЕСЛИ EMAIL НЕ ПОДТВЕРЖДЁН
-                    if (user.emailVerifiedAt == null) {
-                        // специальный код ошибки для фронта
-                        call.respond(
-                            HttpStatusCode.Forbidden,
-                            ApiResponse<LoginResponse>(
-                                success = false,
-                                error = "EMAIL_NOT_VERIFIED"
-                            )
-                        )
-                        return@post
-                    }
-
                     val actualRole = (apiResponse.role ?: user.role).uppercase()
 
                     if (mappedRole.isNotBlank() && mappedRole != actualRole) {
@@ -116,7 +101,7 @@ class AuthController(
                             "Вход доступен только для роли \"$actualName\"."
                         }
                         call.respond(
-                            HttpStatusCode.Forbidden,
+                            HttpStatusCode.Companion.Forbidden,
                             ApiResponse<LoginResponse>(
                                 success = false,
                                 error = message
@@ -124,7 +109,6 @@ class AuthController(
                         )
                         return@post
                     }
-
                     val token = apiResponse.token?.takeIf { it.isNotBlank() }
                         ?: JwtService.issue(
                             subject = user.id.toString(),
@@ -145,7 +129,7 @@ class AuthController(
                     println("🔵 Response: ${loginResponse.userId}")
                     println("🔵 Response body: ${loginResponse.email}")
                     call.respond(
-                        HttpStatusCode.OK,
+                        HttpStatusCode.Companion.OK,
                         ApiResponse(
                             success = true,
                             data = loginResponse
@@ -154,7 +138,7 @@ class AuthController(
                 } catch (e: Exception) {
                     println("❌ Login failed: ${e.message}")
                     call.respond(
-                        HttpStatusCode.Unauthorized,
+                        HttpStatusCode.Companion.Unauthorized,
                         ApiResponse<LoginResponse>(
                             success = false,
                             error = "Invalid email or password"
@@ -169,7 +153,7 @@ class AuthController(
                 val internalRequest = UserCreateRequest(
                     email = apiRequest.email,
                     login = apiRequest.email,
-                    password = apiRequest.password, // Python-сервис сам хеширует
+                    password = apiRequest.password, // Отправляем пароль без хеширования, Python-сервис сам хеширует
                     role = mapRoleToDbRole(apiRequest.accountType),
                     username = apiRequest.email
                 )
@@ -215,7 +199,7 @@ class AuthController(
                     )
 
                     call.respond(
-                        HttpStatusCode.Created,
+                        HttpStatusCode.Companion.Created,
                         ApiResponse(success = true, data = response)
                     )
                 } catch (e: IllegalStateException) {
@@ -227,7 +211,7 @@ class AuthController(
                     val message = "Пользователь с таким email уже существует"
 
                     call.respond(
-                        HttpStatusCode.Conflict,
+                        HttpStatusCode.Companion.Conflict,
                         ApiResponse<RegisterResponse>(
                             success = false,
                             error = message
@@ -250,7 +234,7 @@ class AuthController(
                         .joinToString(": ")
 
                     call.respond(
-                        HttpStatusCode.BadRequest,
+                        HttpStatusCode.Companion.BadRequest,
                         ApiResponse<RegisterResponse>(
                             success = false,
                             error = message
@@ -265,7 +249,7 @@ class AuthController(
                         e
                     )
                     call.respond(
-                        HttpStatusCode.InternalServerError,
+                        HttpStatusCode.Companion.InternalServerError,
                         ApiResponse<RegisterResponse>(
                             success = false,
                             error = "Failed to register user: ${e.message}"
@@ -312,7 +296,7 @@ class AuthController(
 
                     if (ok) {
                         call.respond(
-                            HttpStatusCode.OK,
+                            HttpStatusCode.Companion.OK,
                             ApiResponse(
                                 success = true,
                                 data = VerifyEmailResponse(
@@ -323,7 +307,7 @@ class AuthController(
                         )
                     } else {
                         call.respond(
-                            HttpStatusCode.BadRequest,
+                            HttpStatusCode.Companion.BadRequest,
                             ApiResponse<VerifyEmailResponse>(
                                 success = false,
                                 error = "Invalid or expired token"
@@ -338,7 +322,7 @@ class AuthController(
                     val apiRequest = call.receive<RequestPasswordResetRequest>()
 
                     call.respond(
-                        HttpStatusCode.OK,
+                        HttpStatusCode.Companion.OK,
                         ApiResponse(
                             success = true,
                             data = RequestPasswordResetResponse(
@@ -355,7 +339,7 @@ class AuthController(
 
                     if (userId == null) {
                         call.respond(
-                            HttpStatusCode.BadRequest,
+                            HttpStatusCode.Companion.BadRequest,
                             ApiResponse<ResetPasswordResponse>(
                                 success = false,
                                 error = "Invalid or expired token"
@@ -365,7 +349,7 @@ class AuthController(
                         passwordResetService.completeReset(userId, apiRequest.newPassword)
 
                         call.respond(
-                            HttpStatusCode.OK,
+                            HttpStatusCode.Companion.OK,
                             ApiResponse(
                                 success = true,
                                 data = ResetPasswordResponse(
