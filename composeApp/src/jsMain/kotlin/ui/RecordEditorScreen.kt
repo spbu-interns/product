@@ -28,7 +28,7 @@ import org.interns.project.dto.ComplaintResponse
 
 fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(spacing = 12) {
     val uiScope = MainScope()
-    headerBar(mode = HeaderMode.PATIENT, active = NavTab.NONE, onLogout = {
+    headerBar(mode = HeaderMode.PATIENT, active = NavTab.PROFILE, onLogout = {
         ApiConfig.clearToken()
         Session.clear()
         Navigator.showHome()

@@ -213,7 +213,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
     headerBar(
         mode = HeaderMode.DOCTOR,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()

@@ -168,7 +168,7 @@ private fun Container.profileEditScreenCommon(
     val isDoctorMode = mode == HeaderMode.DOCTOR
     headerBar(
         mode = mode,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()

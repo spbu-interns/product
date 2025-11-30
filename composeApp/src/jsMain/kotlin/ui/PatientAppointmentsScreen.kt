@@ -28,7 +28,7 @@ private data class Appointment(
 fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     headerBar(
         mode = HeaderMode.PATIENT,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()

@@ -10,7 +10,7 @@ import io.kvision.html.span
 import io.kvision.html.nav
 
 enum class HeaderMode { PUBLIC, PATIENT, DOCTOR }
-enum class NavTab { NONE, HOME, FIND }
+enum class NavTab { NONE, HOME, FIND, PROFILE }
 
 fun Container.headerBar(
     mode: HeaderMode = HeaderMode.PUBLIC,
@@ -57,7 +57,8 @@ fun Container.headerBar(
 
                 HeaderMode.PATIENT -> {
                     div(className = "topnav_auth") {
-                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                        val profileClass = "btn-ghost-sm profile-nav" + if (active == NavTab.PROFILE) " is-active" else ""
+                        button("Личный кабинет", className = profileClass).onClick {
                             Navigator.showPatient()
                         }
                     }
@@ -65,7 +66,8 @@ fun Container.headerBar(
 
                 HeaderMode.DOCTOR -> {
                     div(className = "topnav_auth") {
-                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                        val profileClass = "btn-ghost-sm profile-nav" + if (active == NavTab.PROFILE) " is-active" else ""
+                        button("Личный кабинет", className = profileClass).onClick {
                             Navigator.showDoctor()
                         }
                     }

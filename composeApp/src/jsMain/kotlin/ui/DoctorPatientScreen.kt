@@ -294,7 +294,7 @@ fun Container.doctorPatientScreen(
 
     headerBar(
         mode = HeaderMode.DOCTOR,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()

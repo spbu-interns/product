@@ -25,7 +25,7 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
 
     headerBar(
         mode = HeaderMode.PATIENT,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()

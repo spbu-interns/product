@@ -115,7 +115,7 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
 
     headerBar(
         mode = HeaderMode.PATIENT,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()
