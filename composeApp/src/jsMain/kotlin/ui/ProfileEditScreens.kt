@@ -186,6 +186,8 @@ private fun Container.profileEditScreenCommon(
 
     val displayNameState = MutableStateFlow(buildDisplayName())
     val initialsState = MutableStateFlow(buildInitials(displayNameState.value))
+    val defaultSpecialty = "Специальность не указана"
+    val specializationState = MutableStateFlow(defaultSpecialty)
     val userIdText = Session.userId?.let { "ID: $it" } ?: ""
     val patientApi = PatientApiClient()
     val phoneRegex = Regex("""^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$""")
@@ -263,6 +265,7 @@ private fun Container.profileEditScreenCommon(
                     div(className = "sidebar card") {
                         val avatar = div(className = "avatar circle") { +initialsState.value }
                         val nameHeader = h3(displayNameState.value, className = "account name")
+                        val specializationText = p(specializationState.value, className = "account id")
                         if (userIdText.isNotBlank()) {
                             p(userIdText, className = "account id")
                         }
@@ -272,6 +275,9 @@ private fun Container.profileEditScreenCommon(
                         }
                         uiScope.launch {
                             initialsState.collect { avatar.content = it }
+                        }
+                        uiScope.launch {
+                            specializationState.collect { specializationText.content = it }
                         }
 
                         nav {
@@ -621,6 +627,13 @@ private fun Container.profileEditScreenCommon(
                             }
                         } else null
 
+                        doctorProfessionField?.onEvent {
+                            change = {
+                                specializationState.value = doctorProfessionField.value?.takeIf { it.isNotBlank() }
+                                    ?: defaultSpecialty
+                            }
+                        }
+
                         val doctorInfoField = if (isDoctorMode) {
                             textArea(label = "Описание") {
                                 placeholder = "Расскажите пациентам о себе"
@@ -714,6 +727,8 @@ private fun Container.profileEditScreenCommon(
                                 doctorPriceField?.value = profile?.doctor?.price?.takeIf { it > 0 }
                                     ?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }
                                     ?: ""
+                                specializationState.value = profile?.doctor?.profession?.takeIf { it.isNotBlank() }
+                                    ?: defaultSpecialty
                             }.onFailure {
                                 Toast.warning(it.message ?: "Не удалось загрузить профиль")
                             }

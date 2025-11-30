@@ -3,6 +3,7 @@
 import api.ApiConfig
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.html.Span
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
@@ -65,7 +66,11 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         .take(2)
         .joinToString("")
         .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "ВР" }
-    val doctorSubtitle = dashboard?.doctor?.profession ?: Session.email ?: ""
+    val defaultSpecialty = "Специальность не указана"
+    val doctorSubtitleSpan = Span(
+        dashboard?.doctor?.profession?.takeIf { it.isNotBlank() } ?: defaultSpecialty,
+        className = "account id"
+    )
 
     lateinit var patientsContainer: Container
     lateinit var overviewContainer: Container
@@ -222,9 +227,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             div(className = "sidebar card") {
                 div(className = "avatar circle") { +doctorInitials }
                 h4(doctorName, className = "account name")
-                if (doctorSubtitle.isNotBlank()) {
-                    span(doctorSubtitle, className = "account id")
-                }
+                add(doctorSubtitleSpan)
 
                 nav {
                     ul(className = "side menu") {
@@ -358,6 +361,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     state.onUpdate = {
+        doctorSubtitleSpan.content = state.dashboardData?.doctor?.profession?.takeIf { it.isNotBlank() }
+            ?: defaultSpecialty
         renderPatients()
         renderSchedule()
     }
