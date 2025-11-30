@@ -10,6 +10,7 @@ import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
+import io.kvision.toast.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -103,8 +104,8 @@ fun Container.authScreen(
                             val passOk = PASSWORD_REGEX.matches(password)
 
                             when {
-                                !emailOk -> error.content = "Некорректный email"
-                                !passOk -> error.content = "Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру"
+                                !emailOk -> Toast.danger("Некорректный email")
+                                !passOk -> Toast.danger("Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -133,7 +134,7 @@ fun Container.authScreen(
                                                 onLogin(data)
                                             },
                                             onFailure = { e ->
-                                                error.content = e.message ?: "Ошибка входа"
+                                                Toast.danger(localizeLoginError(e.message))
                                                 this@apply.disabled = false
                                             }
                                         )
@@ -169,9 +170,9 @@ fun Container.authScreen(
                             val same = password == password2
 
                             when {
-                                !emailOk -> error.content = "Некорректный email"
-                                !passOk -> error.content = "Пароль: 8–71 символ, латиница, минимум 1 цифра"
-                                !same   -> error.content = "Пароли не совпадают"
+                                !emailOk -> Toast.danger("Некорректный email")
+                                !passOk -> Toast.danger("Пароль: 8–71 символ, латиница, минимум 1 цифра")
+                                !same   -> Toast.danger("Пароли не совпадают")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -194,12 +195,12 @@ fun Container.authScreen(
                                                     uiScope.cancel()
                                                     onRegister(email, password, accType)
                                                 } else {
-                                                    error.content = response.message ?: "Ошибка регистрации"
+                                                    Toast.danger(localizeRegistrationError(response.message))
                                                     this@apply.disabled = false
                                                 }
                                             },
                                             onFailure = { e ->
-                                                error.content = e.message ?: "Ошибка регистрации"
+                                                Toast.danger(localizeRegistrationError(e.message))
                                                 this@apply.disabled = false
                                             }
                                         )
@@ -221,6 +222,22 @@ fun Container.authScreen(
 
 private val EMAIL_REGEX =
     Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,63}$")
+
+private fun localizeLoginError(message: String?): String = when {
+    message.isNullOrBlank() -> "Ошибка входа"
+    message.contains("invalid email or password", ignoreCase = true) -> "Неверный email или пароль"
+    message.contains("unauthorized", ignoreCase = true) -> "Неверный email или пароль"
+    else -> message
+}
+
+private fun localizeRegistrationError(message: String?): String = when {
+    message.isNullOrBlank() -> "Ошибка регистрации"
+    message.contains("существует", ignoreCase = true) -> "Пользователь с таким email уже существует"
+    message.contains("already exists", ignoreCase = true) -> "Пользователь с таким email уже существует"
+    message.contains("invalid registration data", ignoreCase = true) -> "Некорректные данные для регистрации"
+    message.contains("unprocessable", ignoreCase = true) -> "Некорректные данные для регистрации"
+    else -> message
+}
 
 private fun accountTypeSelect(): Select = Select(
     options = listOf(

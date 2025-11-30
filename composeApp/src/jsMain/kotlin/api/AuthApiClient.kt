@@ -54,7 +54,16 @@ class AuthApiClient {
                     Result.failure(Exception(registerResponse.error ?: "Registration failed"))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                val apiResponse = runCatching { response.body<ApiResponse<RegisterResponse>>() }.getOrNull()
+                val apiError = apiResponse?.error?.takeIf { it.isNotBlank() }
+
+                val message = when (response.status) {
+                    HttpStatusCode.Conflict -> "Пользователь с таким email уже существует"
+                    HttpStatusCode.BadRequest -> apiError ?: "Некорректные данные для регистрации"
+                    else -> apiError ?: "Ошибка регистрации: ${response.status.value}"
+                }
+
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)

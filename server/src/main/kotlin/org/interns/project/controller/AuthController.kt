@@ -195,7 +195,52 @@ class AuthController(
                         HttpStatusCode.Companion.Created,
                         ApiResponse(success = true, data = response)
                     )
+                } catch (e: IllegalStateException) {
+                    logger.warn(
+                        "event=registration_conflict email={} message={}",
+                        apiRequest.email,
+                        e.message
+                    )
+                    val message = "Пользователь с таким email уже существует"
+
+                    call.respond(
+                        HttpStatusCode.Companion.Conflict,
+                        ApiResponse<RegisterResponse>(
+                            success = false,
+                            error = message
+                        )
+                    )
+                } catch (e: IllegalArgumentException) {
+                    logger.warn(
+                        "event=registration_validation_failed email={} message={}",
+                        apiRequest.email,
+                        e.message
+                    )
+                    val validationDetails = e.message
+                        ?.substringAfter(":", missingDelimiterValue = e.message ?: "")
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                        ?: ""
+
+                    val message = listOf("Некорректные данные регистрации", validationDetails)
+                        .filter { it.isNotBlank() }
+                        .joinToString(": ")
+
+                    call.respond(
+                        HttpStatusCode.Companion.BadRequest,
+                        ApiResponse<RegisterResponse>(
+                            success = false,
+                            error = message
+                        )
+                    )
                 } catch (e: Exception) {
+                    logger.error(
+                        "event=registration_failed email={} errorType={} message={}",
+                        apiRequest.email,
+                        e::class.qualifiedName ?: e::class.simpleName,
+                        e.message,
+                        e
+                    )
                     call.respond(
                         HttpStatusCode.Companion.InternalServerError,
                         ApiResponse<RegisterResponse>(
