@@ -36,6 +36,78 @@ import kotlin.math.roundToInt
 import utils.normalizeGender
 
 val profileApi = ProfileApiClient()
+
+internal fun normalizeBirthInput(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+
+    val digits = raw.filter { it.isDigit() }.take(8)
+    var index = 0
+
+    val dayRaw = digits.drop(index).take(2)
+    val day = when {
+        dayRaw.length < 2 -> dayRaw
+        dayRaw.toIntOrNull() in 1..31 -> dayRaw
+        else -> dayRaw.first().toString()
+    }
+    index += day.length
+
+    val monthRaw = digits.drop(index).take(2)
+    val month = when {
+        monthRaw.length < 2 -> monthRaw
+        monthRaw.toIntOrNull() in 1..12 -> monthRaw
+        else -> monthRaw.first().toString()
+    }
+    index += month.length
+
+    val year = digits.drop(index).take(4)
+
+    return listOf(day, month, year).filter { it.isNotEmpty() }.joinToString(".")
+}
+
+internal fun toIsoDate(value: String?): String? {
+    val digits = value?.filter { it.isDigit() } ?: return null
+    if (digits.length < 6) return null
+
+    var index = 0
+
+    val dayRaw = digits.drop(index).take(2)
+    if (dayRaw.length < 2) return null
+    val day = dayRaw.toIntOrNull()?.takeIf { it in 1..31 } ?: return null
+    index += 2
+
+    val monthRaw = digits.drop(index).take(2)
+    if (monthRaw.length < 2) return null
+    val month = monthRaw.toIntOrNull()?.takeIf { it in 1..12 } ?: return null
+    index += 2
+
+    val yearCandidate = digits.drop(index)
+    val year = when (yearCandidate.length) {
+        2 -> {
+            val suffix = yearCandidate.toIntOrNull() ?: return null
+            val century = if (suffix <= 25) "20" else "19"
+            "$century${suffix.toString().padStart(2, '0')}"
+        }
+        4 -> yearCandidate.takeIf { it.toIntOrNull() != null }
+        else -> null
+    } ?: return null
+
+    val birth = runCatching { Date(year.toInt(), month - 1, day) }.getOrNull() ?: return null
+    if (birth.getFullYear() != year.toInt() || birth.getMonth() != month - 1 || birth.getDate() != day) {
+        return null
+    }
+
+    val age = runCatching {
+        val today = Date()
+        val millisInYear = 365.25 * 24 * 60 * 60 * 1000
+        ((today.getTime() - birth.getTime()) / millisInYear).roundToInt()
+    }.getOrDefault(0)
+
+    return if (age in 16..150) {
+        "$year-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+    } else {
+        null
+    }
+}
 fun Container.patientProfileEditScreen(onBack: () -> Unit = { Navigator.showPatient() }) {
     profileEditScreenCommon(
         mode = HeaderMode.PATIENT,
@@ -229,64 +301,10 @@ private fun Container.profileEditScreenCommon(
                             }
                         }
 
-                        fun normalizeBirthInput(raw: String?): String {
-                            if (raw.isNullOrBlank()) return ""
-                            val digits = raw.filter { it.isDigit() }.take(8)
-                            val hasSeparator = raw.contains('.')
-
-                            val dayRaw = digits.take(2)
-                            val monthRaw = digits.drop(2).take(2)
-                            val yearRaw = digits.drop(4)
-
-                            val day = if (dayRaw.length == 1 && hasSeparator) "0$dayRaw" else dayRaw
-                            val month = if (monthRaw.length == 1 && (hasSeparator || digits.length > 3)) "0$monthRaw" else monthRaw
-
-                            return buildString {
-                                if (day.isNotEmpty()) {
-                                    append(day.take(2))
-                                    if (day.length >= 2) append('.')
-                                }
-                                if (month.isNotEmpty()) {
-                                    append(month.take(2))
-                                    if (month.length >= 2) append('.')
-                                }
-                                if (yearRaw.isNotEmpty()) append(yearRaw.take(4))
-                            }
-                        }
-
                         fun humanizeIso(value: String?): String {
                             if (value.isNullOrBlank()) return ""
                             val parts = value.split("-")
                             return if (parts.size == 3) "${parts[2]}.${parts[1]}.${parts[0]}" else ""
-                        }
-
-                        fun toIsoDate(value: String?): String? {
-                            val digits = value?.filter { it.isDigit() } ?: return null
-                            if (digits.length < 6) return null
-
-                            val day = digits.take(2).padStart(2, '0')
-                            val month = digits.drop(2).take(2).padStart(2, '0')
-                            val yearCandidate = digits.drop(4)
-                            val year = when (yearCandidate.length) {
-                                2 -> {
-                                    val suffix = yearCandidate.padStart(2, '0').toInt()
-                                    val century = if (suffix <= 25) "20" else "19"
-                                    "$century${suffix.toString().padStart(2, '0')}"
-                                }
-                                4 -> yearCandidate
-                                else -> return null
-                            }
-
-                            val iso = "$year-$month-$day"
-
-                            val age = runCatching {
-                                val today = Date()
-                                val birth = Date(year.toInt(), month.toInt() - 1, day.toInt())
-                                val millisInYear = 365.25 * 24 * 60 * 60 * 1000
-                                ((today.getTime() - birth.getTime()) / millisInYear).toInt()
-                            }.getOrDefault(0)
-
-                            return if (age in 16..150) iso else null
                         }
 
                         val birthDateField = text(label = "Дата рождения") {
@@ -554,7 +572,7 @@ private fun Container.profileEditScreenCommon(
                                 }
 
                                 isoBirthDate.isNullOrBlank() -> {
-                                    errorText.content = "Уточните дату рождения в формате ДД.ММ.ГГГГ"
+                                    errorText.content = "Укажите корректную дату рождения в формате ДД.ММ.ГГГГ"
                                     return@onClickLaunch
                                 }
 
