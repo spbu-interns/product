@@ -305,6 +305,7 @@ class ApiUserRepo(
         } else {
             findByLogin(loginOrEmail)
         }
+
         val subject = (user!!.id).toString()
         val login   = user.login
         val role    = apiResp.role
@@ -399,7 +400,7 @@ class ApiUserRepo(
         patch.gender?.let { patchMap["gender"] = it }
 
         // Убираем null значения из map
-        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<*, *>
 
         println("=== PATCH USER PROFILE ===")
         println("User ID: $userId")
@@ -428,7 +429,7 @@ class ApiUserRepo(
         patch.passport?.let { patchMap["passport"] = it }
         patch.dmsOms?.let { patchMap["dms_oms"] = it }
 
-        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<*, *>
 
         println("=== PATCH CLIENT PROFILE ===")
         println("User ID: $userId")
@@ -450,7 +451,7 @@ class ApiUserRepo(
         patch.experience?.let { patchMap["experience"] = it }
         patch.price?.let { patchMap["price"] = it }
 
-        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+        val cleanPatchMap = patchMap.filterValues { it != null } as Map<*, *>
 
         println("=== PATCH DOCTOR PROFILE ===")
         println("User ID: $userId")

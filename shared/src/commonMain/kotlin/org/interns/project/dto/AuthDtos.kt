@@ -37,7 +37,10 @@ data class LoginResponse(
     val firstName: String? = null,
     
     @SerialName("surname")
-    val lastName: String? = null
+    val lastName: String? = null,
+
+    @SerialName("requires_email_verification")
+    val requiresEmailVerification: Boolean = false
 )
 
 @Serializable
@@ -56,12 +59,15 @@ data class RegisterRequest(
 data class RegisterResponse(
     @SerialName("success")
     val success: Boolean,
-    
+
     @SerialName("message")
     val message: String? = null,
-    
+
     @SerialName("user_id")
-    val userId: Long? = null
+    val userId: Long? = null,
+
+    @SerialName("requires_email_verification")
+    val requiresEmailVerification: Boolean = false
 )
 
 @Serializable

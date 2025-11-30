@@ -9,13 +9,20 @@ import org.interns.project.notifications.EmailTemplates
 import org.interns.project.security.token.EmailVerificationRepo
 import org.jetbrains.exposed.sql.selectAll
 
+interface EmailVerificationPort {
+    fun sendCode(userId: Long)
+    fun sendCodeByEmail(email: String): Boolean
+    fun verifyByToken(token: String): Boolean
+    fun verifyCode(userId: Long, code: String): Boolean
+}
+
 class EmailVerificationService(
     private val repo: EmailVerificationRepo,
     private val mailer: Mailer,
     private val ttlMinutes: Int,
     private val maxAttempts: Int
-) {
-    fun sendCode(userId: Long) {
+) : EmailVerificationPort {
+    override fun sendCode(userId: Long) {
         val (email, verified) = transaction {
             UsersTable.selectAll().where { UsersTable.id eq userId }.single().let {
                 it[UsersTable.email] to (it[UsersTable.emailVerifiedAt] != null)
@@ -28,7 +35,7 @@ class EmailVerificationService(
         mailer.send(EmailTemplates.emailVerificationCode(to = email, code = code, ttlMinutes = ttlMinutes))
     }
 
-    fun sendCodeByEmail(email: String): Boolean {
+    override fun sendCodeByEmail(email: String): Boolean {
         val row = transaction { UsersTable.selectAll().where { UsersTable.email eq email }.singleOrNull() } ?: return false
         val userId = row[UsersTable.id]
         val already = row[UsersTable.emailVerifiedAt] != null
@@ -37,7 +44,7 @@ class EmailVerificationService(
         return true
     }
 
-    fun verifyByToken(token: String): Boolean {
+    override fun verifyByToken(token: String): Boolean {
         val userId = repo.consumeByCode(token) ?: return false
         transaction {
             UsersTable.update({ UsersTable.id eq userId }) {
@@ -47,6 +54,6 @@ class EmailVerificationService(
         return true
     }
 
-    fun verifyCode(userId: Long, code: String): Boolean =
+    override fun verifyCode(userId: Long, code: String): Boolean =
         repo.verify(userId, code, maxAttempts).ok
 }

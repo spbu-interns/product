@@ -7,6 +7,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.interns.project.dto.*
 
+class UnverifiedEmailException(
+    val email: String,
+    val accountType: String?,
+    message: String
+) : Exception(message)
+
 class AuthApiClient {
     private val client = ApiConfig.httpClient
 
@@ -57,7 +63,9 @@ class AuthApiClient {
                 val apiResponse = runCatching { response.body<ApiResponse<RegisterResponse>>() }.getOrNull()
                 val apiError = apiResponse?.error?.takeIf { it.isNotBlank() }
 
-                val message = when (response.status) {
+                val errorBody = runCatching { response.body<ApiResponse<RegisterResponse>>() }.getOrNull()
+
+                val message = errorBody?.error ?: when (response.status) {
                     HttpStatusCode.Conflict -> "Пользователь с таким email уже существует"
                     HttpStatusCode.BadRequest -> apiError ?: "Некорректные данные для регистрации"
                     else -> apiError ?: "Ошибка регистрации: ${response.status.value}"
@@ -70,23 +78,43 @@ class AuthApiClient {
         }
     }
 
+    /**
+     * Отправка письма с кодом подтверждения.
+     * 404 от сервера = либо юзер не найден, либо уже подтверждён.
+     */
     suspend fun startEmailVerification(email: String): Result<Boolean> = withContext(Dispatchers.Default) {
         try {
             val response = client.post(ApiConfig.Endpoints.EMAIL_START_VERIFICATION) {
                 contentType(ContentType.Application.Json)
-                setBody(mapOf("email" to email))
+                setBody(RequestPasswordResetRequest(email)) // тот же DTO, что и на сервере
             }
 
             if (response.status.isSuccess()) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                val api = runCatching { response.body<ApiResponse<VerifyEmailResponse>>() }.getOrNull()
+                val rawError = api?.error
+
+                val message = when (response.status) {
+                    HttpStatusCode.NotFound ->
+                        rawError ?: "Не удалось отправить письмо: пользователь не найден или email уже подтверждён."
+                    HttpStatusCode.BadRequest ->
+                        rawError ?: "Некорректный запрос при отправке письма подтверждения."
+                    else ->
+                        rawError ?: "Ошибка при отправке письма: ${response.status.value}"
+                }
+
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Подтверждение email по коду.
+     * 400 = неверный / устаревший код.
+     */
     suspend fun verifyEmail(token: String): Result<VerifyEmailResponse> = withContext(Dispatchers.Default) {
         try {
             val response = client.post(ApiConfig.Endpoints.EMAIL_VERIFY) {
@@ -101,10 +129,23 @@ class AuthApiClient {
                         Result.success(it)
                     } ?: Result.failure(Exception("No verification data returned"))
                 } else {
-                    Result.failure(Exception(verifyResponse.error ?: "Email verification failed"))
+                    val msg = verifyResponse.error ?: "Не удалось подтвердить email."
+                    Result.failure(Exception(msg))
                 }
             } else {
-                Result.failure(Exception("HTTP error: ${response.status.value}"))
+                val api = runCatching { response.body<ApiResponse<VerifyEmailResponse>>() }.getOrNull()
+                val rawError = api?.error
+
+                val message = when (response.status) {
+                    HttpStatusCode.BadRequest ->
+                        rawError ?: "Неверный или устаревший код подтверждения."
+                    HttpStatusCode.NotFound ->
+                        rawError ?: "Пользователь для этого кода не найден."
+                    else ->
+                        rawError ?: "Не удалось подтвердить email. Ошибка: ${response.status.value}"
+                }
+
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
