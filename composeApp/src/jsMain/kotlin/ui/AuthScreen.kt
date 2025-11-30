@@ -105,7 +105,7 @@ fun Container.authScreen(
 
                             when {
                                 !emailOk -> Toast.danger("Некорректный email")
-                                !passOk -> Toast.danger("Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру")
+                                !passOk -> Toast.danger("Проверьте пароль")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -171,8 +171,8 @@ fun Container.authScreen(
 
                             when {
                                 !emailOk -> Toast.danger("Некорректный email")
-                                !passOk -> Toast.danger("Пароль: 8–71 символ, латиница, минимум 1 цифра")
                                 !same   -> Toast.danger("Пароли не совпадают")
+                                !passOk -> Toast.danger("Пароль: 8–71 символ, латиница, минимум 1 цифра")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -190,7 +190,6 @@ fun Container.authScreen(
                                         result.fold(
                                             onSuccess = { response ->
                                                 if (response.success) {
-                                                    authClient.startEmailVerification(email)
                                                     Session.pendingRegistration = Session.PendingRegistration(email, password, accType)
                                                     uiScope.cancel()
                                                     onRegister(email, password, accType)

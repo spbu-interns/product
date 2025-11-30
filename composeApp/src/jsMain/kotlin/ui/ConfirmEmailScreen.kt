@@ -10,6 +10,7 @@ import io.kvision.html.div
 import io.kvision.html.h3
 import io.kvision.html.p
 import io.kvision.panel.vPanel
+import io.kvision.toast.Toast
 import io.kvision.utils.perc
 import io.kvision.utils.px
 import kotlinx.coroutines.MainScope
@@ -48,7 +49,7 @@ fun Container.confirmEmailScreen(email: String) {
             onClick {
                 val code = codeField.value ?: ""
                 if (code.isBlank()) {
-                    error.content = "Введите код подтверждения"
+                    Toast.danger("Введите код подтверждения")
                     return@onClick
                 }
                 
@@ -94,7 +95,7 @@ fun Container.confirmEmailScreen(email: String) {
                                             }
                                         },
                                         onFailure = { authError ->
-                                            error.content = authError.message ?: "Ошибка входа после подтверждения"
+                                            Toast.danger(authError.message ?: "Ошибка входа после подтверждения")
                                             this@apply.disabled = false
                                         }
                                     )
@@ -102,12 +103,12 @@ fun Container.confirmEmailScreen(email: String) {
                                     Navigator.showLogin()
                                 }
                             } else {
-                                error.content = response.message ?: "Ошибка подтверждения email"
+                                Toast.danger(response.message ?: "Ошибка подтверждения email")
                                 this@apply.disabled = false
                             }
                         },
                         onFailure = { e ->
-                            error.content = e.message ?: "Ошибка подтверждения email"
+                            Toast.danger(e.message ?: "Ошибка подтверждения email")
                             this@apply.disabled = false
                         }
                     )

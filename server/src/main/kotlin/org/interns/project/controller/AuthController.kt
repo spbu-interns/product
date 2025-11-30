@@ -184,10 +184,16 @@ class AuthController(
                         throw IllegalStateException("Failed to send verification email")
                     }
 
+                    logger.info(
+                        "event=verification_email_sent status=success email={} userId={} message={}",
+                        apiRequest.email,
+                        userId,
+                        "initial_registration_dispatch"
+                    )
 
                     val response = RegisterResponse(
                         success = true,
-                        message = "User registered successfully. Please check your email for verification.",
+                        message = "User registered successfully. A verification email has been sent once.",
                         userId = userId
                     )
 
@@ -258,6 +264,11 @@ class AuthController(
                     val ok = verificationService.sendCodeByEmail(apiRequest.email)
 
                     if (ok) {
+                        logger.info(
+                            "event=verification_email_sent status=success email={} message={}",
+                            apiRequest.email,
+                            "manual_trigger"
+                        )
                         call.respond(
                             HttpStatusCode.Companion.OK,
                             ApiResponse(
