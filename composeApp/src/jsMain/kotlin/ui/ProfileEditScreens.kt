@@ -666,7 +666,7 @@ private fun Container.profileEditScreenCommon(
                                         PatientState.loadPatientDashboard(id)
                                     }
                                 }
-                                onBack()
+                                Toast.success("Профиль успешно сохранён")
                             }
 
                             result.onFailure {
