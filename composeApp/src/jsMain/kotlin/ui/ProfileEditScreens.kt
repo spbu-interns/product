@@ -25,7 +25,6 @@ import io.kvision.toast.Toast
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.interns.project.dto.ProfileUpdateDto
 import org.w3c.dom.HTMLInputElement
@@ -413,97 +412,115 @@ private fun Container.profileEditScreenCommon(
                             }
                         }
 
-                        val heightField = text(label = "Рост (см)") {
-                            addCssClass("kv-height")
-                            type = InputType.NUMBER
-                            placeholder = "1 – 260"
+                        val heightField = if (!isDoctorMode) {
+                            text(label = "Рост (см)") {
+                                addCssClass("kv-height")
+                                type = InputType.NUMBER
+                                placeholder = "1 – 260"
 
-                            onEvent {
-                                input = {
-                                    val rawValue = value
-                                    val number = rawValue?.toDoubleOrNull()
-                                    val corrected = when {
-                                        number == null || rawValue.isBlank() -> 1.0
-                                        number < 1 -> 1.0
-                                        number > 260 -> 260.0
-                                        else -> number
-                                    }
-                                    if (corrected != number) {
-                                        value = corrected.toInt().toString()
-                                    }
-                                }
-                            }
-                        }
-
-                        val weightField = text(label = "Вес (кг)") {
-                            addCssClass("kv-input")
-                            type = InputType.NUMBER
-                            placeholder = "1 – 636"
-
-                            onEvent {
-                                input = {
-                                    val rawValue = value
-                                    val number = rawValue?.toDoubleOrNull()
-                                    val corrected = when {
-                                        number == null || rawValue.isBlank() -> 1.0
-                                        number < 1 -> 1.0
-                                        number > 636 -> 636.0
-                                        else -> number
-                                    }
-                                    if (corrected != number) {
-                                        value = corrected.toInt().toString()
+                                onEvent {
+                                    input = {
+                                        val rawValue = value
+                                        val number = rawValue?.toDoubleOrNull()
+                                        val corrected = when {
+                                            number == null || rawValue.isBlank() -> 1.0
+                                            number < 1 -> 1.0
+                                            number > 260 -> 260.0
+                                            else -> number
+                                        }
+                                        if (corrected != number) {
+                                            value = corrected.toInt().toString()
+                                        }
                                     }
                                 }
                             }
-                        }
+                        } else null
 
-                        val bloodTypeField = select(
-                            listOf(
-                                "" to "Выберите группу крови",
-                                "I (O)-" to "I (O)-",
-                                "I (O)+" to "I (O)+",
-                                "II (A)-" to "II (A)-",
-                                "II (A)+" to "II (A)+",
-                                "III (B)-" to "III (B)-",
-                                "III (B)+" to "III (B)+",
-                                "IV (AB)-" to "IV (AB)-",
-                                "IV (AB)+" to "IV (AB)+"
-                            ),
-                            label = "Группа крови"
-                        ) {
-                            addCssClass("kv-input")
-                        }
+                        val weightField = if (!isDoctorMode) {
+                            text(label = "Вес (кг)") {
+                                addCssClass("kv-input")
+                                type = InputType.NUMBER
+                                placeholder = "1 – 636"
 
-                        val addressField = text(label = "Адрес проживания") {
-                            addCssClass("kv-input")
-                        }
-
-                        val insuranceField = text(label = "Страховка / полис (ОМС/ДМС)") {
-                            addCssClass("kv-input")
-                        }
-
-                        val snilsField = text(label = "СНИЛС") {
-                            addCssClass("kv-input")
-                        }
-
-                        val passportField = text(label = "Паспорт") {
-                            addCssClass("kv-input")
-                        }
-
-                        val emergencyNameField = text(label = "Экстренный контакт (имя)") {
-                            addCssClass("kv-input")
-                        }
-
-                        val emergencyPhoneField = text(label = "Экстренный контакт (телефон)") {
-                            placeholder = "+7 (XXX) XXX-XX-XX"
-                            addCssClass("kv-input")
-                            onEvent {
-                                input = {
-                                    val formatted = formatPhone(value)
-                                    if (formatted != value) value = formatted
+                                onEvent {
+                                    input = {
+                                        val rawValue = value
+                                        val number = rawValue?.toDoubleOrNull()
+                                        val corrected = when {
+                                            number == null || rawValue.isBlank() -> 1.0
+                                            number < 1 -> 1.0
+                                            number > 636 -> 636.0
+                                            else -> number
+                                        }
+                                        if (corrected != number) {
+                                            value = corrected.toInt().toString()
+                                        }
+                                    }
                                 }
                             }
-                        }
+                        } else null
+
+                        val bloodTypeField = if (!isDoctorMode) {
+                            select(
+                                listOf(
+                                    "" to "Выберите группу крови",
+                                    "I (O)-" to "I (O)-",
+                                    "I (O)+" to "I (O)+",
+                                    "II (A)-" to "II (A)-",
+                                    "II (A)+" to "II (A)+",
+                                    "III (B)-" to "III (B)-",
+                                    "III (B)+" to "III (B)+",
+                                    "IV (AB)-" to "IV (AB)-",
+                                    "IV (AB)+" to "IV (AB)+"
+                                ),
+                                label = "Группа крови"
+                                ) {
+                                    addCssClass("kv-input")
+                                }
+                        } else null
+
+                        val addressField = if (!isDoctorMode) {
+                            text(label = "Адрес проживания") {
+                                addCssClass("kv-input")
+                            }
+                        } else null
+
+                        val insuranceField = if (!isDoctorMode) {
+                            text(label = "Страховка / полис (ОМС/ДМС)") {
+                                addCssClass("kv-input")
+                            }
+                        } else null
+
+                        val snilsField = if (!isDoctorMode) {
+                            text(label = "СНИЛС") {
+                                addCssClass("kv-input")
+                            }
+                        } else null
+
+                        val passportField = if (!isDoctorMode) {
+                            text(label = "Паспорт") {
+                                addCssClass("kv-input")
+                            }
+                        } else null
+
+                        val emergencyNameField = if (!isDoctorMode) {
+                            text(label = "Экстренный контакт (имя)") {
+                                addCssClass("kv-input")
+                            }
+                        } else null
+
+                        val emergencyPhoneField = if (!isDoctorMode) {
+                            text(label = "Экстренный контакт (телефон)") {
+                                placeholder = "+7 (XXX) XXX-XX-XX"
+                                addCssClass("kv-input")
+                                onEvent {
+                                    input = {
+                                        val formatted = formatPhone(value)
+                                        if (formatted != value) value = formatted
+                                    }
+                                }
+                            }
+                        } else null
 
                         val avatarField = text(label = "Ссылка на ваше фото") {
                             placeholder = "https://example.com/avatar.jpg"
@@ -555,15 +572,17 @@ private fun Container.profileEditScreenCommon(
                                 genderField.value = normalizeGender(Session.gender ?: profile?.user?.gender)
                                 birthDateField.value = humanizeIso(Session.dateOfBirth ?: profile?.user?.dateOfBirth)
                                 avatarField.value = Session.avatar ?: profile?.user?.avatar ?: ""
-                                heightField.value = profile?.client?.height?.takeIf { it > 0 }?.roundToInt()?.toString() ?: ""
-                                weightField.value = profile?.client?.weight?.takeIf { it > 0 }?.roundToInt()?.toString() ?: ""
-                                bloodTypeField.value = profile?.client?.bloodType ?: ""
-                                addressField.value = profile?.client?.address ?: ""
-                                insuranceField.value = profile?.client?.dmsOms ?: ""
-                                snilsField.value = profile?.client?.snils ?: ""
-                                passportField.value = profile?.client?.passport ?: ""
-                                emergencyNameField.value = profile?.client?.emergencyContactName ?: ""
-                                emergencyPhoneField.value = formatPhone(profile?.client?.emergencyContactNumber)
+                                heightField?.value = profile?.client?.height?.takeIf { it > 0 }?.roundToInt()?.toString() ?: ""
+                                weightField?.value = profile?.client?.weight?.takeIf { it > 0 }?.roundToInt()?.toString() ?: ""
+                                if (!isDoctorMode) {
+                                    bloodTypeField?.value = profile?.client?.bloodType ?: ""
+                                    addressField?.value = profile?.client?.address ?: ""
+                                    insuranceField?.value = profile?.client?.dmsOms ?: ""
+                                    snilsField?.value = profile?.client?.snils ?: ""
+                                    passportField?.value = profile?.client?.passport ?: ""
+                                    emergencyNameField?.value = profile?.client?.emergencyContactName ?: ""
+                                    emergencyPhoneField?.value = formatPhone(profile?.client?.emergencyContactNumber)
+                                }
                                 doctorProfessionField?.value = profile?.doctor?.profession ?: doctorProfessionField.value
                             }.onFailure {
                                 Toast.warning(it.message ?: "Не удалось загрузить профиль")
@@ -582,15 +601,15 @@ private fun Container.profileEditScreenCommon(
                             val noPatronymic = noPatronymicCheck.value
                             val isoBirthDate = toIsoDate(birthDateField.getValueAsString())
                             val formattedPhone = formatPhone(phoneField.value)
-                            val heightValue = heightField.value?.trim().orEmpty()
-                            val weightValue = weightField.value?.trim().orEmpty()
-                            val bloodTypeValue = bloodTypeField.value?.trim().orEmpty()
-                            val addressValue = addressField.value?.trim().orEmpty()
-                            val insuranceValue = insuranceField.value?.trim().orEmpty()
-                            val snilsValue = snilsField.value?.trim().orEmpty()
-                            val passportValue = passportField.value?.trim().orEmpty()
-                            val emergencyNameValue = emergencyNameField.value?.trim().orEmpty()
-                            val emergencyPhoneValue = formatPhone(emergencyPhoneField.value)
+                            val heightValue = heightField?.value?.trim().orEmpty()
+                            val weightValue = weightField?.value?.trim().orEmpty()
+                            val bloodTypeValue = bloodTypeField?.value?.trim().orEmpty()
+                            val addressValue = addressField?.value?.trim().orEmpty()
+                            val insuranceValue = insuranceField?.value?.trim().orEmpty()
+                            val snilsValue = snilsField?.value?.trim().orEmpty()
+                            val passportValue = passportField?.value?.trim().orEmpty()
+                            val emergencyNameValue = emergencyNameField?.value?.trim().orEmpty()
+                            val emergencyPhoneValue = formatPhone(emergencyPhoneField?.value)
 
                             when {
                                 last.isBlank() -> {
@@ -649,9 +668,9 @@ private fun Container.profileEditScreenCommon(
                                     return@onClickLaunch
                                 }
 
-                                emergencyPhoneValue.isNotBlank() && !phoneRegex.matches(emergencyPhoneValue) -> {
+                                !isDoctorMode && emergencyPhoneValue.isNotBlank() && !phoneRegex.matches(emergencyPhoneValue) -> {
                                     errorText.content = "Телефон экстренного контакта в формате +7 (XXX) XXX-XX-XX"
-                                    emergencyPhoneField.value = emergencyPhoneValue
+                                    emergencyPhoneField?.value = emergencyPhoneValue
                                     return@onClickLaunch
                                 }
                             }
@@ -671,15 +690,15 @@ private fun Container.profileEditScreenCommon(
                                 avatar = avatarField.value,
                                 gender = normalizeGender(genderField.value),
                                 dateOfBirth = isoBirthDate,
-                                bloodType = bloodTypeValue.takeIf { it.isNotBlank() },
-                                height = heightValue.replace(',', '.').toDoubleOrNull(),
-                                weight = weightValue.replace(',', '.').toDoubleOrNull(),
-                                emergencyContactName = emergencyNameValue.takeIf { it.isNotBlank() },
-                                emergencyContactNumber = emergencyPhoneValue.takeIf { it.isNotBlank() },
-                                address = addressValue.takeIf { it.isNotBlank() },
-                                snils = snilsValue.takeIf { it.isNotBlank() },
-                                passport = passportValue.takeIf { it.isNotBlank() },
-                                dmsOms = insuranceValue.takeIf { it.isNotBlank() },
+                                bloodType = if (!isDoctorMode) bloodTypeValue.takeIf { it.isNotBlank() } else null,
+                                height = if (!isDoctorMode) heightValue.replace(',', '.').toDoubleOrNull() else null,
+                                weight = if (!isDoctorMode) weightValue.replace(',', '.').toDoubleOrNull() else null,
+                                emergencyContactName = if (isDoctorMode) null else emergencyNameValue.takeIf { it.isNotBlank() },
+                                emergencyContactNumber = if (isDoctorMode) null else emergencyPhoneValue.takeIf { it.isNotBlank() },
+                                address = if (isDoctorMode) null else addressValue.takeIf { it.isNotBlank() },
+                                snils = if (isDoctorMode) null else snilsValue.takeIf { it.isNotBlank() },
+                                passport = if (isDoctorMode) null else passportValue.takeIf { it.isNotBlank() },
+                                dmsOms = if (isDoctorMode) null else insuranceValue.takeIf { it.isNotBlank() },
                                 profession = if (isDoctorMode) professionValue else null,
                                 info = null,
                                 experience = null,
