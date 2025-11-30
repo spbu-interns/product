@@ -69,8 +69,7 @@
     width: 100%;
     border-radius: 10px;
     border: none;
-    /*padding: 10px 12px;*/
-    font-size: 0;
+    font-size: 14px;
 }
 
 .find-filter-card .find-select {
@@ -210,4 +209,114 @@
     .find-filter-card {
         flex: 1 1 auto;
     }
+}
+
+.doctor-profile-overlay-root {
+    position: relative;
+}
+
+.doctor-profile-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+}
+
+.doctor-profile-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+}
+
+.doctor-profile-modal {
+    position: relative;
+    background: #fff;
+    border-radius: 22px;
+    width: min(720px, 92vw);
+    max-height: 90vh;
+    overflow: auto;
+    padding: 24px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+}
+
+.doctor-profile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.doctor-profile-title {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.doctor-profile-name {
+    margin: 0;
+    font-size: 24px;
+}
+
+.doctor-profile-specialty {
+    margin: 0;
+    color: #475569;
+}
+
+.doctor-profile-close {
+    border: none;
+    background: #f1f5f9;
+    color: #0f172a;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.doctor-profile-body {
+    margin-top: 16px;
+    display: grid;
+    gap: 16px;
+}
+
+.doctor-profile-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.doctor-profile-meta-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+
+.doctor-profile-meta-label {
+    margin: 0;
+    color: #475569;
+    font-size: 13px;
+}
+
+.doctor-profile-meta-value {
+    margin: 4px 0 0;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.doctor-profile-bio {
+    margin: 0;
+    color: #334155;
+    line-height: 1.5;
+}
+
+.doctor-profile-actions {
+    margin-top: 18px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
 }

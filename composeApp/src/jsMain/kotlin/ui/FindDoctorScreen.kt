@@ -16,27 +16,16 @@ import io.kvision.panel.hPanel
 import io.kvision.panel.simplePanel
 import io.kvision.panel.vPanel
 import ui.components.bookingModal
+import ui.components.doctorProfileModal
 
 import api.DoctorApiClient
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import io.kvision.toast.Toast
 import org.interns.project.dto.DoctorSearchFilterDto
 import org.interns.project.dto.DoctorSearchResultDto
 import org.interns.project.dto.UserResponseDto
 import org.w3c.dom.url.URLSearchParams
-
-private data class DoctorProfile(
-    val name: String,
-    val specialty: String,
-    val rating: Double,
-    val experienceYears: Int,
-    val price: Int,
-    val location: String,
-    val bio: String,
-    val gender: String?
-)
 
 private enum class SortOption(val label: String, val comparator: Comparator<DoctorProfile>) {
     RATING_DESC("Рейтинг (по убыванию)", compareByDescending<DoctorProfile> { it.rating }.thenBy { it.name }),
@@ -152,6 +141,9 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
     lateinit var searchField: Text
 
     val bookingModalController = bookingModal()
+    val profileModalController = doctorProfileModal(onBook = {
+        bookingModalController.open(it.name)
+    })
     val onBookDoctor: (DoctorProfile) -> Unit = { bookingModalController.open(it.name) }
 
     suspend fun enrichProfiles(doctors: List<DoctorSearchResultDto>) {
@@ -184,7 +176,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                             enrichProfiles(loadedDoctors)
                         }.onFailure { println("Ошибка загрузки врачей: ${it.message}") }
 
-                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
                     }
                 }
             }
@@ -203,7 +195,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                             sortSelect.onEvent {
                                 change = {
                                     sortOption = SortOption.from(sortSelect.value)
-                                    renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+                                    renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
                                 }
                             }
                         }
@@ -231,7 +223,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                                             }
                                                 .onFailure { println("Ошибка: ${it.message}") }
 
-                                            renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+                                            renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
                                         }
                                     }
                                 }
@@ -263,7 +255,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                                         }
                                             .onFailure { println("Ошибка: ${it.message}") }
 
-                                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+                                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
                                     }
                                 }
                             }
@@ -284,7 +276,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
         }
             .onFailure { println("Ошибка загрузки врачей: ${it.message}") }
 
-        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, searchQuery)
+        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
     }
 }
 
@@ -294,6 +286,7 @@ private fun renderResultsSort(
     profiles: Map<Long, UserResponseDto>,
     sortOption: SortOption,
     onBook: (DoctorProfile) -> Unit,
+    onViewProfile: (DoctorProfile) -> Unit,
     query: String
 ) {
     container.removeAll()
@@ -314,11 +307,15 @@ private fun renderResultsSort(
         .map { (doc, profile) -> doc.toUiProfile(profile) }
         .sortedWith(sortOption.comparator)
         .forEach { ui ->
-            container.doctorCard(ui, onBook)
+            container.doctorCard(ui, onBook, onViewProfile)
         }
 }
 
-private fun Container.doctorCard(profile: DoctorProfile, onBook: (DoctorProfile) -> Unit) {
+private fun Container.doctorCard(
+    profile: DoctorProfile,
+    onBook: (DoctorProfile) -> Unit,
+    onViewProfile: (DoctorProfile) -> Unit
+) {
     val initials = profile.name
         .split(" ")
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
@@ -351,9 +348,11 @@ private fun Container.doctorCard(profile: DoctorProfile, onBook: (DoctorProfile)
                 p("от ${profile.price} ₽ / приём", className = "doctor-card-price")
                 div(className = "doctor-card-actions") {
                     button("Посмотреть профиль", className = "btn btn-secondary btn-sm").onClick {
-                        Toast.info("Профиль ${profile.name}")
+                        onViewProfile(profile)
                     }
-                    button("Записаться", className = "btn btn-primary btn-sm").onClick { onBook(profile) }
+                    button("Записаться", className = "btn btn-primary btn-sm").onClick {
+                        onBook(profile)
+                    }
                 }
             }
         }
