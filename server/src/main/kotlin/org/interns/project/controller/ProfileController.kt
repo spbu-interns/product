@@ -113,14 +113,31 @@ class ProfileController(
                     if (hasDoctorFields(dto)) {
                         try {
                             val doctorPatch = DoctorPatch(
+                                clinicId = dto.clinicId,
                                 profession = dto.profession,
                                 info = dto.info,
                                 experience = dto.experience,
                                 price = dto.price
                             )
                             apiUserRepo.patchDoctorByUserId(id, doctorPatch)
+                        } catch (iae: IllegalArgumentException) {
+                            call.application.log.warn("Validation error while updating doctor profile for user $id: ${iae.message}")
+                            return@patch call.respond(
+                                HttpStatusCode.BadRequest,
+                                ApiResponse<Unit>(
+                                    success = false,
+                                    error = iae.message ?: "Некорректные данные врача"
+                                )
+                            )
                         } catch (e: Exception) {
-                            call.application.log.warn("Failed to update doctor profile for user $id: ${e.message}")
+                            call.application.log.warn("Failed to update doctor profile for user $id: ${e.message}", e)
+                            return@patch call.respond(
+                                HttpStatusCode.InternalServerError,
+                                ApiResponse<Unit>(
+                                    success = false,
+                                    error = "Не удалось сохранить данные врача: ${e.message}"
+                                )
+                            )
                         }
                     }
 

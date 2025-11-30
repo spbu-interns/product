@@ -10,6 +10,7 @@ import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.select.select
 import io.kvision.form.text.text
+import io.kvision.form.text.textArea
 import io.kvision.html.InputType
 import io.kvision.html.button
 import io.kvision.html.div
@@ -555,6 +556,64 @@ private fun Container.profileEditScreenCommon(
                             }
                         } else null
 
+                        val doctorInfoField = if (isDoctorMode) {
+                            textArea(label = "Описание") {
+                                placeholder = "Расскажите пациентам о себе"
+                                rows = 3
+                                addCssClass("kv-input")
+                            }
+                        } else null
+
+                        val doctorExperienceField = if (isDoctorMode) {
+                            text(label = "Стаж (лет)") {
+                                addCssClass("kv-input")
+                                type = InputType.NUMBER
+                                placeholder = "0–80"
+
+                                onEvent {
+                                    input = {
+                                        val raw = value
+                                        val number = raw?.toIntOrNull()
+                                        val corrected = when {
+                                            raw.isNullOrBlank() -> null
+                                            number == null -> null
+                                            number < 0 -> 0
+                                            number > 80 -> 80
+                                            else -> number
+                                        }
+                                        if (corrected != null && corrected != number) {
+                                            value = corrected.toString()
+                                        }
+                                    }
+                                }
+                            }
+                        } else null
+
+                        val doctorPriceField = if (isDoctorMode) {
+                            text(label = "Стоимость приёма (₽)") {
+                                addCssClass("kv-input")
+                                type = InputType.NUMBER
+                                placeholder = "Например, 1500"
+
+                                onEvent {
+                                    input = {
+                                        val raw = value
+                                        val number = raw?.replace(',', '.')?.toDoubleOrNull()
+                                        val corrected = when {
+                                            raw.isNullOrBlank() -> null
+                                            number == null -> null
+                                            number < 0 -> 0.0
+                                            number > 50000 -> 50000.0
+                                            else -> number
+                                        }
+                                        if (corrected != null && corrected != number) {
+                                            value = if (corrected % 1.0 == 0.0) corrected.toInt().toString() else corrected.toString()
+                                        }
+                                    }
+                                }
+                            }
+                        } else null
+
                         uiScope.launch {
                             val userId = Session.userId ?: return@launch
                             patientApi.getFullUserProfile(userId).onSuccess { profile ->
@@ -584,6 +643,11 @@ private fun Container.profileEditScreenCommon(
                                     emergencyPhoneField?.value = formatPhone(profile?.client?.emergencyContactNumber)
                                 }
                                 doctorProfessionField?.value = profile?.doctor?.profession ?: doctorProfessionField.value
+                                doctorInfoField?.value = profile?.doctor?.info ?: doctorInfoField?.value ?: ""
+                                doctorExperienceField?.value = profile?.doctor?.experience?.takeIf { it > 0 }?.toString() ?: ""
+                                doctorPriceField?.value = profile?.doctor?.price?.takeIf { it > 0 }
+                                    ?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }
+                                    ?: ""
                             }.onFailure {
                                 Toast.warning(it.message ?: "Не удалось загрузить профиль")
                             }
@@ -610,6 +674,9 @@ private fun Container.profileEditScreenCommon(
                             val passportValue = passportField?.value?.trim().orEmpty()
                             val emergencyNameValue = emergencyNameField?.value?.trim().orEmpty()
                             val emergencyPhoneValue = formatPhone(emergencyPhoneField?.value)
+                            val doctorInfoValue = doctorInfoField?.value?.trim().orEmpty()
+                            val doctorExperienceValue = doctorExperienceField?.value?.trim().orEmpty()
+                            val doctorPriceValue = doctorPriceField?.value?.trim().orEmpty()
 
                             when {
                                 last.isBlank() -> {
@@ -640,6 +707,41 @@ private fun Container.profileEditScreenCommon(
 
                                 isDoctorMode && doctorProfessionField?.value?.trim().isNullOrBlank() == true -> {
                                     errorText.content = "Укажите специальность"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorInfoValue.isBlank() -> {
+                                    errorText.content = "Добавьте краткое описание"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorExperienceValue.isBlank() -> {
+                                    errorText.content = "Укажите стаж"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorExperienceValue.toIntOrNull() == null -> {
+                                    errorText.content = "Стаж должен быть целым числом"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorExperienceValue.toIntOrNull()?.let { it < 0 || it > 80 } == true -> {
+                                    errorText.content = "Стаж должен быть в диапазоне 0–80 лет"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorPriceValue.isBlank() -> {
+                                    errorText.content = "Укажите стоимость приёма"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorPriceValue.replace(',', '.').toDoubleOrNull() == null -> {
+                                    errorText.content = "Стоимость должна быть числом"
+                                    return@onClickLaunch
+                                }
+
+                                isDoctorMode && doctorPriceValue.replace(',', '.').toDoubleOrNull()?.let { it < 0 || it > 50000 } == true -> {
+                                    errorText.content = "Стоимость должна быть в диапазоне 0–50000 ₽"
                                     return@onClickLaunch
                                 }
 
@@ -681,6 +783,8 @@ private fun Container.profileEditScreenCommon(
                                 return@onClickLaunch
                             }
                             val professionValue = doctorProfessionField?.value?.trim()
+                            val experienceValue = doctorExperienceValue.toIntOrNull()
+                            val priceValue = doctorPriceValue.replace(',', '.').toDoubleOrNull()
 
                             val dto = ProfileUpdateDto(
                                 firstName = first,
@@ -700,9 +804,9 @@ private fun Container.profileEditScreenCommon(
                                 passport = if (isDoctorMode) null else passportValue.takeIf { it.isNotBlank() },
                                 dmsOms = if (isDoctorMode) null else insuranceValue.takeIf { it.isNotBlank() },
                                 profession = if (isDoctorMode) professionValue else null,
-                                info = null,
-                                experience = null,
-                                price = null
+                                info = if (isDoctorMode) doctorInfoValue else null,
+                                experience = if (isDoctorMode) experienceValue else null,
+                                price = if (isDoctorMode) priceValue else null
                             )
 
                             val result = profileApi.updateProfile(userId, dto)

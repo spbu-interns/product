@@ -460,6 +460,7 @@ class ApiUserRepo(
     suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorProfileDto {
         val patchMap = mutableMapOf<String, Any?>()
 
+        patch.clinicId?.let { patchMap["clinic_id"] = it }
         patch.profession?.let { patchMap["profession"] = it }
         patch.info?.let { patchMap["info"] = it }
         patch.experience?.let { patchMap["experience"] = it }
