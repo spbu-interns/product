@@ -24,6 +24,8 @@ import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.interns.project.dto.ProfileUpdateDto
 import org.w3c.dom.HTMLInputElement
@@ -141,14 +143,17 @@ private fun Container.profileEditScreenCommon(
         }
     )
 
-    val displayName = Session.fullName() ?: Session.email ?: "Пользователь"
-    val userIdText = Session.userId?.let { "ID: $it" } ?: ""
-    val initials = displayName
+    fun buildDisplayName(): String = Session.fullName() ?: Session.email ?: "Пользователь"
+    fun buildInitials(displayName: String): String = displayName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .take(2)
         .joinToString("")
         .ifBlank { "ПС" }
+
+    val displayNameState = MutableStateFlow(buildDisplayName())
+    val initialsState = MutableStateFlow(buildInitials(displayNameState.value))
+    val userIdText = Session.userId?.let { "ID: $it" } ?: ""
     val patientApi = PatientApiClient()
     val phoneRegex = Regex("""^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$""")
 
@@ -191,6 +196,9 @@ private fun Container.profileEditScreenCommon(
                     if (patientId != null) {
                         patientSidebar(
                             patientId = patientId,
+                            displayNameState = displayNameState,
+                            initialsState = initialsState,
+                            coroutineScope = uiScope,
                             active = PatientSection.EDIT_PROFILE,
                             onOverview = { Navigator.showPatient() },
                             onAppointments = { Navigator.showAppointments() },
@@ -198,24 +206,39 @@ private fun Container.profileEditScreenCommon(
                             onMyRecords = { Navigator.showMyRecords() },
                             onFindDoctor = { Navigator.showFind() },
                             onProfile = { Navigator.showPatientProfileEdit() },
+                            onProfileAlreadyOpen = { Toast.info("Профиль уже открыт") },
                             onLogout = {
                                 ApiConfig.clearToken(); Session.clear(); Navigator.showHome()
                             }
                         )
                     } else {
                         div(className = "sidebar card") {
-                            div(className = "avatar circle") { +initials }
-                            h3(displayName, className = "account name")
+                            val avatar = div(className = "avatar circle") { +initialsState.value }
+                            val nameHeader = h3(displayNameState.value, className = "account name")
+
+                            uiScope.launch {
+                                displayNameState.collect { nameHeader.content = it }
+                            }
+                            uiScope.launch {
+                                initialsState.collect { avatar.content = it }
+                            }
                         }
                     }
                 }
 
                 HeaderMode.DOCTOR -> {
                     div(className = "sidebar card") {
-                        div(className = "avatar circle") { +initials }
-                        h3(displayName, className = "account name")
+                        val avatar = div(className = "avatar circle") { +initialsState.value }
+                        val nameHeader = h3(displayNameState.value, className = "account name")
                         if (userIdText.isNotBlank()) {
                             p(userIdText, className = "account id")
+                        }
+
+                        uiScope.launch {
+                            displayNameState.collect { nameHeader.content = it }
+                        }
+                        uiScope.launch {
+                            initialsState.collect { avatar.content = it }
                         }
 
                         nav {
@@ -259,8 +282,15 @@ private fun Container.profileEditScreenCommon(
 
                 HeaderMode.PUBLIC -> {
                     div(className = "sidebar card") {
-                        div(className = "avatar circle") { +initials }
-                        h3(displayName, className = "account name")
+                        val avatar = div(className = "avatar circle") { +initialsState.value }
+                        val nameHeader = h3(displayNameState.value, className = "account name")
+
+                        uiScope.launch {
+                            displayNameState.collect { nameHeader.content = it }
+                        }
+                        uiScope.launch {
+                            initialsState.collect { avatar.content = it }
+                        }
                     }
                 }
             }
@@ -512,6 +542,8 @@ private fun Container.profileEditScreenCommon(
                             val userId = Session.userId ?: return@launch
                             patientApi.getFullUserProfile(userId).onSuccess { profile ->
                                 profile?.user?.let { Session.updateFrom(it) }
+                                displayNameState.value = buildDisplayName()
+                                initialsState.value = buildInitials(displayNameState.value)
                                 firstNameField.value = Session.firstName ?: profile?.user?.name ?: ""
                                 lastNameField.value = Session.lastName ?: profile?.user?.surname ?: ""
                                 if (!patronymicDirty) {
@@ -659,6 +691,8 @@ private fun Container.profileEditScreenCommon(
                             result.onSuccess { updated ->
                                 Session.hasNoPatronymic = noPatronymic
                                 Session.updateFrom(updated)
+                                displayNameState.value = buildDisplayName()
+                                initialsState.value = buildInitials(displayNameState.value)
                                 Session.userId?.let { id ->
                                     if (isDoctorMode) {
                                         DoctorState.refresh(id)
