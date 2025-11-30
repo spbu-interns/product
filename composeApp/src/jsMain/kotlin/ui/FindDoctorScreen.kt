@@ -121,6 +121,8 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
     val params = URLSearchParams(window.location.search)
     var searchQuery = Session.pendingDoctorSearchQuery ?: params.get("query") ?: ""
     Session.pendingDoctorSearchQuery = null
+    val pendingSpecialty = Session.pendingDoctorSpecialty
+    Session.pendingDoctorSpecialty = null
     val doctorApi = DoctorApiClient()
 
     headerBar(
@@ -135,7 +137,9 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
 
     var selectedLocation: String? = null
     var sortOption = SortOption.RATING_DESC
-    val selectedSpecialties = mutableSetOf<String>()
+    val selectedSpecialties = mutableSetOf<String>().apply {
+        pendingSpecialty?.let { add(it) }
+    }
 
     lateinit var resultsPanel: SimplePanel
     lateinit var searchField: Text
@@ -207,7 +211,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                         val specialties = listOf("Кардиолог", "Педиатр", "Невролог", "Ортопед", "Офтальмолог", "Терапевт")
 
                         specialties.forEach { specialty ->
-                            checkBox(false, label = specialty) {
+                            checkBox(selectedSpecialties.contains(specialty), label = specialty) {
                                 addCssClass("find-checkbox")
                                 onEvent {
                                     change = {

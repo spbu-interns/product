@@ -61,42 +61,42 @@ fun Container.homeScreen() {
                 subtitle = "Забота о сердце и сердечно-сосудистой системе",
                 icon = "❤",
                 imagePath = "/images/cardiology.jpg",
-                onSelect = { Navigator.showFind() }
+                onSelect = { selectSpecialtyAndNavigate("Кардиолог") }
             )
             specialtyCard(
                 title = "Педиатрия",
                 subtitle = "Здоровье и развитие детей",
                 icon = "👶",
                 imagePath = "/images/pediatrics.jpg",
-                onSelect = { Navigator.showFind() }
+                onSelect = { selectSpecialtyAndNavigate("Педиатр") }
             )
             specialtyCard(
                 title = "Неврология",
                 subtitle = "Забота о мозге и нервной системе",
                 icon = "🧠",
                 imagePath = "/images/neurology.jpg",
-                onSelect = { Navigator.showFind() }
+                onSelect = { selectSpecialtyAndNavigate("Невролог") }
             )
             specialtyCard(
                 title = "Офтальмология",
                 subtitle = "Забота о глазах и зрении",
                 icon = "👁️",
                 imagePath = "/images/ophthalmology.jpg",
-                onSelect = { Navigator.showFind() }
+                onSelect = { selectSpecialtyAndNavigate("Офтальмолог") }
             )
             specialtyCard(
                 title = "Ортопедия",
                 subtitle = "Забота о костях и суставах",
                 icon = "🦴",
                 imagePath = "/images/orthopedics.jpg",
-                onSelect = { Navigator.showFind() }
+                onSelect = { selectSpecialtyAndNavigate("Ортопед") }
             )
             specialtyCard(
                 title = "Общая терапия",
                 subtitle = "Первичная медицинская помощь",
                 icon = "🩺",
                 imagePath = "/images/general.jpg",
-                onSelect = { Navigator.showFind() }
+                onSelect = { selectSpecialtyAndNavigate("Терапевт") }
             )
         }
     }
@@ -126,6 +126,7 @@ object Session {
     var isActive: Boolean = true
     var hasNoPatronymic: Boolean = false
     var pendingDoctorSearchQuery: String? = null
+    var pendingDoctorSpecialty: String? = null
     var pendingRegistration: PendingRegistration? = null
 
     data class PendingRegistration(
@@ -207,6 +208,7 @@ object Session {
         isActive = true
         hasNoPatronymic = false
         pendingDoctorSearchQuery = null
+        pendingDoctorSpecialty = null
         pendingRegistration = null
         ApiConfig.clearToken()
         ApiConfig.clearSessionData()
@@ -274,6 +276,7 @@ object Session {
         dateOfBirth = snapshot.dateOfBirth
         isActive = snapshot.isActive
         hasNoPatronymic = snapshot.hasNoPatronymic
+        pendingDoctorSpecialty = snapshot.pendingDoctorSpecialty
         isLoggedIn = token != null
         snapshot.token?.let { ApiConfig.setToken(it) }
     }
@@ -308,7 +311,8 @@ object Session {
             gender = gender,
             dateOfBirth = dateOfBirth,
             isActive = isActive,
-            hasNoPatronymic = hasNoPatronymic
+            hasNoPatronymic = hasNoPatronymic,
+            pendingDoctorSpecialty = pendingDoctorSpecialty
         )
 
         val serialized = json.encodeToString(snapshot)
@@ -330,8 +334,14 @@ object Session {
         val gender: String?,
         val dateOfBirth: String?,
         val isActive: Boolean,
-        val hasNoPatronymic: Boolean
+        val hasNoPatronymic: Boolean,
+        val pendingDoctorSpecialty: String?
     )
+}
+
+private fun selectSpecialtyAndNavigate(specialty: String) {
+    Session.pendingDoctorSpecialty = specialty
+    Navigator.showFind()
 }
 
 private fun Container.specialtyCard(
