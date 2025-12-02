@@ -10,8 +10,9 @@ from .models import (
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
     NoteIn, NoteOut, NotePatch,
+    UserProfilePatch,
     SpecializationOut, DoctorSearchOut, Gender,
-    UserProfilePatch
+    DoctorPatientOut
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
