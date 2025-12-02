@@ -12,7 +12,7 @@ from .models import (
     NoteIn, NoteOut, NotePatch,
     UserProfilePatch,
     SpecializationOut, DoctorSearchOut, Gender,
-    DoctorPatientOut
+    DoctorPatientOut,
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
