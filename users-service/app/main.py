@@ -10,6 +10,7 @@ from .models import (
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
     NoteIn, NoteOut, NotePatch,
+    SpecializationOut, DoctorSearchOut, Gender,
     UserProfilePatch
 )
 from . import repository as repo
