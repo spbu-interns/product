@@ -1,5 +1,8 @@
 #!/bin/bash
 # Скрипт для быстрого запуска всего сервиса
+# Использование:
+#   ./scripts/run-server.sh          # Обычный запуск
+#   ./scripts/run-server.sh --reset  # Полный сброс БД
 
 set -e  # Остановить при ошибке
 
@@ -9,22 +12,90 @@ echo "======================================"
 # Перейти в корень users-service (родительская папка от scripts/)
 cd "$(dirname "$0")/.."
 
-# 1. Запуск PostgreSQL
+# Проверка флага --reset
+RESET_DB=false
+if [ "$1" == "--reset" ]; then
+    RESET_DB=true
+    echo ""
+    echo "⚠️  РЕЖИМ: Полный сброс базы данных"
+    echo "======================================"
+fi
+
+# 1. Остановка и очистка (если --reset)
+if [ "$RESET_DB" = true ]; then
+    echo ""
+    echo "1️⃣  Остановка и удаление старой БД..."
+    docker compose down -v
+    echo "   ✅ Старые данные удалены"
+fi
+
+# 2. Запуск PostgreSQL
 echo ""
-echo "1️⃣  Запуск PostgreSQL в Docker..."
+if [ "$RESET_DB" = true ]; then
+    echo "2️⃣  Запуск PostgreSQL в Docker..."
+else
+    echo "1️⃣  Запуск PostgreSQL в Docker..."
+fi
 docker compose up -d
 
-# Ожидание готовности БД
+# Ожидание готовности БД с улучшенной проверкой
 echo "   Ожидание готовности PostgreSQL..."
-sleep 3
+MAX_ATTEMPTS=30
+ATTEMPT=1
 
-# Проверка статуса
-if docker compose ps | grep -q "users_pg.*Up"; then
-    echo "   ✅ PostgreSQL запущен"
+while ! docker exec users_pg pg_isready -U userdb -d userdb > /dev/null 2>&1; do
+    if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+        echo "   ❌ База данных не запустилась за $MAX_ATTEMPTS секунд"
+        docker compose logs
+        exit 1
+    fi
+    echo "   Попытка $ATTEMPT/$MAX_ATTEMPTS..."
+    sleep 1
+    ATTEMPT=$((ATTEMPT + 1))
+done
+
+echo "   ✅ PostgreSQL запущен и готов"
+
+# Проверка, первый ли это запуск (пустая БД) или режим --reset
+USER_COUNT=$(docker exec users_pg psql -U userdb -d userdb -t -c "SELECT COUNT(*) FROM users WHERE email LIKE '%@test.com';" 2>/dev/null | tr -d ' ' || echo "0")
+
+if [ "$USER_COUNT" = "0" ] || [ "$RESET_DB" = true ]; then
+    echo ""
+    if [ "$RESET_DB" = true ]; then
+        echo "3️⃣  Применение SQL миграций..."
+    else
+        echo "📊 Обнаружена пустая БД, применяю все миграции..."
+    fi
+    
+    for sql_file in sql/*.sql; do
+        filename=$(basename "$sql_file")
+        echo "   Применяю $filename..."
+        docker exec -i users_pg psql -U userdb -d userdb < "$sql_file" > /dev/null 2>&1 || true
+    done
+    
+    echo "   ✅ Миграции применены"
+    
+    # Статистика созданных данных
+    if [ "$RESET_DB" = true ]; then
+        echo ""
+        echo "4️⃣  Статистика созданных данных:"
+        
+        CLINICS_COUNT=$(docker exec users_pg psql -U userdb -d userdb -t -c "SELECT COUNT(*) FROM clinics;" 2>/dev/null | tr -d ' ' || echo "0")
+        USERS_COUNT=$(docker exec users_pg psql -U userdb -d userdb -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ' || echo "0")
+        DOCTORS_COUNT=$(docker exec users_pg psql -U userdb -d userdb -t -c "SELECT COUNT(*) FROM doctors;" 2>/dev/null | tr -d ' ' || echo "0")
+        CLIENTS_COUNT=$(docker exec users_pg psql -U userdb -d userdb -t -c "SELECT COUNT(*) FROM clients;" 2>/dev/null | tr -d ' ' || echo "0")
+        
+        echo "   📊 Клиники: $CLINICS_COUNT | Доктора: $DOCTORS_COUNT | Клиенты: $CLIENTS_COUNT | Всего пользователей: $USERS_COUNT"
+    fi
+    
+    # Подсказка о загрузке аватарок
+    if [ -d "test_avatars" ]; then
+        echo ""
+        echo "💡 Для загрузки тестовых аватарок запустите после старта API:"
+        echo "   python3 scripts/upload_avatars_via_api.py"
+    fi
 else
-    echo "   ❌ Ошибка запуска PostgreSQL"
-    docker compose logs
-    exit 1
+    echo "   ℹ️  БД уже содержит данные ($USER_COUNT тестовых пользователей)"
 fi
 
 # 2. Активация виртуального окружения

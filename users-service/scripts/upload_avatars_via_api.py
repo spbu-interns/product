@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""
+Скрипт для загрузки аватарок тестовым пользователям через API.
+Использует маппинг тестовых аватарок на конкретных пользователей.
+"""
+
+import requests
+from pathlib import Path
+import sys
+import time
+
+# Настройки
+API_BASE = "http://localhost:8001"
+SCRIPT_DIR = Path(__file__).parent.parent
+AVATARS_DIR = SCRIPT_DIR / "test_avatars"
+
+# Маппинг: файл аватарки -> ID пользователя в БД
+# ID основаны на порядке вставки в 016_test_data.sql
+AVATAR_MAPPING = {
+    "test-avatar-1.jpg": [1],   # admin_ivanov (первый вставленный пользователь)
+    "test-avatar-2.jpg": [2],   # dr_petrov
+    "test-avatar-3.jpg": [3],   # dr_sidorova
+    "test-avatar-4.jpg": [4],   # dr_kuznetsov
+    "test-avatar-5.jpg": [5],   # dr_volkova
+    "test-avatar-6.jpg": [6],   # dr_sokolov
+    "test-avatar-7.jpg": [7, 9],   # maria_ivanova, olga_popova
+    "test-avatar-8.jpg": [8, 10],  # alex_smirnov, dmitry_novikov
+    "test-avatar-9.jpg": [11, 12], # elena_fedorova, sergey_kozlov
+}
+
+def wait_for_api(max_attempts=30):
+    """Ожидание готовности API."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.get(f"{API_BASE}/health", timeout=1)
+            if response.status_code == 200:
+                return True
+        except:
+            pass
+        
+        if attempt < max_attempts:
+            print(f"   Попытка {attempt}/{max_attempts}...")
+            time.sleep(1)
+    
+    return False
+
+def upload_avatar(user_id: int, avatar_path: Path) -> bool:
+    """Загружает аватарку для пользователя."""
+    try:
+        with open(avatar_path, 'rb') as f:
+            files = {'file': (avatar_path.name, f, 'image/jpeg')}
+            response = requests.post(
+                f"{API_BASE}/users/{user_id}/avatar",
+                files=files,
+                timeout=10
+            )
+        
+        if response.status_code in [200, 201]:
+            return True
+        else:
+            print(f"      ⚠️  HTTP {response.status_code}: {response.text[:100]}")
+            return False
+    except Exception as e:
+        print(f"      ❌ Ошибка: {e}")
+        return False
+
+def main():
+    """Загружает аватарки через API."""
+    
+    print("🌐 Загрузка аватарок через API...")
+    print("=" * 60)
+    
+    # Проверка папки с аватарками
+    if not AVATARS_DIR.exists():
+        print(f"❌ Папка {AVATARS_DIR} не найдена!")
+        sys.exit(1)
+    
+    # Ожидание API
+    print("Проверка доступности API...")
+    if not wait_for_api():
+        print("❌ API недоступен после 30 попыток")
+        sys.exit(1)
+    
+    print("✅ API доступен")
+    print()
+    
+    success_count = 0
+    fail_count = 0
+    
+    # Загружаем аватарки
+    for avatar_file, user_ids in AVATAR_MAPPING.items():
+        avatar_path = AVATARS_DIR / avatar_file
+        
+        if not avatar_path.exists():
+            print(f"⚠️  Файл {avatar_file} не найден, пропускаем")
+            continue
+        
+        for user_id in user_ids:
+            print(f"   Загружаю {avatar_file} для user_id={user_id}...", end=" ")
+            
+            if upload_avatar(user_id, avatar_path):
+                print("✅")
+                success_count += 1
+            else:
+                print("❌")
+                fail_count += 1
+    
+    print()
+    print("=" * 60)
+    print(f"✅ Успешно: {success_count}")
+    if fail_count > 0:
+        print(f"❌ Ошибок: {fail_count}")
+    print()
+    print("🎉 Загрузка завершена!")
+
+if __name__ == '__main__':
+    main()
