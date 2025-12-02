@@ -10,8 +10,7 @@ from .models import (
     LoginIn, ApiLoginResponse,
     ComplaintIn, ComplaintOut, ComplaintPatch,
     NoteIn, NoteOut, NotePatch,
-    UserProfilePatch,
-    SpecializationOut, DoctorSearchOut, Gender,
+    UserProfilePatch
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
@@ -139,9 +138,26 @@ def auth_login(req: LoginIn):
     s = get_session()
     try:
         u = repo.find_auth_by_login_or_email(s, req.login_or_email)
+
+        # нет юзера, отключен, или неверный пароль
         if (not u) or (not u["is_active"]) or (not bcrypt.verify(req.password, u["password_hash"])):
-            raise HTTPException(status_code=401, detail="invalid login or password")
-        return ApiLoginResponse(success=True, role=u["role"])
+            return ApiLoginResponse(
+                success=False,
+                error="invalid login or password",
+            )
+
+        # пароль ок, но email не подтверждён
+        if u.get("email_verified_at") is None:
+            return ApiLoginResponse(
+                success=False,
+                error="EMAIL_NOT_VERIFIED",
+            )
+
+        # всё ок
+        return ApiLoginResponse(
+            success=True,
+            role=u["role"],
+        )
     finally:
         s.close()
 
@@ -569,6 +585,8 @@ def api_search_doctors(
     max_experience: Optional[int] = Query(None),
 
     date_filter: Optional[date] = Query(None, alias="date"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
     """
     Поиск врачей с фильтрами из ТЗ.
@@ -600,6 +618,35 @@ def api_search_doctors(
             min_experience=min_experience,
             max_experience=max_experience,
             date_filter=date_filter,
+            limit=limit,
+            offset=offset,
         )
+    finally:
+        s.close()
+
+
+@app.get("/clients/{client_id}/medical-records", response_model=List[MedicalRecordOut])
+def api_list_medical_records_for_client(client_id: int):
+    s = get_session()
+    try:
+        return repo.list_medical_records_for_client(s, client_id)
+    finally:
+        s.close()
+
+
+@app.get("/doctors/{doctor_id}/appointments", response_model=List[AppointmentOut])
+def api_list_appointments_for_doctor(doctor_id: int):
+    s = get_session()
+    try:
+        return repo.list_appointments_for_doctor(s, doctor_id)
+    finally:
+        s.close()
+
+
+@app.get("/doctors/{doctor_id}/patients", response_model=List[DoctorPatientOut])
+def api_list_patients_for_doctor(doctor_id: int):
+    s = get_session()
+    try:
+        return repo.list_patients_for_doctor(s, doctor_id)
     finally:
         s.close()

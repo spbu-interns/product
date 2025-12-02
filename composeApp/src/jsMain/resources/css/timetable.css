@@ -1,0 +1,234 @@
+.timetable-overlay-root {
+    position: relative;
+}
+
+.timetable-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+}
+
+.timetable-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+}
+
+.timetable-modal {
+    position: relative;
+    background: #fff;
+    border-radius: 24px;
+    width: min(1248px, 96vw);
+    max-height: 92vh;
+    overflow: auto;
+    padding: 24px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+}
+
+.timetable-slot-editor-layout {
+    display: flex;
+    flex-direction: column;
+}
+
+.timetable-slot-row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.timetable-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.timetable-day-card {
+    margin-top: 8px;
+}
+
+.timetable-slot-list-editor {
+    margin-top: 12px;
+}
+
+.timetable-slot-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.timetable-time-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    justify-content: space-between;
+}
+
+.timetable-input select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+
+    height: 36px;
+    line-height: 36px;
+    width: 120%;
+
+    display: flex;
+    align-items: center;
+}
+
+.timetable-time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timetable-time-inputs .timetable-input {
+    flex: 0 0 80px;
+    min-width: 80px;
+
+    height: 36px;
+    display: flex;
+    align-items: center;
+}
+
+.timetable-time-inputs .timetable-time-separator {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.timetable-slot-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.timetable-slot {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 12px;
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.timetable-slot.is-selected {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+.timetable-slot-remove {
+    border: none;
+    background: transparent;
+    color: #ef4444;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.timetable-input-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.timetable-input {
+    flex: 1 1 220px;
+    min-width: 200px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 10px 12px;
+}
+
+.timetable-template-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.timetable-template-card {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease;
+}
+
+.timetable-template-card:hover {
+    border-color: #4338ca;
+    box-shadow: 0 14px 30px rgba(67, 56, 202, 0.16);
+    transform: translateY(-2px);
+}
+
+.timetable-template-card.is-selected {
+    border-color: #4338ca;
+    box-shadow: 0 14px 30px rgba(67, 56, 202, 0.2);
+}
+
+.timetable-template-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.btn-secondary-lg {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-secondary-lg:hover {
+    background: #f8fafc;
+    border-color: #d1d5db;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.timetable-trigger {
+    margin-top: 20px;
+}
+
+.timetable-trigger.btn-secondary-lg {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.timetable-trigger.btn-secondary-lg:hover {
+    background: #1e4fcc !important;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}

@@ -26,6 +26,7 @@ object ApiConfig {
         const val PASSWORD_FORGOT = "$BASE_URL/api/auth/password/forgot"
         const val PASSWORD_RESET = "$BASE_URL/api/auth/password/reset"
         const val EMAIL_START_VERIFICATION = "$BASE_URL/api/auth/email/start"
+        const val DOCTOR_SEARCH = "$BASE_URL/doctors/search"
 
         fun patientComplaints(patientId: Long) = "$BASE_URL/api/patient/$patientId/complaints"
         fun patientComplaint(complaintId: Long) = "$BASE_URL/api/patient/complaints/$complaintId"
@@ -37,6 +38,7 @@ object ApiConfig {
     }
 
     const val TOKEN_STORAGE_KEY = "auth_token"
+    const val SESSION_STORAGE_KEY = "session_state"
 
     val httpClient = HttpClient(Js) {
         install(ContentNegotiation) {
@@ -71,6 +73,15 @@ object ApiConfig {
 
     fun clearToken() =
         localStorage.removeItem(TOKEN_STORAGE_KEY)
+
+    fun getSessionData(): String? =
+        localStorage.getItem(SESSION_STORAGE_KEY)
+
+    fun setSessionData(data: String) =
+        localStorage.setItem(SESSION_STORAGE_KEY, data)
+
+    fun clearSessionData() =
+        localStorage.removeItem(SESSION_STORAGE_KEY)
 
     fun isAuthenticated(): Boolean =
         getToken() != null

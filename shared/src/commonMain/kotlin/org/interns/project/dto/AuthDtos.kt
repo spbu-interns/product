@@ -33,11 +33,14 @@ data class LoginResponse(
     @SerialName("account_type")
     val accountType: String,
     
-    @SerialName("first_name")
+    @SerialName("name")
     val firstName: String? = null,
     
-    @SerialName("last_name")
-    val lastName: String? = null
+    @SerialName("surname")
+    val lastName: String? = null,
+
+    @SerialName("requires_email_verification")
+    val requiresEmailVerification: Boolean = false
 )
 
 @Serializable
@@ -56,12 +59,15 @@ data class RegisterRequest(
 data class RegisterResponse(
     @SerialName("success")
     val success: Boolean,
-    
+
     @SerialName("message")
     val message: String? = null,
-    
+
     @SerialName("user_id")
-    val userId: Long? = null
+    val userId: Long? = null,
+
+    @SerialName("requires_email_verification")
+    val requiresEmailVerification: Boolean = false
 )
 
 @Serializable
@@ -116,7 +122,7 @@ data class ResetPasswordResponse(
 data class ApiResponse<T>(
     @SerialName("success")
     val success: Boolean,
-    
+
     @SerialName("data")
     val data: T? = null,
     

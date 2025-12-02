@@ -5,7 +5,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.interns.project.auth.reset.PasswordResetService
-import org.interns.project.auth.verification.EmailVerificationService
+import org.interns.project.auth.verification.EmailVerificationPort
 
 data class EmailStartVerificationIn(val email: String)
 data class EmailVerifyIn(val token: String)
@@ -13,7 +13,7 @@ data class PasswordForgotIn(val email: String)
 data class PasswordResetIn(val token: String, val newPassword: String)
 
 fun Route.fastApiCompatRoutes(
-    verification: EmailVerificationService,
+    verification: EmailVerificationPort,
     reset: PasswordResetService
 ) {
     route("/auth") {

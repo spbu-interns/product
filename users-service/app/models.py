@@ -90,6 +90,7 @@ class UserProfilePatch(BaseModel):
     # НОВЫЕ поля профиля
     name: Optional[str] = None
     surname: Optional[str] = None
+    patronymic: Optional[str] = None
     date_of_birth: Optional[date] = None
     avatar: Optional[str] = None
     gender: Optional[Gender] = None
@@ -339,3 +340,14 @@ class DoctorSearchOut(BaseModel):
 
     # список названий специализаций врача
     specialization_names: List[str] = []
+
+class DoctorPatientOut(BaseModel):
+    client_id: int
+    user_id: int
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone_number: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    avatar: Optional[str] = None
+    gender: Optional[Gender] = None

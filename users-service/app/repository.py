@@ -94,22 +94,25 @@ def list_users(s: Session, role: Optional[str]=None) -> List[Dict]:
 def update_user_profile(s: Session, user_id: int, p) -> Optional[Dict]:
     sets = []
     params = {"id": user_id}
+    incoming = p.model_dump(exclude_unset=True)
 
     # поля, реально существующие в users
-    if p.phone_number is not None:
+    if "phone_number" in incoming:
         sets.append("phone_number = :phone_number"); params["phone_number"] = p.phone_number
-    if p.clinic_id is not None:
+    if "clinic_id" in incoming:
         sets.append("clinic_id = :clinic_id"); params["clinic_id"] = p.clinic_id
 
-    if p.name is not None:
+    if "name" in incoming:
         sets.append("name = :name"); params["name"] = p.name
-    if p.surname is not None:
+    if "surname" in incoming:
         sets.append("surname = :surname"); params["surname"] = p.surname
-    if p.date_of_birth is not None:
+    if "patronymic" in incoming:
+        sets.append("patronymic = :patronymic"); params["patronymic"] = p.patronymic
+    if "date_of_birth" in incoming:
         sets.append("date_of_birth = :dob"); params["dob"] = p.date_of_birth
-    if p.avatar is not None:
+    if "avatar" in incoming:
         sets.append("avatar = :avatar"); params["avatar"] = p.avatar
-    if p.gender is not None:
+    if "gender" in incoming:
         sets.append("gender = :gender"); params["gender"] = p.gender
 
     if not sets:
@@ -158,7 +161,7 @@ def get_user_profile(s: Session, user_id: int) -> Optional[Dict]:
 
 def find_auth_by_login_or_email(s: Session, v: str):
     r = s.execute(text("""
-        select id, role, password_hash, is_active
+        select id, role, password_hash, is_active, email_verified_at
         from users
         where login = :v or email = :v
         limit 1
@@ -968,7 +971,11 @@ def search_doctors(
     min_experience: Optional[int] = None,
     max_experience: Optional[int] = None,
     date_filter: Optional[date] = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> List[Dict]:
+    safe_limit = 50 if limit is None or limit <= 0 else limit
+    safe_offset = 0 if offset is None or offset < 0 else offset
     sql = """
         select
             d.*,
@@ -992,7 +999,7 @@ def search_doctors(
         left join clinics c on c.id = d.clinic_id
         where 1=1
     """
-    params = {}
+    params = {"limit": safe_limit, "offset": safe_offset}
 
     if city is not None:
         sql += " and c.city = :city"
@@ -1069,7 +1076,67 @@ def search_doctors(
         """
         params["slot_date"] = date_filter
 
-    sql += " order by d.rating desc nulls last, d.price nulls first, d.id"
+    sql += """
+            order by d.rating desc nulls last, d.price asc nulls last, d.id
+            limit :limit offset :offset
+        """
 
     rows = s.execute(text(sql), params).mappings().all()
+    return [dict(r) for r in rows]
+
+
+def list_medical_records_for_client(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select *
+            from medical_records
+            where client_id = :c
+            order by id desc
+            """
+        ),
+        {"c": client_id},
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+def list_appointments_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select a.*
+            from appointments a
+            join appointment_slots s2 on a.slot_id = s2.id
+            where s2.doctor_id = :d
+            order by a.id desc
+            """
+        ),
+        {"d": doctor_id},
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+def list_patients_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select distinct
+                c.id as client_id,
+                c.user_id as user_id,
+                u.name,
+                u.surname,
+                u.patronymic,
+                u.phone_number,
+                u.date_of_birth,
+                u.avatar,
+                u.gender
+            from appointments a
+            join appointment_slots s2 on a.slot_id = s2.id
+            join clients c on a.client_id = c.id
+            join users u on c.user_id = u.id
+            where s2.doctor_id = :d
+            """
+        ),
+        {"d": doctor_id},
+    ).mappings().all()
     return [dict(r) for r in rows]
