@@ -15,5 +15,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Опционально: можно добавить API-сервис для загрузки аватарок
+  # api:
+  #   build: .
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./avatars:/app/avatars
+  #   depends_on:
+  #     - db
+
 volumes:
   pgdata:

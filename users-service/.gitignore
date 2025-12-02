@@ -2,3 +2,13 @@
 __pycache__/
 *.pyc
 .env
+
+# Аватарки пользователей (не коммитим файлы, только .gitkeep)
+avatars/*
+!avatars/.gitkeep
+
+# Тестовые файлы
+test_avatar.jpg
+large_avatar.jpg
+downloaded_avatar.jpg
+test.txt
