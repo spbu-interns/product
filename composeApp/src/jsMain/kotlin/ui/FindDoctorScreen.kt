@@ -4,6 +4,7 @@ import io.kvision.core.Container
 import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.select.select
+import io.kvision.form.text.Text
 import io.kvision.form.text.text
 import io.kvision.html.button
 import io.kvision.html.div
@@ -15,22 +16,16 @@ import io.kvision.panel.hPanel
 import io.kvision.panel.simplePanel
 import io.kvision.panel.vPanel
 import ui.components.bookingModal
+import ui.components.doctorProfileModal
 
 import api.DoctorApiClient
+import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.interns.project.dto.DoctorSearchFilterDto
 import org.interns.project.dto.DoctorSearchResultDto
-
-private data class DoctorProfile(
-    val name: String,
-    val specialty: String,
-    val rating: Double,
-    val experienceYears: Int,
-    val price: Int,
-    val location: String,
-    val bio: String
-)
+import org.interns.project.dto.UserResponseDto
+import org.w3c.dom.url.URLSearchParams
 
 private enum class SortOption(val label: String, val comparator: Comparator<DoctorProfile>) {
     RATING_DESC("Рейтинг (по убыванию)", compareByDescending<DoctorProfile> { it.rating }.thenBy { it.name }),
@@ -59,6 +54,7 @@ private val cities = listOf(
 )
 
 var loadedDoctors: List<DoctorSearchResultDto> = emptyList()
+private val doctorProfilesCache: MutableMap<Long, UserResponseDto> = mutableMapOf()
 
 private fun specToId(name: String): Int? = when (name.lowercase()) {
     "кардиолог" -> 1
@@ -86,32 +82,81 @@ private suspend fun loadDoctors(
     return DoctorApiClient().searchDoctors(filter)
 }
 
-private fun DoctorSearchResultDto.toUiProfile() = DoctorProfile(
-    name = "Доктор №${id}",
-    specialty = specializationNames.joinToString().ifBlank { profession },
-    rating = rating ?: 0.0,
-    experienceYears = experience ?: 0,
-    price = (price ?: 0.0).toInt(),
-    location = city ?: "Не указан",
-    bio = info ?: "Информация отсутствует"
-)
+private fun DoctorSearchResultDto.matchesQuery(query: String, profile: UserResponseDto?): Boolean {
+    if (query.isBlank()) return true
+    val normalized = query.lowercase()
+    val combined = listOfNotNull(
+        profile?.surname,
+        profile?.name,
+        profile?.patronymic,
+        profession,
+        info,
+        specializationNames.joinToString(" "),
+        city,
+        id.toString(),
+        userId.toString()
+    ).joinToString(" ")
+    return combined.lowercase().contains(normalized)
+}
+
+private fun DoctorSearchResultDto.toUiProfile(profile: UserResponseDto?): DoctorProfile {
+    val fullName = profile?.let {
+        listOfNotNull(it.surname, it.name, it.patronymic).joinToString(" ").trim()
+    }
+    val safeName = if (fullName.isNullOrBlank()) "Доктор №${id}" else fullName
+
+    return DoctorProfile(
+        name = safeName,
+        specialty = specializationNames.joinToString().ifBlank { profession },
+        rating = rating ?: 0.0,
+        experienceYears = experience ?: 0,
+        price = (price ?: 0.0).toInt(),
+        location = city ?: "Не указан",
+        bio = info ?: "Информация отсутствует",
+        gender = profile?.gender
+    )
+}
 
 fun Container.findDoctorScreen(onLogout: () -> Unit) {
+    val params = URLSearchParams(window.location.search)
+    var searchQuery = Session.pendingDoctorSearchQuery ?: params.get("query") ?: ""
+    Session.pendingDoctorSearchQuery = null
+    val pendingSpecialty = Session.pendingDoctorSpecialty
+    Session.pendingDoctorSpecialty = null
+    val doctorApi = DoctorApiClient()
+
     headerBar(
-        mode = if (Session.isLoggedIn) HeaderMode.PATIENT else HeaderMode.PUBLIC,
+        mode = when {
+            Session.accountType.equals("DOCTOR", ignoreCase = true) -> HeaderMode.DOCTOR
+            Session.isLoggedIn -> HeaderMode.PATIENT
+            else -> HeaderMode.PUBLIC
+        },
         active = NavTab.FIND,
         onLogout = onLogout
     )
 
-    var searchQuery = ""
     var selectedLocation: String? = null
     var sortOption = SortOption.RATING_DESC
-    val selectedSpecialties = mutableSetOf<String>()
+    val selectedSpecialties = mutableSetOf<String>().apply {
+        pendingSpecialty?.let { add(it) }
+    }
 
     lateinit var resultsPanel: SimplePanel
+    lateinit var searchField: Text
 
     val bookingModalController = bookingModal()
+    val profileModalController = doctorProfileModal(onBook = {
+        bookingModalController.open(it.name)
+    })
     val onBookDoctor: (DoctorProfile) -> Unit = { bookingModalController.open(it.name) }
+
+    suspend fun enrichProfiles(doctors: List<DoctorSearchResultDto>) {
+        doctors.forEach { doc ->
+            if (!doctorProfilesCache.containsKey(doc.userId)) {
+                doctorApi.getUserProfile(doc.userId).onSuccess { doctorProfilesCache[doc.userId] = it }
+            }
+        }
+    }
 
     div(className = "find-page") {
         div(className = "container") {
@@ -119,9 +164,10 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
             h2("Найти врача", className = "find-title")
 
             hPanel(className = "find-search-bar") {
-                val searchField = text {
+                searchField = text {
                     placeholder = "Введите имя, специализацию или симптом"
                     addCssClass("find-search-input")
+                    value = searchQuery
                 }
 
                 button("Поиск", className = "btn btn-primary find-search-button").onClick {
@@ -129,11 +175,12 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
 
                     MainScope().launch {
                         val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
-                        println(result)
-                        result.onSuccess { loadedDoctors = it }
-                            .onFailure { println("Ошибка загрузки врачей: ${it.message}") }
+                        result.onSuccess {
+                            loadedDoctors = it
+                            enrichProfiles(loadedDoctors)
+                        }.onFailure { println("Ошибка загрузки врачей: ${it.message}") }
 
-                        renderResultsSort(resultsPanel, loadedDoctors, sortOption, onBookDoctor)
+                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
                     }
                 }
             }
@@ -143,15 +190,17 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                     h3("Фильтры", className = "find-sidebar-title")
 
                     div(className = "find-filter-card") {
-                        h3("Сортировка", className = "find-filter-title")
-                        val sortSelect = select(options = SortOption.entries.map { it.name to it.label }) {
-                            value = sortOption.name
-                            addCssClass("find-select")
-                        }
-                        sortSelect.onEvent {
-                            change = {
-                                sortOption = SortOption.from(sortSelect.value)
-                                renderResultsSort(resultsPanel, loadedDoctors, sortOption, onBookDoctor)
+                        div(className = "find-filter-header") {
+                            h3("Сортировка", className = "find-filter-title")
+                            val sortSelect = select(options = SortOption.entries.map { it.name to it.label }) {
+                                value = sortOption.name
+                                addCssClass("find-select")
+                            }
+                            sortSelect.onEvent {
+                                change = {
+                                    sortOption = SortOption.from(sortSelect.value)
+                                    renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
+                                }
                             }
                         }
                     }
@@ -162,7 +211,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                         val specialties = listOf("Кардиолог", "Педиатр", "Невролог", "Ортопед", "Офтальмолог", "Терапевт")
 
                         specialties.forEach { specialty ->
-                            checkBox(false, label = specialty) {
+                            checkBox(selectedSpecialties.contains(specialty), label = specialty) {
                                 addCssClass("find-checkbox")
                                 onEvent {
                                     change = {
@@ -172,10 +221,13 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                                         MainScope().launch {
                                             val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
                                             println(result)
-                                            result.onSuccess { loadedDoctors = it }
+                                            result.onSuccess {
+                                                loadedDoctors = it
+                                                enrichProfiles(loadedDoctors)
+                                            }
                                                 .onFailure { println("Ошибка: ${it.message}") }
 
-                                            renderResultsSort(resultsPanel, loadedDoctors, sortOption, onBookDoctor)
+                                            renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
                                         }
                                     }
                                 }
@@ -185,25 +237,30 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
 
                     // ---------- City ----------
                     div(className = "find-filter-card") {
-                        h3("Локация", className = "find-filter-title")
-                        val locationSelect = select(
-                            options = listOf("" to "Все города") + cities.map { it to it }
-                        ) {
-                            addCssClass("find-select")
-                            value = ""
-                        }
+                        div(className = "find-filter-header") {
+                            h3("Локация", className = "find-filter-title")
+                            val locationSelect = select(
+                                options = listOf("" to "Все города") + cities.map { it to it }
+                            ) {
+                                addCssClass("find-select")
+                                value = ""
+                            }
 
-                        locationSelect.onEvent {
-                            change = {
-                                selectedLocation = locationSelect.value?.takeIf { it.isNotBlank() }
+                            locationSelect.onEvent {
+                                change = {
+                                    selectedLocation = locationSelect.value?.takeIf { it.isNotBlank() }
 
-                                MainScope().launch {
-                                    val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
-                                    println(result)
-                                    result.onSuccess { loadedDoctors = it }
-                                        .onFailure { println("Ошибка: ${it.message}") }
+                                    MainScope().launch {
+                                        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+                                        println(result)
+                                        result.onSuccess {
+                                            loadedDoctors = it
+                                            enrichProfiles(loadedDoctors)
+                                        }
+                                            .onFailure { println("Ошибка: ${it.message}") }
 
-                                    renderResultsSort(resultsPanel, loadedDoctors, sortOption, onBookDoctor)
+                                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
+                                    }
                                 }
                             }
                         }
@@ -215,18 +272,34 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
         }
     }
 
-    renderResultsSort(resultsPanel, loadedDoctors, sortOption, onBookDoctor)
+    MainScope().launch {
+        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+        result.onSuccess {
+            loadedDoctors = it
+            enrichProfiles(loadedDoctors)
+        }
+            .onFailure { println("Ошибка загрузки врачей: ${it.message}") }
+
+        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
+    }
 }
 
 private fun renderResultsSort(
     container: SimplePanel,
     doctors: List<DoctorSearchResultDto>,
+    profiles: Map<Long, UserResponseDto>,
     sortOption: SortOption,
-    onBook: (DoctorProfile) -> Unit
+    onBook: (DoctorProfile) -> Unit,
+    onViewProfile: (DoctorProfile) -> Unit,
+    query: String
 ) {
     container.removeAll()
 
-    if (doctors.isEmpty()) {
+    val filteredDoctors = doctors.map { it to profiles[it.userId] }.filter { (doc, profile) ->
+        doc.matchesQuery(query, profile)
+    }
+
+    if (filteredDoctors.isEmpty()) {
         container.div(className = "find-empty") {
             h3("Ничего не найдено")
             p("Попробуйте изменить параметры поиска или выбрать другие фильтры.")
@@ -234,15 +307,19 @@ private fun renderResultsSort(
         return
     }
 
-    doctors
-        .map { it.toUiProfile() }
+    filteredDoctors
+        .map { (doc, profile) -> doc.toUiProfile(profile) }
         .sortedWith(sortOption.comparator)
         .forEach { ui ->
-            container.doctorCard(ui, onBook)
+            container.doctorCard(ui, onBook, onViewProfile)
         }
 }
 
-private fun Container.doctorCard(profile: DoctorProfile, onBook: (DoctorProfile) -> Unit) {
+private fun Container.doctorCard(
+    profile: DoctorProfile,
+    onBook: (DoctorProfile) -> Unit,
+    onViewProfile: (DoctorProfile) -> Unit
+) {
     val initials = profile.name
         .split(" ")
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
@@ -260,14 +337,26 @@ private fun Container.doctorCard(profile: DoctorProfile, onBook: (DoctorProfile)
                     +"★ ${profile.rating}"
                 }
             }
+            val genderLabel = when (profile.gender?.uppercase()) {
+                "M" -> "Мужчина"
+                "F" -> "Женщина"
+                else -> null
+            }
             p(profile.specialty, className = "doctor-card-specialty")
-            p("Стаж ${profile.experienceYears} лет • ${profile.location}", className = "doctor-card-meta")
+            p(
+                listOfNotNull("Стаж ${profile.experienceYears} лет", genderLabel, profile.location).joinToString(" • "),
+                className = "doctor-card-meta"
+            )
             p(profile.bio, className = "doctor-card-bio")
             div(className = "doctor-card-footer") {
                 p("от ${profile.price} ₽ / приём", className = "doctor-card-price")
                 div(className = "doctor-card-actions") {
-                    button("Посмотреть профиль", className = "btn btn-secondary btn-sm")
-                    button("Записаться", className = "btn btn-primary btn-sm").onClick { onBook(profile) }
+                    button("Посмотреть профиль", className = "btn btn-secondary btn-sm").onClick {
+                        onViewProfile(profile)
+                    }
+                    button("Записаться", className = "btn btn-primary btn-sm").onClick {
+                        onBook(profile)
+                    }
                 }
             }
         }

@@ -1,14 +1,16 @@
 ﻿package ui
 
 import io.kvision.core.Container
+import io.kvision.core.onClick
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.image
 import io.kvision.html.link
+import io.kvision.html.span
 import io.kvision.html.nav
 
 enum class HeaderMode { PUBLIC, PATIENT, DOCTOR }
-enum class NavTab { NONE, HOME, FIND }
+enum class NavTab { NONE, HOME, FIND, PROFILE }
 
 fun Container.headerBar(
     mode: HeaderMode = HeaderMode.PUBLIC,
@@ -18,10 +20,13 @@ fun Container.headerBar(
     nav(className = "topnav") {
         div(className = "container topnav_content") {
             div(className = "brand") {
+                setAttribute("style", "cursor: pointer;")
+                onClick { Navigator.showHome() }
+
                 image(src = "/images/logo.jpg") {
                     addCssClass("brand_logo")
                 }
-                link(label = "INTERNS", url = "#", className = "brand_text").onClick { it.preventDefault(); Navigator.showHome() }
+                span("INTERNS", className = "brand_text")
             }
 
             div(className = "topnav_links") {
@@ -31,8 +36,10 @@ fun Container.headerBar(
                 link("Главная", "#", className = homeClass).onClick {
                     it.preventDefault(); Navigator.showHome()
                 }
-                link("Найти врача", "#", className = findClass).onClick {
-                    it.preventDefault(); Navigator.showFind()
+                val findLabel = if (mode == HeaderMode.DOCTOR) "Найти пациента" else "Найти врача"
+                link(findLabel, "#", className = findClass).onClick {
+                    it.preventDefault();
+                    if (mode == HeaderMode.DOCTOR) Navigator.showFindPatient() else Navigator.showFind()
                 }
             }
 
@@ -50,22 +57,18 @@ fun Container.headerBar(
 
                 HeaderMode.PATIENT -> {
                     div(className = "topnav_auth") {
-                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                        val profileClass = "btn-ghost-sm profile-nav" + if (active == NavTab.PROFILE) " is-active" else ""
+                        button("Личный кабинет", className = profileClass).onClick {
                             Navigator.showPatient()
-                        }
-                        button("Выйти", className = "btn-logout-sm").onClick {
-                            onLogout?.invoke() ?: run { Navigator.showHome() }
                         }
                     }
                 }
 
                 HeaderMode.DOCTOR -> {
                     div(className = "topnav_auth") {
-                        button("Личный кабинет", className = "btn-ghost-sm").onClick {
+                        val profileClass = "btn-ghost-sm profile-nav" + if (active == NavTab.PROFILE) " is-active" else ""
+                        button("Личный кабинет", className = profileClass).onClick {
                             Navigator.showDoctor()
-                        }
-                        button("Выйти", className = "btn-logout-sm").onClick {
-                            onLogout?.invoke() ?: run { Navigator.showHome() }
                         }
                     }
                 }

@@ -3,29 +3,28 @@ package org.interns.project.users.repo
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import org.interns.project.dto.AppointmentCreateRequest
 import org.interns.project.dto.AppointmentDto
-import org.interns.project.dto.SlotCreateRequest
-import org.interns.project.dto.UserResponseDto
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.DoctorPatientDto
 import org.interns.project.dto.DoctorProfileDto
 import org.interns.project.dto.MedicalRecordDto
-import org.interns.project.users.model.User
-import org.interns.project.users.model.UserInDto
-import org.interns.project.users.model.UserOutDto
-import org.interns.project.users.model.UserCreateRequest
-import java.time.Instant
-import org.interns.project.users.dto.ApiResponse
+import org.interns.project.dto.SlotCreateRequest
+import org.interns.project.dto.UserResponseDto
 import org.interns.project.security.token.JwtService
+import org.interns.project.users.dto.ApiResponse
 import org.interns.project.users.model.*
+import java.time.Instant
 import java.time.LocalDate
 
 class ApiUserRepo(
@@ -54,7 +53,10 @@ class ApiUserRepo(
     fun close() = client.close()
 
     private fun String?.toInstantOrNull(): Instant? =
-        this?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        this?.let { raw ->
+            val text = raw.trim()
+            runCatching { Instant.parse(text) }.getOrNull()
+        }
 
     private fun String?.toLocalDateOrNull(): LocalDate? =
         this?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -70,19 +72,16 @@ class ApiUserRepo(
             id = d.id,
             email = d.email,
             login = d.login,
-            passwordHash = "",          // пароль не приходит из api
+            passwordHash = "",
             role = d.role,
-
             name = d.name,
             surname = d.surname,
             patronymic = d.patronymic,
             phoneNumber = d.phoneNumber,
             clinicId = d.clinicId,
-
             dateOfBirth = dob,
             avatar = d.avatar,
             gender = d.gender,
-
             isActive = d.isActive,
             createdAt = created,
             updatedAt = updated,
@@ -131,6 +130,18 @@ class ApiUserRepo(
 
     private fun urlEncode(s: String) = java.net.URLEncoder.encode(s, Charsets.UTF_8.name())
 
+    /**
+     * Конвертация Any? в JsonElement, чтобы можно было безопасно сериализовать Map<String, JsonElement>
+     * без ошибки "Serializing collections of different element types is not yet supported".
+     */
+    private fun anyToJsonElement(value: Any?): JsonElement = when (value) {
+        null -> JsonNull
+        is String -> JsonPrimitive(value)
+        is Number -> JsonPrimitive(value)
+        is Boolean -> JsonPrimitive(value)
+        else -> JsonPrimitive(value.toString())
+    }
+
     private suspend fun <T> doGet(path: String, parse: suspend (HttpResponse) -> T?): T? {
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) return null
@@ -147,11 +158,30 @@ class ApiUserRepo(
     ): T {
         val resp = client.post("$baseUrl$path") {
             contentType(ContentType.Application.Json)
-            setBody(body ?: emptyMap<String, Any>())
+
+            when (body) {
+                null -> {
+                    // пустое тело — ничего не шлём
+                }
+
+                is Map<*, *> -> {
+                    // Конвертим в Map<String, JsonElement> и ЯВНО передаём этот тип в setBody
+                    val jsonMap: Map<String, JsonElement> =
+                        body.entries.associate { (k, v) ->
+                            k.toString() to anyToJsonElement(v)
+                        }
+                    setBody(jsonMap)
+                }
+
+                else -> {
+                    // Любой другой нормальный DTO
+                    setBody(body)
+                }
+            }
         }
 
         println("🔵 Request to: $baseUrl$path")
-        println("🔵 Request body: ${body.toString()}")
+        println("🔵 Request body: $body")
         println("🔵 Response status: ${resp.status}")
         println("🔵 Response body: ${resp.bodyAsText()}")
 
@@ -175,15 +205,31 @@ class ApiUserRepo(
         body: Any?,
         parse: suspend (HttpResponse) -> T
     ): T {
-        // Логируем тело запроса
         println("=== DEBUG DO PATCH ===")
         println("Path: $path")
         println("Body object: $body")
 
         val resp = client.patch("$baseUrl$path") {
-            contentType(ContentType.Application.Json.withCharset(Charsets.UTF_8)) // Явно указываем кодировку
+            contentType(ContentType.Application.Json.withCharset(Charsets.UTF_8))
             accept(ContentType.Application.Json.withCharset(Charsets.UTF_8))
-            setBody(body ?: emptyMap<String, Any>())
+
+            when (body) {
+                null -> {
+                    // ничего не шлём
+                }
+
+                is Map<*, *> -> {
+                    val jsonMap: Map<String, JsonElement> =
+                        body.entries.associate { (k, v) ->
+                            k.toString() to anyToJsonElement(v)
+                        }
+                    setBody(jsonMap)
+                }
+
+                else -> {
+                    setBody(body)
+                }
+            }
         }
 
         println("🟣 PATCH $baseUrl$path -> ${resp.status}")
@@ -218,7 +264,6 @@ class ApiUserRepo(
         val role = input.role.uppercase()
 
         val registration = when (role) {
-            // клиент: users + пустая строка в clients
             "CLIENT" -> RegistrationRequest(
                 username = input.login,
                 password = input.password,
@@ -228,10 +273,6 @@ class ApiUserRepo(
                 client = ClientRegData()
             )
 
-            // доктор: users + запись в doctors
-            // profession обязательна на стороне fastapi,
-            // поэтому, пока нет отдельного поля, кладем заглушку.
-            // если потом появится конкретная специализация в dto — просто подставь её сюда.
             "DOCTOR" -> RegistrationRequest(
                 username = input.login,
                 password = input.password,
@@ -244,9 +285,6 @@ class ApiUserRepo(
                 )
             )
 
-            // админ: users + запись в admins
-            // admin.clinic_id обязателен; используем переданный clinicId,
-            // а если его нет — базовую клинику (id = 1 из 002_seed.sql).
             "ADMIN" -> RegistrationRequest(
                 username = input.login,
                 password = input.password,
@@ -254,11 +292,10 @@ class ApiUserRepo(
                 role = role,
                 isActive = input.isActive,
                 admin = AdminRegData(
-                    clinicId = input.clinicId ?.toLong(),
+                    clinicId = input.clinicId?.toLong(),
                 )
             )
 
-            // fallback — пусть будет как клиент
             else -> RegistrationRequest(
                 username = input.login,
                 password = input.password,
@@ -305,16 +342,21 @@ class ApiUserRepo(
         } else {
             findByLogin(loginOrEmail)
         }
-        val subject = (user!!.id).toString()
-        val login   = user.login
-        val role    = apiResp.role
-        val email   = user.email
+
+        if (user == null) {
+            return ApiResponse(success = false, error = "User not found")
+        }
+
+        val subject = user.id.toString()
+        val login = user.login
+        val role = apiResp.role
+        val email = user.email
 
         val token = JwtService.issue(
             subject = subject,
-            login   = login,
-            role    = role,
-            email   = email
+            login = login,
+            role = role,
+            email = email
         )
 
         return apiResp.copy(token = token)
@@ -336,7 +378,6 @@ class ApiUserRepo(
         return user.id
     }
 
-    // GET /users/{id}/profile — полный профиль
     suspend fun getUserProfile(userId: Long): UserResponseDto? =
         doGet("/users/$userId/profile") { resp ->
             resp.body<UserResponseDto>()
@@ -385,7 +426,7 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    // PATCH /users/{id}/profile — частичное обновление профиля
+    // PATCH /users/{id}/profile
     suspend fun patchUserProfile(userId: Long, patch: UserProfilePatch): UserResponseDto {
         val patchMap = mutableMapOf<String, Any?>()
 
@@ -398,8 +439,7 @@ class ApiUserRepo(
         patch.avatar?.let { patchMap["avatar"] = it }
         patch.gender?.let { patchMap["gender"] = it }
 
-        // Убираем null значения из map
-        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+        val cleanPatchMap: Map<String, Any?> = patchMap.filterValues { it != null }
 
         println("=== PATCH USER PROFILE ===")
         println("User ID: $userId")
@@ -414,7 +454,7 @@ class ApiUserRepo(
         }
     }
 
-    // === clients ===
+    // clients
     suspend fun patchClientByUserId(userId: Long, patch: ClientPatch): ClientProfileDto {
         val patchMap = mutableMapOf<String, Any?>()
 
@@ -428,7 +468,7 @@ class ApiUserRepo(
         patch.passport?.let { patchMap["passport"] = it }
         patch.dmsOms?.let { patchMap["dms_oms"] = it }
 
-        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+        val cleanPatchMap: Map<String, Any?> = patchMap.filterValues { it != null }
 
         println("=== PATCH CLIENT PROFILE ===")
         println("User ID: $userId")
@@ -441,16 +481,17 @@ class ApiUserRepo(
         return doPatch("/clients/by-user/$userId", cleanPatchMap) { it.body() }
     }
 
-    // === doctors ===
+    // doctors
     suspend fun patchDoctorByUserId(userId: Long, patch: DoctorPatch): DoctorProfileDto {
         val patchMap = mutableMapOf<String, Any?>()
 
+        patch.clinicId?.let { patchMap["clinic_id"] = it }
         patch.profession?.let { patchMap["profession"] = it }
         patch.info?.let { patchMap["info"] = it }
         patch.experience?.let { patchMap["experience"] = it }
         patch.price?.let { patchMap["price"] = it }
 
-        val cleanPatchMap = patchMap.filterValues { it != null } as Map<String, Any>
+        val cleanPatchMap: Map<String, Any?> = patchMap.filterValues { it != null }
 
         println("=== PATCH DOCTOR PROFILE ===")
         println("User ID: $userId")
@@ -463,12 +504,10 @@ class ApiUserRepo(
         return doPatch("/doctors/by-user/$userId", cleanPatchMap) { it.body() }
     }
 
-    // ===== ДЛЯ ЖАЛОБ ПАЦИЕНТА =====
-    // POST /patients/{id}/complaints
+    // complaints
     suspend fun createComplaint(patientId: Long, input: ComplaintIn): ComplaintOut =
         doPost("/patients/$patientId/complaints", input) { it.body() }
 
-    // GET /patients/{id}/complaints?status=OPEN|IN_PROGRESS|CLOSED
     suspend fun listComplaints(patientId: Long, status: ComplaintStatus? = null): List<ComplaintOut> {
         val resp = client.get("$baseUrl/patients/$patientId/complaints") {
             status?.let { parameter("status", it.name) }
@@ -479,15 +518,13 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    // PATCH /complaints/{id}
     suspend fun patchComplaint(complaintId: Long, patch: ComplaintPatch): ComplaintOut =
         doPatch("/complaints/$complaintId", patch) { it.body() }
 
-    // DELETE /complaints/{id}
     suspend fun deleteComplaint(complaintId: Long): Boolean =
         doDelete("/complaints/$complaintId")
 
-    //===== ДЛЯ ЗАПИСЕЙ ВРАЧЕЙ ====
+    // notes
     suspend fun findDoctorByUserId(userId: Long): DoctorProfileDto? {
         val path = "/doctors/by-user/$userId"
         val resp = client.get("$baseUrl$path")
@@ -498,7 +535,7 @@ class ApiUserRepo(
             else -> throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
         }
     }
-    // POST /patients/{id}/notes
+
     suspend fun createNote(patientId: Long, input: NoteIn): NoteOut {
         val doctor = findDoctorByUserId(input.doctorId)
             ?: throw IllegalArgumentException("doctor not found for user_id=${input.doctorId}")
@@ -511,13 +548,10 @@ class ApiUserRepo(
 
         return doPost("/patients/$patientId/notes", payload) { resp ->
             val raw = resp.body<NoteOut>()
-            // raw.doctorId = doctors.id, наружу возвращаем userId,
-            // чтобы тесты и фронт жили в пространстве users.id
             raw.copy(doctorId = doctor.userId)
         }
     }
 
-    // GET /patients/{id}/notes?include_internal=true|false
     suspend fun listNotes(patientId: Long, includeInternal: Boolean = true): List<NoteOut> {
         val resp = client.get("$baseUrl/patients/$patientId/notes") {
             parameter("include_internal", includeInternal)
@@ -528,16 +562,13 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    // PATCH /notes/{id}
     suspend fun patchNote(noteId: Long, patch: NotePatch): NoteOut =
         doPatch("/notes/$noteId", patch) { it.body() }
 
-    // DELETE /notes/{id}
     suspend fun deleteNote(noteId: Long): Boolean =
         doDelete("/notes/$noteId")
 
-    // ===== appointments & records =====
-
+    // appointments & records
     suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentDto> {
         val path = "/clients/$clientId/appointments"
         val resp = client.get("$baseUrl$path")
@@ -574,7 +605,7 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    // ===== Slots / appointments =====
+    // slots / appointments
     suspend fun createSlot(doctorId: Long, input: SlotCreateRequest): Slot {
         val payload = mapOf(
             "doctor_id" to doctorId,

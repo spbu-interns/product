@@ -56,7 +56,8 @@ private data class DoctorRecordContent(
     val category: String,
     val status: DoctorRecordStatus = DoctorRecordStatus.NORMAL,
     val notes: String,
-    val doctorName: String? = null
+    val doctorName: String? = null,
+    val doctorSpecialty: String? = null,
 )
 
 private data class DoctorRecordEntry(
@@ -65,9 +66,11 @@ private data class DoctorRecordEntry(
     val title: String,
     val doctorName: String,
     val createdAt: String,
+    val displayDate: String,
     val category: String,
     val status: DoctorRecordStatus,
     val notes: String,
+    val doctorSpecialty: String?,
     val visibility: NoteVisibilityDto,
     val content: DoctorRecordContent
 )
@@ -181,6 +184,31 @@ private fun calculateAge(dateIso: String?): Int? {
 
 private val recordJson = Json { ignoreUnknownKeys = true }
 
+private fun formatRecordDate(isoString: String?): String {
+    if (isoString.isNullOrBlank()) return "—"
+    return runCatching {
+        val timePartStart = isoString.indexOf('T')
+        val hasOffset = timePartStart != -1 &&
+                isoString.indexOfAny(charArrayOf('+', '-'), startIndex = timePartStart) != -1
+
+        val normalized = when {
+            isoString.endsWith("Z") || isoString.endsWith("z") -> isoString
+            hasOffset -> isoString
+            else -> isoString + "Z"
+        }
+
+        val date = Date(normalized)
+        val time = date.getTime()
+        if (time.isNaN()) return isoString
+        val day = date.getDate().toString().padStart(2, '0')
+        val month = (date.getMonth() + 1).toString().padStart(2, '0')
+        val year = date.getFullYear()
+        val hours = date.getHours().toString().padStart(2, '0')
+        val minutes = date.getMinutes().toString().padStart(2, '0')
+        "$day.$month.$year, $hours:$minutes"
+    }.getOrDefault(isoString)
+}
+
 private fun mapVisibilityToStatus(visibility: NoteVisibilityDto): DoctorRecordStatus = when (visibility) {
     NoteVisibilityDto.INTERNAL -> DoctorRecordStatus.ATTENTION
     NoteVisibilityDto.PATIENT -> DoctorRecordStatus.NORMAL
@@ -194,6 +222,8 @@ private fun DoctorRecordStatus.toVisibility(): NoteVisibilityDto = when (this) {
 
 private fun DoctorNoteResponse.toRecordEntry(
     selfDoctorLabel: String,
+    selfDoctorSpecialty: String?,
+    doctorSpecialtyCache: MutableMap<Long, String?>,
     overrideDoctorUserId: Long? = null,
 ): DoctorRecordEntry {
     val parsed = runCatching { recordJson.decodeFromString<DoctorRecordContent>(note) }.getOrNull()
@@ -204,8 +234,15 @@ private fun DoctorNoteResponse.toRecordEntry(
     val notesText = parsed?.notes?.takeIf { it.isNotBlank() } ?: note
     val category = parsed?.category?.takeIf { it.isNotBlank() } ?: "Общее"
     val doctorUserId = overrideDoctorUserId ?: doctorId
+    val specialty = parsed?.doctorSpecialty?.takeIf { it.isNotBlank() }
+        ?: doctorSpecialtyCache[doctorUserId]
+        ?: selfDoctorSpecialty.takeIf { doctorUserId == Session.userId }
     val doctorName = parsed?.doctorName?.takeIf { it.isNotBlank() }
         ?: if (Session.userId != null && doctorUserId == Session.userId) selfDoctorLabel else "Врач #$doctorUserId"
+
+    if (specialty != null) {
+        doctorSpecialtyCache[doctorUserId] = specialty
+    }
 
     val safeContent = parsed?.copy(
         title = title,
@@ -213,12 +250,14 @@ private fun DoctorNoteResponse.toRecordEntry(
         status = status,
         notes = notesText,
         doctorName = doctorName,
+        doctorSpecialty = specialty,
     ) ?: DoctorRecordContent(
         title = title,
         category = category,
         status = status,
         notes = notesText,
         doctorName = doctorName,
+        doctorSpecialty = specialty,
     )
 
     return DoctorRecordEntry(
@@ -227,9 +266,11 @@ private fun DoctorNoteResponse.toRecordEntry(
         title = title,
         doctorName = doctorName,
         createdAt = createdAt,
+        displayDate = formatRecordDate(updatedAt ?: createdAt),
         category = category,
         status = status,
         notes = notesText,
+        doctorSpecialty = specialty,
         visibility = visibility,
         content = safeContent,
     )
@@ -253,7 +294,7 @@ fun Container.doctorPatientScreen(
 
     headerBar(
         mode = HeaderMode.DOCTOR,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()
@@ -268,10 +309,12 @@ fun Container.doctorPatientScreen(
     var activeTab = DoctorPatientTab.OVERVIEW
 
     val records = mutableListOf<DoctorRecordEntry>()
+    val doctorSpecialtyCache = mutableMapOf<Long, String?>()
     var recordsLoaded = false
     var isLoadingRecords = false
     var recordsError: String? = null
     var editingRecordId: Long? = null
+    var selfSpecialty: String? = null
 
     val recordsContainer = vPanel(spacing = 12, className = "doctor-records-list").apply {
         width = 100.perc
@@ -299,6 +342,57 @@ fun Container.doctorPatientScreen(
         sidebarId?.content = idText
     }
 
+    fun loadSelfDoctorSpecialty() {
+        val doctorId = Session.userId ?: return
+        uiScope.launch {
+            val selfProfile = apiClient.getFullUserProfile(doctorId)
+            selfProfile.onSuccess { profile ->
+                profile?.doctor?.profession?.let { specialty ->
+                    selfSpecialty = specialty
+                    doctorSpecialtyCache[doctorId] = specialty
+                    renderRecordItems()
+                }
+            }
+        }
+    }
+
+    fun resolveDoctorSpecialties() {
+        val missingDoctorIds = records
+            .mapNotNull { entry ->
+                entry.doctorUserId?.takeIf {
+                    entry.doctorSpecialty.isNullOrBlank() && !doctorSpecialtyCache.containsKey(it)
+                }
+            }
+            .distinct()
+
+        if (missingDoctorIds.isEmpty()) return
+
+        missingDoctorIds.forEach { doctorId ->
+            uiScope.launch {
+                val doctorProfile = apiClient.getFullUserProfile(doctorId)
+                doctorProfile.onSuccess { profile ->
+                    val specialty = profile?.doctor?.profession
+                    doctorSpecialtyCache[doctorId] = specialty
+                    val updatedRecords = records.map { record ->
+                        if (record.doctorUserId == doctorId) {
+                            record.copy(
+                                doctorSpecialty = specialty ?: record.doctorSpecialty,
+                                content = record.content.copy(
+                                    doctorSpecialty = specialty ?: record.content.doctorSpecialty,
+                                )
+                            )
+                        } else {
+                            record
+                        }
+                    }
+                    records.clear()
+                    records.addAll(updatedRecords)
+                    renderRecordItems()
+                }
+            }
+        }
+    }
+
     fun loadRecords(force: Boolean = false) {
         if (isLoadingRecords) return
         if (recordsLoaded && !force) return
@@ -314,12 +408,7 @@ fun Container.doctorPatientScreen(
             }
             return
         }
-        val recordId = currentPatientRecordId
-        if (recordId == null) {
-            recordsError = "Запись пациента не найдена"
-            renderRecordItems()
-            return
-        }
+        val recordId = profile?.userId ?: patientUserId
 
         isLoadingRecords = true
         recordsError = null
@@ -332,7 +421,8 @@ fun Container.doctorPatientScreen(
                 onSuccess = { notes ->
                     recordsLoaded = true
                     records.clear()
-                    records.addAll(notes.map { it.toRecordEntry(doctorLabel) })
+                    records.addAll(notes.map { it.toRecordEntry(doctorLabel, selfSpecialty, doctorSpecialtyCache) })
+                    resolveDoctorSpecialties()
                 },
                 onFailure = { error ->
                     recordsError = error.message ?: "Не удалось загрузить записи"
@@ -352,6 +442,7 @@ fun Container.doctorPatientScreen(
                     p("Загрузка записей...", className = "doctor-record-notes")
                 }
             }
+
             recordsError != null -> {
                 recordsContainer.div(className = "doctor-record-card card") {
                     p(recordsError ?: "Ошибка", className = "doctor-record-notes")
@@ -361,24 +452,20 @@ fun Container.doctorPatientScreen(
                     }
                 }
             }
-            records.isEmpty() -> {
-                recordsContainer.div(className = "doctor-record-empty card") {
-                    p(
-                        "Медицинских записей пока нет. Добавьте первую запись для отслеживания истории пациента.",
-                        className = "doctor-record-empty-text"
-                    )
-                }
-            }
+
             else -> {
                 records.forEach { record ->
                     val isEditing = record.id == editingRecordId
+                    val doctorSubtitle = listOfNotNull(record.doctorName, record.doctorSpecialty)
+                        .joinToString(" • ")
                     recordsContainer.div(className = "doctor-record-card card") {
                         if (!isEditing) {
                             div(className = "doctor-record-body") {
                                 h4(record.title, className = "doctor-record-title")
                                 span(
-                                    "${record.doctorName} • ${record.createdAt}",
-                                    className = "doctor-record-subtitle"
+                                    listOfNotNull(doctorSubtitle.takeIf { it.isNotBlank() }, record.displayDate)
+                                        .joinToString(" • "),
+                                    className = "doctor-record-subtitle",
                                 )
                                 p(record.notes, className = "doctor-record-notes")
                             }
@@ -397,16 +484,43 @@ fun Container.doctorPatientScreen(
                                     editingRecordId = record.id
                                     renderRecordItems()
                                 }
+                                val deleteButton = button("Удалить", className = "btn-danger-sm")
                                 button("Скачать", className = "btn-ghost-sm").onClick {
                                     Toast.info("Скачивание отчета будет доступно позже")
+                                }
+
+                                deleteButton.onClick {
+                                    deleteButton.disabled = true
+                                    uiScope.launch {
+                                        val deleteResult = apiClient.deleteNote(record.id)
+                                        deleteResult.fold(
+                                            onSuccess = { deleted ->
+                                                if (deleted) {
+                                                    if (editingRecordId == record.id) {
+                                                        editingRecordId = null
+                                                    }
+                                                    records.removeAll { it.id == record.id }
+                                                    renderRecordItems()
+                                                    Toast.success("Запись удалена")
+                                                } else {
+                                                    Toast.danger("Запись не найдена")
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                Toast.danger(error.message ?: "Не удалось удалить запись")
+                                            }
+                                        )
+                                        deleteButton.disabled = false
+                                    }
                                 }
                             }
                         } else {
                             div(className = "doctor-record-body") {
                                 h4("Редактирование записи", className = "doctor-record-title")
                                 span(
-                                    "${record.doctorName} • ${record.createdAt}",
-                                    className = "doctor-record-subtitle"
+                                    listOfNotNull(doctorSubtitle.takeIf { it.isNotBlank() }, record.displayDate)
+                                        .joinToString(" • "),
+                                    className = "doctor-record-subtitle",
                                 )
                             }
 
@@ -483,6 +597,7 @@ fun Container.doctorPatientScreen(
                                             status = status,
                                             notes = notes,
                                             doctorName = record.content.doctorName,
+                                            doctorSpecialty = record.content.doctorSpecialty,
                                         )
 
                                         uiScope.launch {
@@ -498,6 +613,8 @@ fun Container.doctorPatientScreen(
                                                 onSuccess = { response ->
                                                     val updatedEntry = response.toRecordEntry(
                                                         doctorLabel,
+                                                        selfSpecialty,
+                                                        doctorSpecialtyCache,
                                                         record.doctorUserId,
                                                     )
                                                     val index = records.indexOfFirst { it.id == record.id }
@@ -586,7 +703,6 @@ fun Container.doctorPatientScreen(
             addCssClass("kv-input")
             height = 120.px
         }
-        val errorLabel = span("").apply { addCssClass("text-danger") }
         val addButton = button("Добавить запись", className = "btn-primary")
 
         container.div(className = "card block doctor-record-editor") {
@@ -596,7 +712,6 @@ fun Container.doctorPatientScreen(
                 add(categoryInput)
                 add(statusSelect)
                 add(notesInput)
-                add(errorLabel)
                 add(addButton)
             }
         }
@@ -609,30 +724,23 @@ fun Container.doctorPatientScreen(
 
             when {
                 title.isBlank() -> {
-                    errorLabel.content = "Введите название записи"
+                    Toast.danger("Введите название записи")
                     return@onClick
                 }
                 notes.isBlank() -> {
-                    errorLabel.content = "Добавьте описание записи"
+                    Toast.danger("Добавьте описание записи")
                     return@onClick
                 }
                 Session.userId == null -> {
-                    errorLabel.content = "Необходима авторизация"
+                    Toast.danger("Необходима авторизация")
                     return@onClick
                 }
                 profile == null -> {
-                    errorLabel.content = "Профиль пациента не загружен"
+                    Toast.danger("Профиль пациента не загружен")
                     return@onClick
                 }
             }
 
-            val recordId = currentPatientRecordId
-            if (recordId == null) {
-                errorLabel.content = "Запись пациента не найдена"
-                return@onClick
-            }
-
-            errorLabel.content = ""
             addButton.disabled = true
 
             val status = runCatching { DoctorRecordStatus.valueOf(statusValue) }
@@ -642,10 +750,13 @@ fun Container.doctorPatientScreen(
                 category = if (category.isBlank()) "Общее" else category,
                 status = status,
                 notes = notes,
-                doctorName = doctorLabel
+                doctorName = doctorLabel,
+                doctorSpecialty = selfSpecialty,
             )
 
             uiScope.launch {
+                val recordId = profile?.userId ?: patientUserId
+
                 val result = apiClient.createNote(
                     recordId,
                     DoctorNoteCreateRequest(
@@ -663,13 +774,13 @@ fun Container.doctorPatientScreen(
                         notesInput.value = ""
                         recordsError = null
                         recordsLoaded = true
-                        records.add(0, response.toRecordEntry(doctorLabel))
+                        records.add(0, response.toRecordEntry(doctorLabel, selfSpecialty, doctorSpecialtyCache))
+                        resolveDoctorSpecialties()
                         renderRecordItems()
                         Toast.success("Запись добавлена")
                     },
                     onFailure = { error ->
-                        errorLabel.content = error.message ?: "Не удалось добавить запись"
-                        Toast.danger(errorLabel.content ?: "Ошибка")
+                        Toast.danger(error.message ?: "Не удалось добавить запись")
                     }
                 )
 
@@ -891,6 +1002,7 @@ fun Container.doctorPatientScreen(
         }
     }
 
+    loadSelfDoctorSpecialty()
     applyProfileUi(profile)
     updateActive(activeTab)
     loadProfile()

@@ -3,6 +3,7 @@
 import api.ApiConfig
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.html.Span
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h1
@@ -13,12 +14,14 @@ import io.kvision.html.span
 import io.kvision.html.ul
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
+import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import state.DoctorState
 import state.DoctorState.dashboardData
 import ui.components.timetableModal
+import utils.normalizeGender
 
 private data class DoctorPatientListItem(
     val userId: Long,
@@ -63,12 +66,16 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         .take(2)
         .joinToString("")
         .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "ВР" }
-    val doctorSubtitle = dashboard?.doctor?.profession ?: Session.email ?: ""
+    val defaultSpecialty = "Специальность не указана"
+    val doctorSubtitleSpan = Span(
+        dashboard?.doctor?.profession?.takeIf { it.isNotBlank() } ?: defaultSpecialty,
+        className = "account id"
+    )
 
     lateinit var patientsContainer: Container
     lateinit var overviewContainer: Container
     lateinit var scheduleContainer: Container
-    lateinit var scheduleListContainer: Container
+    var scheduleListContainer: Container? = null
 
     var renderPatients: () -> Unit = {}
     var renderSchedule: () -> Unit = {}
@@ -88,7 +95,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(userId, null)
+                Navigator.showDoctorPatient(userId, patientRecordId)
             }
         }
     }
@@ -110,7 +117,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(item.userId, null)
+                Navigator.showDoctorPatient(item.userId, item.patientRecordId)
             }
         }
     }
@@ -141,7 +148,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
             }
             else -> {
-                dashboard?.patients?.forEach { patient ->
+                dashboard.patients.forEach { patient ->
                     val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
                     val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
                         .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
@@ -161,16 +168,17 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     renderSchedule = fun() {
-        scheduleListContainer.removeAll()
+        val listContainer = scheduleListContainer ?: return
+        listContainer.removeAll()
 
         when {
             state.isLoading -> {
-                scheduleListContainer.div(className = "doctor-empty-state") {
+                listContainer.div(className = "doctor-empty-state") {
                     span("Загрузка расписания...", className = "doctor-patient-condition")
                 }
             }
             state.error != null -> {
-                scheduleListContainer.div(className = "record item") {
+                listContainer.div(className = "record item") {
                     span(state.error ?: "Не удалось загрузить расписание", className = "record subtitle")
                     button("Повторить", className = "btn-ghost-sm").onClick {
                         doctorId?.let { state.loadDoctorDashboard(it) }
@@ -178,12 +186,12 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
             }
             dashboard?.patients.isNullOrEmpty() -> {
-                scheduleListContainer.div(className = "record item") {
+                listContainer.div(className = "record item") {
                     span("Пока нет записанных пациентов", className = "record subtitle")
                 }
             }
             else -> {
-                dashboard?.patients?.forEach { patient ->
+                dashboard.patients.forEach { patient ->
                     val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
                     val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
                         .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
@@ -197,7 +205,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                         status = "active",
                         initials = initials
                     )
-                    renderSchedulePatient(patientItem)
+                    listContainer.renderSchedulePatient(patientItem)
                 }
             }
         }
@@ -205,7 +213,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
     headerBar(
         mode = HeaderMode.DOCTOR,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()
@@ -219,9 +227,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             div(className = "sidebar card") {
                 div(className = "avatar circle") { +doctorInitials }
                 h4(doctorName, className = "account name")
-                if (doctorSubtitle.isNotBlank()) {
-                    span(doctorSubtitle, className = "account id")
-                }
+                add(doctorSubtitleSpan)
 
                 nav {
                     ul(className = "side menu") {
@@ -229,6 +235,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Обзор")
                             span("\uD83D\uDC64", className = "side icon")
                             onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
                                 overviewContainer.visible = true
                                 scheduleContainer.visible = false
                             }
@@ -237,6 +244,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Расписание")
                             span("\uD83D\uDCC5", className = "side icon")
                             onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
                                 overviewContainer.visible = false
                                 scheduleContainer.visible = true
                                 renderSchedule()
@@ -246,23 +254,17 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Пациенты")
                             span("\uD83D\uDC65", className = "side icon")
                             onClick {
-                                dashboard?.patients?.firstOrNull()?.let { firstPatient ->
-                                    cleanup()
-                                    Navigator.showDoctorPatient(firstPatient.userId, null)
-                                } ?: run {
-                                    Toast.info("Нет пациентов для отображения")
-                                }
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+                                Toast.info("История посещений пациентов скоро будет доступна")
                             }
                         }
                         li(className = "side_item") {
-                            span("Мои записи")
-                            span("\uD83D\uDCDD", className = "side icon")
-                            onClick { Navigator.showStub("Профиль в разработке") }
-                        }
-                        li(className = "side_item") {
-                            span("Редактировать профиль")
+                            span("Мой профиль")
                             span("\uD83D\uDC64", className = "side icon")
-                            onClick { Navigator.showDoctorProfileEdit() }
+                            onClick {
+                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+                                Navigator.showDoctorProfileEdit()
+                            }
                         }
                     }
                 }
@@ -273,6 +275,9 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
                 button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
                     timetableController.open(doctorName)
+                }
+                button("Выйти", className = "btn-logout-sm").onClick {
+                    ApiConfig.clearToken(); Session.clear(); cleanup(); onLogout()
                 }
             }
 
@@ -290,7 +295,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                     val totalPatients = dashboardData?.patients?.size ?: 0
                     val doctorRating = dashboardData?.doctor?.rating ?: 0.0
 
-                    div(className = "statistics grid") {
+                    div(className = "statistics grid doctor-grid") {
                         doctorStatisticsCard(todayAppointments.size.toString(), "Сегодня", "\uD83D\uDCC5")
                         doctorStatisticsCard(totalPatients.toString(), "Пациенты", "\uD83D\uDC65")
                         doctorStatisticsCard(doctorRating.toString(), "Рейтинг", "⭐")
@@ -356,6 +361,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     state.onUpdate = {
+        doctorSubtitleSpan.content = state.dashboardData?.doctor?.profession?.takeIf { it.isNotBlank() }
+            ?: defaultSpecialty
         renderPatients()
         renderSchedule()
     }

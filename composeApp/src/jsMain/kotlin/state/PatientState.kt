@@ -4,10 +4,7 @@ package state
 import api.PatientApiClient
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import org.interns.project.dto.AppointmentDto
 import org.interns.project.dto.FullUserProfileDto
-import org.interns.project.dto.MedicalRecordDto
-import org.interns.project.dto.UserResponseDto
 import ui.Session
 
 object PatientState {
@@ -35,15 +32,7 @@ object PatientState {
             try {
                 dashboardData = apiClient.getPatientDashboard(userId).getOrThrow()
                 dashboardData?.user?.let { user ->
-                    Session.updateFrom(
-                        UserResponseDto(
-                            id = user.id,
-                            name = user.name,
-                            surname = user.surname,
-                            email = user.email,
-                            login = user.login,
-                            role = user.role)
-                    )
+                    Session.updateFrom(user)
                 }
                 error = null
             } catch (e: Exception) {

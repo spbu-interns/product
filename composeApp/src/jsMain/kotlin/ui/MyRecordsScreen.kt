@@ -23,8 +23,8 @@ import kotlinx.coroutines.launch
 import org.interns.project.dto.ComplaintCreateRequest
 import org.interns.project.dto.ComplaintResponse
 import ui.components.complaintCard
-import ui.components.patientSidebar
-import ui.components.SidebarTab
+import ui.PatientSection
+import ui.patientAccountLayout
 
 fun Container.myRecordsScreen(
     onLogout: () -> Unit = { Navigator.showHome() }
@@ -32,7 +32,7 @@ fun Container.myRecordsScreen(
     val uiScope = MainScope()
     headerBar(
         mode = HeaderMode.PATIENT,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()
@@ -103,92 +103,74 @@ fun Container.myRecordsScreen(
         }
     }
 
-    div(className = "account container") {
-        div(className = "account grid") {
-            div(className = "sidebar card") {
-                patientSidebar(
-                    patientId = patientId,
-                    active = SidebarTab.MYRECORDS,
-                    onOverview = { Navigator.showPatient() },
-                    onAppointments = { /* TODO */ },
-                    onMedicalRecords = { /* TODO */ },
-                    onMyRecords = { Navigator.showMyRecords() },
-                    onFindDoctor = { Navigator.showFind() }
+    patientAccountLayout(active = PatientSection.MY_RECORDS, onLogout = onLogout) {
+        val titleInput: Text = text(label = "Заголовок") {
+            placeholder = "Например, боль в спине"
+            addCssClass("kv-input")
+        }
+
+        val bodyInput = textArea(label = "Описание жалобы") {
+            placeholder = "Опишите проблему"
+            addCssClass("kv-input")
+            addCssClass("complaint-body")
+        }
+
+        val addButton = button("Добавить", className = "btn-primary")
+        val formError = span("").apply { addCssClass("text-danger") }
+
+        div(className = "card block") {
+            h4("Добавить жалобу", className = "block title")
+            div(className = "form column") {
+                div(className = "form field") { add(titleInput) }
+                div(className = "form field") { add(bodyInput) }
+                div(className = "form actions") {
+                    add(formError)
+                    add(addButton)
+                }
+            }
+        }
+
+        addButton.onClick {
+            val title = titleInput.value?.trim().orEmpty()
+            val body = bodyInput.value?.trim().orEmpty()
+            if (title.isBlank()) {
+                Toast.warning("Введите заголовок")
+                return@onClick
+            }
+            if (body.isBlank()) {
+                Toast.warning("Введите жалобу")
+                return@onClick
+            }
+            addButton.disabled = true
+            uiScope.launch {
+                val result = apiClient.createComplaint(patientId, ComplaintCreateRequest(title, body))
+                result.fold(
+                    onSuccess = { complaint ->
+                        titleInput.value = ""
+                        bodyInput.value = ""
+                        addButton.disabled = false
+                        currentComplaints = listOf(complaint) + currentComplaints
+                        complaintsContainer.removeAll()
+                        renderComplaints(complaintsContainer, currentComplaints)
+                        Toast.success("Жалоба добавлена")
+                    },
+                    onFailure = { error ->
+                        addButton.disabled = false
+                        Toast.danger("Не удалось добавить жалобу")
+                    }
                 )
             }
+        }
 
-            div(className = "main column") {
-                val titleInput: Text = text(label = "Заголовок").apply {
-                    placeholder = "Например, боль в спине"
-                    addCssClass("kv-input")
-                }
-
-                val bodyInput = textArea(label = "Описание жалобы").apply {
-                    placeholder = "Опишите проблему"
-                    addCssClass("kv-input")
-                    height = 80.px
-                }
-
-                val addButton = button("Добавить", className = "btn-primary")
-                val formError = span("").apply { addCssClass("text-danger") }
-
-                div(className = "card block") {
-                    h4("Добавить жалобу", className = "block title")
-                    div(className = "form row") {
-                        div(className = "form field") { add(titleInput) }
-                        div(className = "form field") { add(bodyInput) }
-                        div(className = "form actions") {
-                            add(formError)
-                            add(addButton)
-                        }
-                    }
-                }
-
-                addButton.onClick {
-                    val title = titleInput.value?.trim().orEmpty()
-                    val body = bodyInput.value?.trim().orEmpty()
-                    if (title.isBlank()) {
-                        formError.content = "Введите заголовок"
-                        return@onClick
-                    }
-                    if (body.isBlank()) {
-                        formError.content = "Опишите вашу жалобу"
-                        return@onClick
-                    }
-                    formError.content = ""
-                    addButton.disabled = true
-                    uiScope.launch {
-                        val result = apiClient.createComplaint(patientId, ComplaintCreateRequest(title, body))
-                        result.fold(
-                            onSuccess = { complaint ->
-                                titleInput.value = ""
-                                bodyInput.value = ""
-                                addButton.disabled = false
-                                currentComplaints = listOf(complaint) + currentComplaints
-                                complaintsContainer.removeAll()
-                                renderComplaints(complaintsContainer, currentComplaints)
-                                Toast.success("Жалоба добавлена")
-                            },
-                            onFailure = { error ->
-                                addButton.disabled = false
-                                formError.content = error.message ?: "Не удалось добавить жалобу"
-                                Toast.danger(formError.content ?: "Ошибка")
-                            }
-                        )
-                    }
-                }
-
-                h4("Мои жалобы", className = "block title")
-                div(className = "card block") {
-                    div(className = "records scrollbox") {
-                        maxHeight = 320.px
-                        overflowY = Overflow.AUTO
-                        overflowX = Overflow.HIDDEN
-                        width = 100.perc
-                        paddingRight = 6.px
-                        add(complaintsContainer)
-                    }
-                }
+        h4("Мои жалобы", className = "block title")
+        div(className = "card block") {
+            div(className = "records scrollbox") {
+                maxHeight = 320.px
+                overflowY = Overflow.AUTO
+                overflowX = Overflow.HIDDEN
+                width = 100.perc
+                paddingRight = 6.px
+                add(complaintsContainer)
             }
         }
     }

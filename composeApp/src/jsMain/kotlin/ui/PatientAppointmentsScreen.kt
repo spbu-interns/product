@@ -28,7 +28,7 @@ private data class Appointment(
 fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     headerBar(
         mode = HeaderMode.PATIENT,
-        active = NavTab.NONE,
+        active = NavTab.PROFILE,
         onLogout = {
             ApiConfig.clearToken()
             Session.clear()
@@ -36,7 +36,7 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
         }
     )
 
-    patientAccountLayout(active = PatientSection.APPOINTMENTS) {
+    patientAccountLayout(active = PatientSection.APPOINTMENTS, onLogout = onLogout) {
         h1("Мои приёмы", className = "account title appointments-title")
 
         div(className = "appointments tabs") {

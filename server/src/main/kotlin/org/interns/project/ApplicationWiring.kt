@@ -3,13 +3,14 @@ package org.interns.project
 import io.ktor.server.application.*
 import org.interns.project.auth.reset.PasswordResetService
 import org.interns.project.auth.verification.EmailVerificationService
+import org.interns.project.auth.verification.EmailVerificationPort
 import org.interns.project.config.AppConfig
 import org.interns.project.notifications.Mailer
 import org.interns.project.notifications.SmtpMailer
 import org.interns.project.security.token.EmailVerificationRepo
 import org.interns.project.security.token.PasswordResetRepo
 
-fun Application.installEmailFeatures(): Pair<EmailVerificationService, PasswordResetService> {
+fun Application.installEmailFeatures(): Pair<EmailVerificationPort, PasswordResetService> {
     val mailer: Mailer = SmtpMailer(
         host = AppConfig.mailHost,
         port = AppConfig.mailPort,

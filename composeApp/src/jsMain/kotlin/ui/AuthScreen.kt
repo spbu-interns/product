@@ -1,6 +1,7 @@
 package ui
 
 import api.AuthApiClient
+import api.UnverifiedEmailException
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.form.select.Select
@@ -10,6 +11,8 @@ import io.kvision.panel.hPanel
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.utils.px
+import io.kvision.toast.Toast
+import io.kvision.toast.ToastOptions
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -23,7 +26,7 @@ enum class AuthTab { LOGIN, REGISTER }
 fun Container.authScreen(
     initial: AuthTab = AuthTab.LOGIN,
     onLogin: (LoginResponse) -> Unit,
-    onRegister: () -> Unit,
+    onRegister: (email: String, password: String, accountType: String) -> Unit,
     onGoHome: () -> Unit
 ) = vPanel(spacing = 16) {
     val uiScope = MainScope()
@@ -75,6 +78,7 @@ fun Container.authScreen(
 
             when (current) {
                 AuthTab.LOGIN -> {
+                    val authClient = AuthApiClient()
 
                     val emailField = Text(label = "Email", type = InputType.EMAIL).apply {
                         width = 100.perc
@@ -91,26 +95,27 @@ fun Container.authScreen(
                         })
                     })
 
-                    val error = Span("").apply { addCssClass("text-danger") }.also { content.add(it) }
+                    val error = Span("").apply { addCssClass("text-danger") }
+
+                    content.add(div { add(error) })
 
                     content.add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
                         width = 100.perc
                         onClick {
-                            val email = emailField.value ?: ""
+                            val email = (emailField.value ?: "").trim()
                             val password = passField.value ?: ""
 
                             val emailOk = EMAIL_REGEX.matches(email)
                             val passOk = PASSWORD_REGEX.matches(password)
 
                             when {
-                                !emailOk -> error.content = "Некорректный email"
-                                !passOk -> error.content = "Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру"
+                                !emailOk -> Toast.danger("Некорректный email")
+                                !passOk -> Toast.danger("Проверьте пароль")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
 
                                     uiScope.launch {
-                                        val authClient = AuthApiClient()
                                         val result = authClient.login(
                                             LoginRequest(
                                                 email = email,
@@ -133,7 +138,59 @@ fun Container.authScreen(
                                                 onLogin(data)
                                             },
                                             onFailure = { e ->
-                                                error.content = e.message ?: "Ошибка входа"
+                                                if (e is UnverifiedEmailException) {
+                                                    val emailForResend = e.email.ifBlank { email }
+                                                    val accTypeForResend = e.accountType ?: ""
+                                                    val passwordForResend = password
+
+                                                    val msg = "Аккаунт не подтверждён. " +
+                                                            "Нажмите, чтобы отправить письмо с кодом ещё раз."
+
+                                                    Toast.info(
+                                                        msg,
+                                                        options = ToastOptions(
+                                                            close = true,
+                                                            duration = 5000,
+                                                            stopOnFocus = true,
+                                                            onClick = {
+                                                                // клик по тосту = отправить код ещё раз
+                                                                uiScope.launch {
+                                                                    val resendResult =
+                                                                        authClient.startEmailVerification(emailForResend)
+
+                                                                    resendResult.fold(
+                                                                        onSuccess = {
+                                                                            Toast.success("Письмо с подтверждением отправлено повторно")
+
+                                                                            Session.pendingRegistration =
+                                                                                Session.PendingRegistration(
+                                                                                    email = emailForResend,
+                                                                                    password = passwordForResend,
+                                                                                    accountType = accTypeForResend
+                                                                                )
+
+                                                                            uiScope.cancel()
+                                                                            onRegister(
+                                                                                emailForResend,
+                                                                                passwordForResend,
+                                                                                accTypeForResend
+                                                                            )
+                                                                        },
+                                                                        onFailure = { err ->
+                                                                            Toast.danger(
+                                                                                err.message
+                                                                                    ?: "Не удалось отправить письмо повторно"
+                                                                            )
+                                                                        }
+                                                                    )
+                                                                }
+                                                            }
+                                                        )
+                                                    )
+                                                } else {
+                                                    error.content = localizeLoginError(e.message)
+                                                    Toast.danger(localizeLoginError(e.message))
+                                                }
                                                 this@apply.disabled = false
                                             }
                                         )
@@ -169,9 +226,9 @@ fun Container.authScreen(
                             val same = password == password2
 
                             when {
-                                !emailOk -> error.content = "Некорректный email"
-                                !passOk -> error.content = "Пароль: 8–71 символ, латиница, минимум 1 цифра"
-                                !same   -> error.content = "Пароли не совпадают"
+                                !emailOk -> Toast.danger("Некорректный email")
+                                !same   -> Toast.danger("Пароли не совпадают")
+                                !passOk -> Toast.danger("Пароль должен содержать от 8 до 71 символов, латинские буквы и 1 цифру")
                                 else -> {
                                     error.content = ""
                                     this.disabled = true
@@ -189,16 +246,16 @@ fun Container.authScreen(
                                         result.fold(
                                             onSuccess = { response ->
                                                 if (response.success) {
-                                                    // Уходим на подтверждение — чистим scope
+                                                    Session.pendingRegistration = Session.PendingRegistration(email, password, accType)
                                                     uiScope.cancel()
-                                                    Navigator.showConfirmEmail(email)
+                                                    onRegister(email, password, accType)
                                                 } else {
-                                                    error.content = response.message ?: "Ошибка регистрации"
+                                                    Toast.danger(localizeRegistrationError(response.message))
                                                     this@apply.disabled = false
                                                 }
                                             },
                                             onFailure = { e ->
-                                                error.content = e.message ?: "Ошибка регистрации"
+                                                Toast.danger(localizeRegistrationError(e.message))
                                                 this@apply.disabled = false
                                             }
                                         )
@@ -220,6 +277,22 @@ fun Container.authScreen(
 
 private val EMAIL_REGEX =
     Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,63}$")
+
+private fun localizeLoginError(message: String?): String = when {
+    message.isNullOrBlank() -> "Ошибка входа"
+    message.contains("invalid email or password", ignoreCase = true) -> "Неверный email или пароль"
+    message.contains("unauthorized", ignoreCase = true) -> "Неверный email или пароль"
+    else -> message
+}
+
+private fun localizeRegistrationError(message: String?): String = when {
+    message.isNullOrBlank() -> "Ошибка регистрации"
+    message.contains("существует", ignoreCase = true) -> "Пользователь с таким email уже существует"
+    message.contains("already exists", ignoreCase = true) -> "Пользователь с таким email уже существует"
+    message.contains("invalid registration data", ignoreCase = true) -> "Некорректные данные для регистрации"
+    message.contains("unprocessable", ignoreCase = true) -> "Некорректные данные для регистрации"
+    else -> message
+}
 
 private fun accountTypeSelect(): Select = Select(
     options = listOf(

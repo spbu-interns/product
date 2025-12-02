@@ -20,15 +20,15 @@ import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import ui.PatientSection
 import ui.components.patientSidebar
-import ui.components.SidebarTab
 import org.interns.project.dto.ComplaintPatchRequest
 import org.interns.project.dto.ComplaintResponse
 
 
 fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(spacing = 12) {
     val uiScope = MainScope()
-    headerBar(mode = HeaderMode.PATIENT, active = NavTab.NONE, onLogout = {
+    headerBar(mode = HeaderMode.PATIENT, active = NavTab.PROFILE, onLogout = {
         ApiConfig.clearToken()
         Session.clear()
         Navigator.showHome()
@@ -46,12 +46,13 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
         div(className = "account grid") {
             patientSidebar(
                 patientId = patientId,
-                active = SidebarTab.MYRECORDS,
+                active = PatientSection.MY_RECORDS,
                 onOverview = { Navigator.showPatient() },
-                onAppointments = { /* TODO */ },
-                onMedicalRecords = { /* TODO */ },
+                onAppointments = { Navigator.showAppointments() },
+                onMedicalRecords = { Navigator.showPatientMedicalRecords() },
                 onMyRecords = { Navigator.showMyRecords() },
-                onFindDoctor = { Navigator.showFind() }
+                onFindDoctor = { Navigator.showFind() },
+                onProfile = { Navigator.showPatientProfileEdit() }
             )
 
             div(className = "main column") {
@@ -128,7 +129,10 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     add(editor)
                 }
 
-                val errorLabel = span("").apply { addCssClass("text-danger") }
+                val errorLabel = span("").apply {
+                    addCssClass("text-danger")
+                    display = Display.NONE
+                }
                 add(errorLabel)
 
                 editor.onEvent {
@@ -182,11 +186,11 @@ fun Container.recordEditorScreen(recordId: String, onBack: () -> Unit) = vPanel(
                     val body = getEditorHtml(editor)
 
                     if (title.isBlank()) {
-                        errorLabel.content = "Введите заголовок"
+                        Toast.danger("Введите заголовок")
                         return@onClick
                     }
                     if (body.isBlank()) {
-                        errorLabel.content = "Заполните описание"
+                        Toast.danger("Введите описание")
                         return@onClick
                     }
                     errorLabel.content = ""

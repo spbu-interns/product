@@ -3,8 +3,10 @@ package ui
 object Navigator {
     var showHome: () -> Unit = {}
     var showFind: () -> Unit = {}
+    var showFindPatient: () -> Unit = {}
     var showLogin: () -> Unit = {}
     var showPatient: () -> Unit = {}
+    var showPatientMedicalRecords: () -> Unit = {}
     var showDoctor: () -> Unit = {}
     var showStub: (String) -> Unit = {}
     var showResetPassword: () -> Unit = {}

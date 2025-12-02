@@ -167,6 +167,9 @@ class PatientApiClient {
 
     suspend fun getPatientProfile(userId: Long): Result<UserResponseDto> = runCatching {
         val response = client.get(ApiConfig.Endpoints.userProfile(userId))
+        if (response.status == HttpStatusCode.NotFound) {
+            throw IllegalStateException("Пациент не найден")
+        }
         parseOne(response, emptyMessage = "Empty patient profile", failureMessage = "Failed to load patient profile")
     }
 
@@ -209,10 +212,22 @@ class PatientApiClient {
     // Получение медицинских записей
     suspend fun getMedicalRecords(clientId: Long): Result<List<MedicalRecordDto>> = runCatching {
         val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/medical-records")
-        if (response.status.isSuccess()) {
-            response.body<List<MedicalRecordDto>>()
+        if (!response.status.isSuccess()) {
+            val apiError = runCatching { response.body<ApiResponse<List<MedicalRecordDto>>>() }
+                .getOrNull()
+                ?.error
+            throw IllegalStateException(apiError ?: "HTTP error: ${response.status.value}")
+        }
+
+        val apiResponse = runCatching { response.body<ApiResponse<List<MedicalRecordDto>>>() }.getOrNull()
+        if (apiResponse != null) {
+            if (apiResponse.success) {
+                apiResponse.data ?: emptyList()
+            } else {
+                throw IllegalStateException(apiResponse.error ?: "Failed to load medical records")
+            }
         } else {
-            emptyList()
+            response.body()
         }
     }
 
