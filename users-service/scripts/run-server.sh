@@ -92,7 +92,7 @@ if [ "$USER_COUNT" = "0" ] || [ "$RESET_DB" = true ]; then
     if [ -d "test_avatars" ]; then
         echo ""
         echo "💡 Для загрузки тестовых аватарок запустите после старта API:"
-        echo "   python3 scripts/upload_avatars_via_api.py"
+        echo "   python scripts/upload_avatars_via_api.py"
     fi
 else
     echo "   ℹ️  БД уже содержит данные ($USER_COUNT тестовых пользователей)"

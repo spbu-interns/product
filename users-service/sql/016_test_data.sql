@@ -568,6 +568,399 @@ BEGIN
 
 END $$;
 
+-- 5. ДОПОЛНИТЕЛЬНЫЕ ДОКТОРА
+DO $$
+DECLARE
+  v_clinic1_id BIGINT;
+  v_clinic2_id BIGINT;
+  v_clinic3_id BIGINT;
+  v_user_id BIGINT;
+  v_doctor_id BIGINT;
+  v_spec_id INT;
+BEGIN
+  SELECT id INTO v_clinic1_id FROM clinics WHERE name = 'Клиника "Здоровье+"' LIMIT 1;
+  SELECT id INTO v_clinic2_id FROM clinics WHERE name = 'Клиника "МедСервис"' LIMIT 1;
+  SELECT id INTO v_clinic3_id FROM clinics WHERE name = 'Клиника "ПроМед"' LIMIT 1;
+  
+  -- Доктор 6: Хирург
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'morozov.surgeon@test.com',
+    'dr_morozov',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'DOCTOR',
+    'Алексей',
+    'Морозов',
+    'Павлович',
+    '1975-01-28',
+    '+7 (911) 000-0106',
+    'MALE',
+    v_clinic3_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
+    VALUES (
+      v_user_id,
+      v_clinic3_id,
+      'Врач-хирург высшей категории',
+      'Абдоминальная хирургия, лапароскопические операции. Доктор медицинских наук.',
+      TRUE,
+      4.9,
+      22,
+      5000.00,
+      FALSE
+    )
+    ON CONFLICT (user_id) DO NOTHING
+    RETURNING id INTO v_doctor_id;
+    
+    IF v_doctor_id IS NOT NULL THEN
+      SELECT id INTO v_spec_id FROM specializations WHERE name = 'Хирург' LIMIT 1;
+      IF v_spec_id IS NOT NULL THEN
+        INSERT INTO doctor_specializations (doctor_id, specialization_id)
+        VALUES (v_doctor_id, v_spec_id)
+        ON CONFLICT DO NOTHING;
+      END IF;
+    END IF;
+  END IF;
+
+  -- Доктор 7: Офтальмолог
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'lebedeva.ophth@test.com',
+    'dr_lebedeva',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'DOCTOR',
+    'Наталья',
+    'Лебедева',
+    'Олеговна',
+    '1989-11-05',
+    '+7 (911) 000-0107',
+    'FEMALE',
+    v_clinic2_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
+    VALUES (
+      v_user_id,
+      v_clinic2_id,
+      'Врач-офтальмолог',
+      'Диагностика и лечение заболеваний глаз. Подбор очков и контактных линз.',
+      TRUE,
+      4.8,
+      9,
+      2800.00,
+      TRUE
+    )
+    ON CONFLICT (user_id) DO NOTHING
+    RETURNING id INTO v_doctor_id;
+    
+    IF v_doctor_id IS NOT NULL THEN
+      SELECT id INTO v_spec_id FROM specializations WHERE name = 'Офтальмолог' LIMIT 1;
+      IF v_spec_id IS NOT NULL THEN
+        INSERT INTO doctor_specializations (doctor_id, specialization_id)
+        VALUES (v_doctor_id, v_spec_id)
+        ON CONFLICT DO NOTHING;
+      END IF;
+    END IF;
+  END IF;
+
+END $$;
+
+-- 6. ДОПОЛНИТЕЛЬНЫЕ КЛИЕНТЫ
+DO $$
+DECLARE
+  v_clinic1_id BIGINT;
+  v_clinic2_id BIGINT;
+  v_user_id BIGINT;
+BEGIN
+  SELECT id INTO v_clinic1_id FROM clinics WHERE name = 'Клиника "Здоровье+"' LIMIT 1;
+  SELECT id INTO v_clinic2_id FROM clinics WHERE name = 'Клиника "МедСервис"' LIMIT 1;
+  
+  -- Клиент 7
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'sokolova.anna@test.com',
+    'anna_sokolova',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Анна',
+    'Соколова',
+    'Петровна',
+    '1991-07-17',
+    '+7 (911) 000-0207',
+    'FEMALE',
+    v_clinic1_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, emergency_contact_name, emergency_contact_number, address, snils, passport)
+    VALUES (
+      v_user_id,
+      'O-',
+      168.0,
+      62.0,
+      'Соколов Петр (отец)',
+      '+7 (911) 000-0217',
+      'г. Санкт-Петербург, ул. Гороховая, д. 56, кв. 23',
+      '555-666-777 88',
+      '4019 888999'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 8
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'vasiliev.igor@test.com',
+    'igor_vasiliev',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Игорь',
+    'Васильев',
+    'Андреевич',
+    '1984-03-22',
+    '+7 (911) 000-0208',
+    'MALE',
+    v_clinic2_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, address, dms_oms)
+    VALUES (
+      v_user_id,
+      'A+',
+      177.0,
+      85.0,
+      'г. Санкт-Петербург, пр. Стачек, д. 102, кв. 67',
+      'ДМС Ресо-Гарантия'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 9
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'petrova.vera@test.com',
+    'vera_petrova',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Вера',
+    'Петрова',
+    'Николаевна',
+    '1996-05-30',
+    '+7 (911) 000-0209',
+    'FEMALE',
+    v_clinic1_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, emergency_contact_name, emergency_contact_number, address)
+    VALUES (
+      v_user_id,
+      'AB-',
+      163.0,
+      54.0,
+      'Петрова Наталья (мать)',
+      '+7 (911) 000-0219',
+      'г. Санкт-Петербург, ул. Декабристов, д. 7, кв. 89'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 10
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'karpov.maxim@test.com',
+    'maxim_karpov',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Максим',
+    'Карпов',
+    'Юрьевич',
+    '1989-12-11',
+    '+7 (911) 000-0210',
+    'MALE',
+    v_clinic2_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, address, snils, passport, dms_oms)
+    VALUES (
+      v_user_id,
+      'B+',
+      181.0,
+      88.0,
+      'г. Санкт-Петербург, ул. Некрасова, д. 44, кв. 15',
+      '444-555-666 77',
+      '4020 123456',
+      'ОМС 5555666677778888'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 11
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'mikhailova.yulia@test.com',
+    'yulia_mikhailova',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Юлия',
+    'Михайлова',
+    'Викторовна',
+    '1994-09-08',
+    '+7 (911) 000-0211',
+    'FEMALE',
+    v_clinic1_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, emergency_contact_name, emergency_contact_number, address)
+    VALUES (
+      v_user_id,
+      'A-',
+      166.0,
+      59.0,
+      'Михайлов Виктор (отец)',
+      '+7 (911) 000-0221',
+      'г. Санкт-Петербург, пр. Просвещения, д. 90, кв. 120'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 12
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'orlov.roman@test.com',
+    'roman_orlov',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Роман',
+    'Орлов',
+    'Станиславович',
+    '1986-04-16',
+    '+7 (911) 000-0212',
+    'MALE',
+    v_clinic1_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, address, dms_oms)
+    VALUES (
+      v_user_id,
+      'O+',
+      179.0,
+      92.0,
+      'г. Санкт-Петербург, ул. Чайковского, д. 28, кв. 3',
+      'ДМС ВТБ Страхование'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 13
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'belova.oksana@test.com',
+    'oksana_belova',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Оксана',
+    'Белова',
+    'Дмитриевна',
+    '1991-01-25',
+    '+7 (911) 000-0213',
+    'FEMALE',
+    v_clinic2_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, emergency_contact_name, emergency_contact_number, address, snils, passport)
+    VALUES (
+      v_user_id,
+      'B-',
+      171.0,
+      68.0,
+      'Белов Дмитрий (брат)',
+      '+7 (911) 000-0223',
+      'г. Санкт-Петербург, ул. Восстания, д. 33, кв. 77',
+      '222-333-444 55',
+      '4021 567890'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  -- Клиент 14
+  INSERT INTO users (email, login, password_hash, role, name, surname, patronymic, date_of_birth, phone_number, gender, clinic_id, is_active, email_verified_at)
+  VALUES (
+    'nikitin.pavel@test.com',
+    'pavel_nikitin',
+    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVHQvLBdm',
+    'CLIENT',
+    'Павел',
+    'Никитин',
+    'Артемович',
+    '1997-10-29',
+    '+7 (911) 000-0214',
+    'MALE',
+    v_clinic1_id,
+    TRUE,
+    NOW()
+  )
+  ON CONFLICT (email) DO NOTHING
+  RETURNING id INTO v_user_id;
+  
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO clients (user_id, blood_type, height, weight, address)
+    VALUES (
+      v_user_id,
+      'A+',
+      174.0,
+      71.0,
+      'г. Санкт-Петербург, пр. Культуры, д. 15, кв. 205'
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+END $$;
+
 COMMIT;
 
 -- Информация для разработчиков:
@@ -575,14 +968,17 @@ COMMIT;
 -- Созданы:
 -- - 3 клиники (Здоровье+, МедСервис, ПроМед)
 -- - 1 админ (admin@test.com / admin_ivanov)
--- - 5 докторов:
+-- - 7 докторов:
 --   * dr_petrov - Терапевт (Здоровье+)
 --   * dr_sidorova - Кардиолог (Здоровье+)
 --   * dr_kuznetsov - Невролог (МедСервис)
 --   * dr_volkova - Педиатр (МедСервис)
 --   * dr_sokolov - Стоматолог (ПроМед)
--- - 6 клиентов (maria_ivanova, alex_smirnov, olga_popova, dmitry_novikov, elena_fedorova, sergey_kozlov)
+--   * dr_morozov - Хирург (ПроМед)
+--   * dr_lebedeva - Офтальмолог (МедСервис)
+-- - 14 клиентов
 --
 -- Пароль для всех: password123
 --
--- Аватарки указаны как пути в поле avatar, но нужно физически загрузить файлы через скрипт upload_test_avatars.py
+-- Всего пользователей: 22 (1 админ + 7 докторов + 14 клиентов)
+-- Аватарки загружаются отдельно через: python scripts/upload_avatars_via_api.py

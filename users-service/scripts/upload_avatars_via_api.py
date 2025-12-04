@@ -16,16 +16,17 @@ AVATARS_DIR = SCRIPT_DIR / "test_avatars"
 
 # Маппинг: файл аватарки -> ID пользователя в БД
 # ID основаны на порядке вставки в 016_test_data.sql
+# Всего: 22 пользователя (1 админ + 7 докторов + 14 клиентов)
 AVATAR_MAPPING = {
-    "test-avatar-1.jpg": [1],   # admin_ivanov (первый вставленный пользователь)
-    "test-avatar-2.jpg": [2],   # dr_petrov
-    "test-avatar-3.jpg": [3],   # dr_sidorova
-    "test-avatar-4.jpg": [4],   # dr_kuznetsov
-    "test-avatar-5.jpg": [5],   # dr_volkova
-    "test-avatar-6.jpg": [6],   # dr_sokolov
-    "test-avatar-7.jpg": [7, 9],   # maria_ivanova, olga_popova
-    "test-avatar-8.jpg": [8, 10],  # alex_smirnov, dmitry_novikov
-    "test-avatar-9.jpg": [11, 12], # elena_fedorova, sergey_kozlov
+    "test-avatar-1.jpg": [1, 10, 16],  # admin_ivanov, alex_smirnov, maxim_karpov
+    "test-avatar-2.jpg": [2, 11, 17],  # dr_petrov, olga_popova, yulia_mikhailova
+    "test-avatar-3.jpg": [3, 12, 18],  # dr_sidorova, dmitry_novikov, roman_orlov
+    "test-avatar-4.jpg": [4, 19],      # dr_kuznetsov, elena_fedorova
+    "test-avatar-5.jpg": [5, 20],      # dr_volkova, sergey_kozlov
+    "test-avatar-6.jpg": [6, 21],      # dr_sokolov, oksana_belova
+    "test-avatar-7.jpg": [7, 13],      # dr_morozov, anna_sokolova
+    "test-avatar-8.jpg": [8, 14],      # dr_lebedeva, igor_vasiliev
+    "test-avatar-9.jpg": [9, 15, 22],  # maria_ivanova, vera_petrova, pavel_nikitin
 }
 
 def wait_for_api(max_attempts=30):
