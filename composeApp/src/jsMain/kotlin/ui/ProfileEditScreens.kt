@@ -44,7 +44,53 @@ import kotlin.text.Regex
 import utils.normalizeGender
 import io.kvision.utils.perc
 
+private const val HEIGHT_MIN = 40
+private const val HEIGHT_MAX = 260
+
+private const val WEIGHT_MIN = 20
+private const val WEIGHT_MAX = 400
+
 val profileApi = ProfileApiClient()
+
+fun Text.onlyLetters(maxLen: Int? = null) {
+    onEvent {
+        input = {
+            val raw = value ?: ""
+
+            // 1) фильтруем только буквы/пробел/дефис
+            var filtered = raw.filter { it.isLetter() || it == ' ' || it == '-' }
+
+            // 2) режем по длине, если указан maxLen
+            if (maxLen != null && filtered.length > maxLen) {
+                filtered = filtered.take(maxLen)
+            }
+
+            if (raw != filtered) {
+                value = filtered
+            }
+        }
+    }
+}
+
+fun Text.onlyDigits(maxLen: Int? = null) {
+    onEvent {
+        input = {
+            val raw = value ?: ""
+
+            // 1) оставляем только цифры
+            var filtered = raw.filter { it.isDigit() }
+
+            // 2) режем по длине, если указан maxLen
+            if (maxLen != null && filtered.length > maxLen) {
+                filtered = filtered.take(maxLen)
+            }
+
+            if (raw != filtered) {
+                value = filtered
+            }
+        }
+    }
+}
 
 internal fun normalizeBirthInput(raw: String?): String {
     if (raw.isNullOrBlank()) return ""
@@ -342,13 +388,16 @@ private fun Container.profileEditScreenCommon(
                     vPanel(spacing = 16) {
                         val lastNameField = text(label = "Фамилия") {
                             value = Session.lastName ?: ""
+                            onlyLetters()
                         }
                         val firstNameField = text(label = "Имя") {
                             value = Session.firstName ?: ""
+                            onlyLetters()
                         }
                         var patronymicDirty = false
                         val patronymicField = text(label = "Отчество") {
                             value = Session.patronymic ?: ""
+                            onlyLetters()
                             onEvent {
                                 input = { patronymicDirty = true }
                             }
@@ -488,20 +537,22 @@ private fun Container.profileEditScreenCommon(
                             text(label = "Рост (см)") {
                                 addCssClass("kv-height")
                                 type = InputType.NUMBER
-                                placeholder = "1 – 260"
+                                placeholder = "$HEIGHT_MIN–$HEIGHT_MAX"
 
                                 onEvent {
-                                    input = {
-                                        val rawValue = value
-                                        val number = rawValue?.toDoubleOrNull()
-                                        val corrected = when {
-                                            number == null || rawValue.isBlank() -> 1.0
-                                            number < 1 -> 1.0
-                                            number > 260 -> 260.0
-                                            else -> number
-                                        }
-                                        if (corrected != number) {
-                                            value = corrected.toInt().toString()
+                                    blur = {
+                                        val raw = value?.trim().orEmpty()
+                                        if (raw.isNotBlank()) {
+                                            val number = raw.replace(',', '.').toDoubleOrNull()
+                                            if (number != null) {
+                                                val corrected = number.coerceIn(
+                                                    HEIGHT_MIN.toDouble(),
+                                                    HEIGHT_MAX.toDouble()
+                                                )
+                                                if (corrected != number) {
+                                                    value = corrected.toInt().toString()
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -512,20 +563,22 @@ private fun Container.profileEditScreenCommon(
                             text(label = "Вес (кг)") {
                                 addCssClass("kv-input")
                                 type = InputType.NUMBER
-                                placeholder = "1 – 636"
+                                placeholder = "$WEIGHT_MIN–$WEIGHT_MAX"
 
                                 onEvent {
-                                    input = {
-                                        val rawValue = value
-                                        val number = rawValue?.toDoubleOrNull()
-                                        val corrected = when {
-                                            number == null || rawValue.isBlank() -> 1.0
-                                            number < 1 -> 1.0
-                                            number > 636 -> 636.0
-                                            else -> number
-                                        }
-                                        if (corrected != number) {
-                                            value = corrected.toInt().toString()
+                                    blur = {
+                                        val raw = value?.trim().orEmpty()
+                                        if (raw.isNotBlank()) {
+                                            val number = raw.replace(',', '.').toDoubleOrNull()
+                                            if (number != null) {
+                                                val corrected = number.coerceIn(
+                                                    WEIGHT_MIN.toDouble(),
+                                                    WEIGHT_MAX.toDouble()
+                                                )
+                                                if (corrected != number) {
+                                                    value = corrected.toInt().toString()
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -560,18 +613,21 @@ private fun Container.profileEditScreenCommon(
                         val insuranceField = if (!isDoctorMode) {
                             text(label = "Страховка / полис (ОМС/ДМС)") {
                                 addCssClass("kv-input")
+                                onlyDigits(16)
                             }
                         } else null
 
                         val snilsField = if (!isDoctorMode) {
                             text(label = "СНИЛС") {
                                 addCssClass("kv-input")
+                                onlyDigits(11)
                             }
                         } else null
 
                         val passportField = if (!isDoctorMode) {
                             text(label = "Паспорт") {
                                 addCssClass("kv-input")
+                                onlyDigits(10)
                             }
                         } else null
 
