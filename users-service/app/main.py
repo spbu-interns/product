@@ -1,8 +1,15 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, UploadFile, File
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.exc import IntegrityError
 from psycopg2 import errors as pgerr
 from .db import get_session
+import os
+import uuid
+from pathlib import Path
+from PIL import Image
+import io
+from . import models as m
 from .models import (
     UserIn, UserOut,
     EmailStartVerificationIn, EmailVerifyIn,
@@ -20,6 +27,13 @@ from passlib.hash import bcrypt
 from datetime import date
 
 app = FastAPI(title="Users DB API")
+
+# Настройки для аватарок
+AVATARS_DIR = Path(__file__).parent.parent / "avatars"
+AVATARS_DIR.mkdir(exist_ok=True)
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_IMAGE_DIMENSION = 2048  # максимальный размер стороны
 
 @app.get("/health")
 def health():
@@ -650,5 +664,173 @@ def api_list_patients_for_doctor(doctor_id: int):
     s = get_session()
     try:
         return repo.list_patients_for_doctor(s, doctor_id)
+    finally:
+        s.close()
+
+
+# ========== AVATAR ENDPOINTS ==========
+
+@app.post("/users/{user_id}/avatar", status_code=201)
+async def upload_avatar(user_id: int, file: UploadFile = File(...)):
+    """
+    Загрузить аватарку пользователя.
+    Поддерживаемые форматы: JPG, JPEG, PNG, WebP, GIF
+    Максимальный размер: 5 MB
+    """
+    # Проверка существования пользователя
+    s = get_session()
+    try:
+        user = repo.get_user_profile(s, user_id)
+        if not user:
+            raise HTTPException(404, "user not found")
+        
+        # Проверка расширения файла
+        file_ext = Path(file.filename or "").suffix.lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                400, 
+                f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+        
+        # Чтение файла
+        contents = await file.read()
+        
+        # Проверка размера
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(
+                400, 
+                f"File too large. Maximum size: {MAX_FILE_SIZE // 1024 // 1024} MB"
+            )
+        
+        # Проверка, что это действительно изображение + оптимизация
+        try:
+            image = Image.open(io.BytesIO(contents))
+            
+            # Конвертация в RGB если нужно (для JPEG)
+            if image.mode in ("RGBA", "LA", "P") and file_ext in [".jpg", ".jpeg"]:
+                background = Image.new("RGB", image.size, (255, 255, 255))
+                if image.mode == "P":
+                    image = image.convert("RGBA")
+                background.paste(image, mask=image.split()[-1] if image.mode == "RGBA" else None)
+                image = background
+            
+            # Изменение размера если слишком большое
+            if image.width > MAX_IMAGE_DIMENSION or image.height > MAX_IMAGE_DIMENSION:
+                image.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
+            
+            # Сохранение оптимизированного изображения
+            optimized = io.BytesIO()
+            save_format = "JPEG" if file_ext in [".jpg", ".jpeg"] else image.format or "PNG"
+            image.save(optimized, format=save_format, quality=85, optimize=True)
+            contents = optimized.getvalue()
+            
+        except Exception as e:
+            raise HTTPException(400, f"Invalid image file: {str(e)}")
+        
+        # Удаление старой аватарки
+        old_avatar = user.get("avatar")
+        if old_avatar and old_avatar.startswith("avatars/"):
+            old_path = AVATARS_DIR.parent / old_avatar
+            if old_path.exists():
+                old_path.unlink()
+        
+        # Генерация уникального имени файла
+        filename = f"user_{user_id}_{uuid.uuid4().hex[:8]}{file_ext}"
+        file_path = AVATARS_DIR / filename
+        
+        # Сохранение файла
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        
+        # Обновление пути в БД
+        avatar_path = f"avatars/{filename}"
+        patch = m.UserProfilePatch(avatar=avatar_path)
+        repo.update_user_profile(s, user_id, patch)
+        s.commit()
+        
+        return JSONResponse(
+            status_code=201,
+            content={
+                "message": "avatar uploaded successfully",
+                "avatar_url": f"/users/{user_id}/avatar",
+                "filename": filename
+            }
+        )
+    finally:
+        s.close()
+
+
+@app.get("/users/{user_id}/avatar")
+def get_avatar(user_id: int):
+    """
+    Получить аватарку пользователя.
+    Возвращает файл изображения или 404 если аватарка не установлена.
+    """
+    s = get_session()
+    try:
+        user = repo.get_user_profile(s, user_id)
+        if not user:
+            raise HTTPException(404, "user not found")
+        
+        avatar_path = user.get("avatar")
+        if not avatar_path:
+            raise HTTPException(404, "avatar not set")
+        
+        # Поддержка как относительных, так и полных путей
+        if avatar_path.startswith("avatars/"):
+            file_path = AVATARS_DIR.parent / avatar_path
+        else:
+            file_path = Path(avatar_path)
+        
+        if not file_path.exists():
+            raise HTTPException(404, "avatar file not found")
+        
+        # Определение MIME-типа по расширению
+        ext = file_path.suffix.lower()
+        media_types = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+            ".gif": "image/gif"
+        }
+        media_type = media_types.get(ext, "image/jpeg")
+        
+        return FileResponse(
+            file_path,
+            media_type=media_type,
+            filename=file_path.name
+        )
+    finally:
+        s.close()
+
+
+@app.delete("/users/{user_id}/avatar", status_code=204)
+def delete_avatar(user_id: int):
+    """
+    Удалить аватарку пользователя.
+    """
+    s = get_session()
+    try:
+        user = repo.get_user_profile(s, user_id)
+        if not user:
+            raise HTTPException(404, "user not found")
+        
+        avatar_path = user.get("avatar")
+        if not avatar_path:
+            return  # Уже нет аватарки
+        
+        # Удаление файла
+        if avatar_path.startswith("avatars/"):
+            file_path = AVATARS_DIR.parent / avatar_path
+            if file_path.exists():
+                file_path.unlink()
+        
+        # Очистка поля в БД
+        patch = m.UserProfilePatch(avatar=None)
+        repo.update_user_profile(s, user_id, patch)
+        s.commit()
+        
+        return
     finally:
         s.close()
