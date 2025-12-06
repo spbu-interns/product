@@ -1,7 +1,7 @@
 """
 Medical Assistant Chat with OpenRouter API
 Provides doctor recommendations based on symptoms with context preservation
-Uses free Meta Llama 3.1 8B model with Russian language support
+Uses free DeepSeek R1 Chimera model with excellent Russian language support
 """
 
 import os
@@ -16,36 +16,36 @@ if not OPENROUTER_API_KEY:
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# System prompt with medical disclaimer
+# System prompt - focus ONLY on recommending the right specialist
 SYSTEM_PROMPT = """
-Ты медицинский ассистент клиники. Твоя задача - помочь пациенту определить, к какому врачу обратиться на основе симптомов.
+Ты - ассистент для записи к врачу. Твоя ЕДИНСТВЕННАЯ задача - определить, к какому специалисту направить пациента.
 
-ДОСТУПНЫЕ СПЕЦИАЛИЗАЦИИ:
-- Терапевт (общие заболевания, первичный осмотр)
+Доступные специалисты:
+- Терапевт (общие вопросы здоровья, простуда, профилактика)
 - Кардиолог (сердце, давление, боли в груди)
-- Невролог (головные боли, головокружения, нервная система)
-- Педиатр (детские заболевания)
+- Невролог (головные боли, головокружение, нервная система)
+- Педиатр (здоровье детей)
 - Стоматолог (зубы, десны, полость рта)
-- Хирург (травмы, операции, острые состояния)
-- Офтальмолог (глаза, зрение)
+- Хирург (травмы, острые боли)
+- Офтальмолог (зрение, глаза)
 
-ПРАВИЛА:
-1. ОБЯЗАТЕЛЬНО в конце КАЖДОГО ответа добавляй:
-   "⚠️ Я искусственный интеллект, не врач. Мои рекомендации не заменяют консультацию специалиста."
+СТРОГО ЗАПРЕЩЕНО:
+- Давать медицинские советы (пить воду, принимать лекарства, делать тесты)
+- Ставить диагнозы (ОРВИ, грипп, COVID и т.д.)
+- Объяснять причины симптомов
+- Описывать что будет делать врач
 
-2. Рекомендуй конкретных врачей из списка выше
-3. Объясняй, почему рекомендуешь именно этого специалиста
-4. Если симптомы серьезные (боль в груди, высокая температура >39°C, потеря сознания) - рекомендуй немедленно обратиться к врачу или вызвать скорую
-5. Не ставь диагнозы, только направляй к нужному специалисту
-6. Задавай уточняющие вопросы если информации недостаточно
+РАЗРЕШЕНО ТОЛЬКО:
+- Назвать специалиста
+- Кратко (5-15 слов) объяснить почему именно этот специалист нужен
 
-ФОРМАТ ОТВЕТА:
-На основе симптомов рекомендую обратиться к:
-• [Специалист] - [краткая причина]
+ФОРМАТ (СТРОГО):
+"Рекомендую обратиться к [специалист]. [Причина в 5-15 словах]."
 
-[Дополнительные рекомендации если нужно]
-
-⚠️ Я искусственный интеллект, не врач. Мои рекомендации не заменяют консультацию специалиста.
+ПРИМЕРЫ ПРАВИЛЬНЫХ ОТВЕТОВ:
+"Рекомендую обратиться к терапевту. Он проведет первичный осмотр."
+"Рекомендую обратиться к кардиологу. Боли в груди требуют его консультации."
+"Рекомендую обратиться к педиатру. Он специализируется на детских заболеваниях."
 """
 
 
@@ -120,10 +120,10 @@ def send_message_with_context(user_message: str, history: List[dict]) -> str:
     }
     
     payload = {
-        "model": "mistralai/mistral-7b-instruct:free",
+        "model": "tngtech/deepseek-r1t2-chimera:free",
         "messages": messages,
         "temperature": 0.6,
-        "max_tokens": 500
+        "max_tokens": 1500  # Increased for DeepSeek to avoid mid-sentence cutoffs
     }
     
     # Send request
@@ -136,19 +136,29 @@ def send_message_with_context(user_message: str, history: List[dict]) -> str:
     
     # Check response
     if response.status_code != 200:
-        raise ValueError(f"OpenRouter API error {response.status_code}: {response.text}")
+        error_msg = f"OpenRouter API error {response.status_code}: {response.text}"
+        print(f"❌ API Error: {error_msg}")
+        raise ValueError(error_msg)
     
     # Extract response text
     try:
         result = response.json()
     except Exception as e:
-        raise ValueError(f"Failed to parse OpenRouter response: {response.text[:500]}")
+        error_msg = f"Failed to parse OpenRouter response: {response.text[:500]}"
+        print(f"❌ JSON Parse Error: {error_msg}")
+        raise ValueError(error_msg)
     
     if "error" in result:
-        raise ValueError(f"OpenRouter API error: {result['error']}")
+        error_msg = f"OpenRouter API error: {result['error']}"
+        print(f"❌ API returned error: {error_msg}")
+        raise ValueError(error_msg)
     
     # Extract and clean response text
-    content = result["choices"][0]["message"]["content"]
+    try:
+        content = result["choices"][0]["message"]["content"]
+    except (KeyError, IndexError) as e:
+        print(f"❌ Unexpected response structure: {result}")
+        raise ValueError(f"Unexpected OpenRouter response format: {result}")
     
     # Remove special tokens like <s>, </s>, [INST], etc.
     content = content.replace("<s>", "").replace("</s>", "")
