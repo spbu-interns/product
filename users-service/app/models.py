@@ -351,3 +351,37 @@ class DoctorPatientOut(BaseModel):
     date_of_birth: Optional[date] = None
     avatar: Optional[str] = None
     gender: Optional[Gender] = None
+
+
+# ============================================================================
+# Chat Models (Gemini AI Medical Assistant)
+# ============================================================================
+
+class ChatMessagePart(BaseModel):
+    """Single message part in Gemini format"""
+    text: str
+
+class ChatMessage(BaseModel):
+    """Chat message in Gemini API format"""
+    role: Literal["user", "model"]
+    parts: List[ChatMessagePart]
+
+class ChatRequest(BaseModel):
+    """Request to send message to chat"""
+    user_id: int
+    message: str
+    session_id: Optional[str] = None  # Optional: resume existing session
+
+class ChatResponse(BaseModel):
+    """Response from chat assistant"""
+    response: str
+    session_id: str
+
+class ChatSessionOut(BaseModel):
+    """Chat session with full history"""
+    id: int
+    user_id: int
+    session_id: str
+    messages: List[dict]  # JSONB array
+    created_at: datetime
+    updated_at: datetime
