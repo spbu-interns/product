@@ -8,6 +8,7 @@ import io.kvision.core.onClick
 import io.kvision.form.check.CheckBox
 import io.kvision.form.select.Select
 import io.kvision.form.text.Text
+import io.kvision.html.InputType
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h3
@@ -20,6 +21,7 @@ import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import kotlinx.browser.window
 import org.interns.project.dto.SlotCreateRequest
 import kotlin.js.Date
 
@@ -158,6 +160,8 @@ fun Container.timetableModal(): TimetableModalController {
 
     val overlay: SimplePanel = simplePanel(className = "timetable-overlay-root") { visible = false }
 
+    var modalPanel: SimplePanel? = null
+
     fun resetDays() {
         today = todayDateOnly()
         maxDateLimit = addMonthsClamped(today, 6)
@@ -244,6 +248,10 @@ fun Container.timetableModal(): TimetableModalController {
             return
         }
         val label = "${formatMinutes(startMinutes)}-${formatMinutes(endMinutes)}"
+        if (hasOverlap(day.slots, startMinutes, endMinutes)) {
+            Toast.info("Слоты не должны пересекаться")
+            return
+        }
         if (day.slots.contains(label)) {
             Toast.info("Такой слот уже есть в расписании")
             return
@@ -718,11 +726,17 @@ fun Container.timetableModal(): TimetableModalController {
                 // Куда применяем — общее для шаблонов и конструктора
                 hPanel(spacing = 8, alignItems = AlignItems.CENTER, className = "timetable-actions") {
                     span("Куда применить", className = "booking-subtitle")
-                    Select(options = TemplateTarget.entries.map { it.name to itLabel(it) }) {
+
+                    val targetSelect = Select(
+                        options = TemplateTarget.entries.map { it.name to itLabel(it) },
+                    ) {
                         value = templateTarget.name
                         addCssClass("timetable-input")
-                    }.onChange {
-                        templateTarget = TemplateTarget.valueOf(this.value ?: TemplateTarget.CURRENT.name)
+                    }
+                    add(targetSelect)
+
+                    targetSelect.onChange {
+                        templateTarget = TemplateTarget.valueOf(targetSelect.value ?: TemplateTarget.CURRENT.name)
                     }
                 }
 
@@ -735,13 +749,17 @@ fun Container.timetableModal(): TimetableModalController {
                         vPanel(spacing = 8) {
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
                                 span("Шаблон", className = "booking-subtitle")
-                                Select(
+
+                                val templateSelect = Select(
                                     options = listOf("" to "Не выбрано") + templates.map { it.name to it.name },
                                 ) {
                                     value = selectedTemplateName
                                     addCssClass("timetable-input")
-                                }.onChange {
-                                    selectedTemplateName = this.value
+                                }
+                                add(templateSelect)
+
+                                templateSelect.onChange {
+                                    selectedTemplateName = templateSelect.value
                                     renderModal()
                                 }
                             }
@@ -751,19 +769,24 @@ fun Container.timetableModal(): TimetableModalController {
                                 hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
                                     if (currentTemplate.availableDurations.size > 1) {
                                         span("Длительность", className = "booking-subtitle")
-                                        Select(
+
+                                        val durationSelect = Select(
                                             options = currentTemplate.availableDurations.map { it.toString() to "$it мин" },
                                         ) {
                                             value = (templateDurationOverrides[currentTemplate.name]
                                                 ?: currentTemplate.defaultDuration).toString()
                                             addCssClass("timetable-input")
-                                        }.onChange {
-                                            val chosen = this.value?.toIntOrNull()
+                                        }
+                                        add(durationSelect)
+
+                                        durationSelect.onChange {
+                                            val chosen = durationSelect.value?.toIntOrNull()
                                             if (chosen != null) {
                                                 templateDurationOverrides[currentTemplate.name] = chosen
                                             }
                                         }
                                     }
+
                                     button(
                                         "Применить",
                                         className = "btn btn-secondary timetable-apply-template",
@@ -800,7 +823,8 @@ fun Container.timetableModal(): TimetableModalController {
                             // Тип расписания
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
                                 span("Тип расписания", className = "booking-subtitle")
-                                Select(
+
+                                val patternSelect = Select(
                                     options = listOf(
                                         PatternType.WEEKDAYS.name to "По дням недели",
                                         PatternType.ODD_DATES.name to "Нечётные даты",
@@ -810,10 +834,12 @@ fun Container.timetableModal(): TimetableModalController {
                                 ) {
                                     value = constructorPattern.name
                                     addCssClass("timetable-input")
-                                }.onChange {
-                                    val raw = this.value
-                                    constructorPattern =
-                                        raw?.let { PatternType.valueOf(it) } ?: PatternType.WEEKDAYS
+                                }
+                                add(patternSelect)
+
+                                patternSelect.onChange {
+                                    val raw = patternSelect.value
+                                    constructorPattern = raw?.let { PatternType.valueOf(it) } ?: PatternType.WEEKDAYS
                                     renderModal()
                                 }
                             }
@@ -832,7 +858,7 @@ fun Container.timetableModal(): TimetableModalController {
                                         7 to "Вс",
                                     )
                                     days.forEach { (key, label) ->
-                                        CheckBox(
+                                        val cb = CheckBox(
                                             label = label,
                                             value = constructorWeekdays.contains(key),
                                         ).apply {
@@ -845,6 +871,7 @@ fun Container.timetableModal(): TimetableModalController {
                                                 }
                                             }
                                         }
+                                        add(cb)
                                     }
                                 }
                             }
@@ -852,26 +879,48 @@ fun Container.timetableModal(): TimetableModalController {
                             // Рабочий день
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
                                 span("Рабочий день", className = "booking-subtitle")
-                                startField = Text(value = constructorStartTime) { addCssClass("timetable-input") }
+
+                                val start = Text(value = constructorStartTime) {
+                                    addCssClass("timetable-input")
+                                }
+                                startField = start
+                                add(start)
+
                                 span("—", className = "booking-subtitle")
-                                endField = Text(value = constructorEndTime) { addCssClass("timetable-input") }
+
+                                val end = Text(value = constructorEndTime) {
+                                    addCssClass("timetable-input")
+                                }
+                                endField = end
+                                add(end)
                             }
 
                             // Обед
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
                                 span("Обед", className = "booking-subtitle")
-                                lunchStartField =
-                                    Text(value = constructorLunchStart) { addCssClass("timetable-input") }
+
+                                val lunchStart = Text(value = constructorLunchStart) {
+                                    addCssClass("timetable-input")
+                                }
+                                lunchStartField = lunchStart
+                                add(lunchStart)
+
                                 span("—", className = "booking-subtitle")
-                                lunchEndField =
-                                    Text(value = constructorLunchEnd) { addCssClass("timetable-input") }
+
+                                val lunchEnd = Text(value = constructorLunchEnd) {
+                                    addCssClass("timetable-input")
+                                }
+                                lunchEndField = lunchEnd
+                                add(lunchEnd)
+
                                 span("(можно оставить пустым)", className = "booking-hint")
                             }
 
                             // Длительность
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
                                 span("Длительность слота", className = "booking-subtitle")
-                                Select(
+
+                                val durationSelect = Select(
                                     options = listOf(
                                         "30" to "30 мин",
                                         "45" to "45 мин",
@@ -880,8 +929,11 @@ fun Container.timetableModal(): TimetableModalController {
                                 ) {
                                     value = constructorDurationMinutes.toString()
                                     addCssClass("timetable-input")
-                                }.onChange {
-                                    val chosen = this.value?.toIntOrNull()
+                                }
+                                add(durationSelect)
+
+                                durationSelect.onChange {
+                                    val chosen = durationSelect.value?.toIntOrNull()
                                     if (chosen != null) {
                                         constructorDurationMinutes = chosen
                                     }
@@ -922,33 +974,71 @@ fun Container.timetableModal(): TimetableModalController {
                 )
 
                 vPanel(spacing = 8) {
+                    // начало отпуска
                     p("Начало отпуска", className = "booking-subtitle")
-                    dateCalendar(
-                        initialDate = vacationStartDate,
-                        minDate = today,
-                        maxDate = maxDateLimit,
-                    ) { date ->
-                        vacationStartDate = date
-                        if (vacationEndDate.getTime() < vacationStartDate.getTime()) {
-                            vacationEndDate = vacationStartDate
+                    val vacationStartField = Text(
+                        value = vacationStartDate.toIsoDate(),
+                        type = InputType.DATE,
+                    ) {
+                        addCssClass("timetable-input")
+                    }.also { add(it) }
+
+                    vacationStartField.onChange {
+                        val iso = vacationStartField.value
+                        val parsed = iso?.let(::parseIsoDate)
+                        if (parsed != null) {
+                            var clamped = parsed
+                            // не даём уйти в прошлое и за пределы maxDateLimit
+                            if (clamped.getTime() < today.getTime()) {
+                                clamped = today
+                            }
+                            if (clamped.getTime() > maxDateLimit.getTime()) {
+                                clamped = maxDateLimit
+                            }
+                            vacationStartDate = clamped
+                            // конец не может быть раньше начала
+                            if (vacationEndDate.getTime() < vacationStartDate.getTime()) {
+                                vacationEndDate = vacationStartDate
+                            }
+                            // перерисуем модалку, если хочешь сразу увидеть эффект:
+                            renderModal()
                         }
-                        renderModal()
                     }
 
+                    // конец отпуска
                     p("Конец отпуска", className = "booking-subtitle")
-                    dateCalendar(
-                        initialDate = vacationEndDate,
-                        minDate = vacationStartDate,
-                        maxDate = maxDateLimit,
-                    ) { date ->
-                        vacationEndDate = date
-                        renderModal()
+                    val vacationEndField = Text(
+                        value = vacationEndDate.toIsoDate(),
+                        type = InputType.DATE,
+                    ) {
+                        addCssClass("timetable-input")
+                    }.also { add(it) }
+
+                    vacationEndField.onChange {
+                        val iso = vacationEndField.value
+                        val parsed = iso?.let(::parseIsoDate)
+                        if (parsed != null) {
+                            var clamped = parsed
+                            if (clamped.getTime() < vacationStartDate.getTime()) {
+                                clamped = vacationStartDate
+                            }
+                            if (clamped.getTime() > maxDateLimit.getTime()) {
+                                clamped = maxDateLimit
+                            }
+                            vacationEndDate = clamped
+                            // при желании можно тоже дернуть renderModal()
+                        }
                     }
 
-                    hPanel(spacing = 8, alignItems = AlignItems.CENTER, className = "timetable-actions") {
+                    // кнопка применения отпуска
+                    hPanel(
+                        spacing = 8,
+                        alignItems = AlignItems.CENTER,
+                        className = "timetable-actions",
+                    ) {
                         button(
-                            "Удалить слоты в период отпуска",
-                            className = "btn btn-warning timetable-vacation-apply",
+                            "Применить отпуск",
+                            className = "btn btn-outline timetable-apply-vacation",
                         ).onClick {
                             applyVacationRange()
                         }
@@ -1033,13 +1123,20 @@ fun Container.timetableModal(): TimetableModalController {
     }
 
     renderModal = fun() {
+        // сохраняем текущий скролл внутри модалки (если она уже была)
+        val previousScroll = modalPanel?.getElement()?.scrollTop ?: 0.0
+
         overlay.visible = visible
         overlay.removeAll()
+        modalPanel = null
+
         if (!visible) return
 
         overlay.div(className = "timetable-overlay") {
             div(className = "timetable-backdrop").onClick { closeModal() }
-            div(className = "timetable-modal") {
+
+            // сама прокручиваемая модалка
+            modalPanel = simplePanel(className = "timetable-modal") {
                 div(className = "booking-modal-header") {
                     h3("Расписание врача $doctorName", className = "booking-title")
                     button("×", className = "booking-close").onClick { closeModal() }
@@ -1051,6 +1148,9 @@ fun Container.timetableModal(): TimetableModalController {
                 renderMainContent()
             }
         }
+
+        // восстанавливаем скролл внутри модального контейнера
+        modalPanel?.getElement()?.scrollTop = previousScroll
     }
 
     renderModal()
@@ -1214,5 +1314,23 @@ private fun isSlotStartInPast(day: Date, startMinutes: Int): Boolean {
 }
 
 private fun combineDateWithTime(date: String, time: String): String = "${date}T${time}:00Z"
+
+private fun hasOverlap(existing: List<String>, newStart: Int, newEnd: Int): Boolean {
+    return existing.any { label ->
+        val (startRaw, endRaw) = parseSlotRange(label) ?: return@any false
+        val start = parseTimeToMinutes(startRaw) ?: return@any false
+        val end = parseTimeToMinutes(endRaw) ?: return@any false
+        newStart < end && newEnd > start
+    }
+}
+
+private fun parseIsoDate(value: String): Date? {
+    val parts = value.split("-")
+    if (parts.size != 3) return null
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull()?.minus(1) ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
+    return Date(year, month, day)
+}
 
 private const val MILLIS_PER_DAY = 24 * 60 * 60 * 1000
