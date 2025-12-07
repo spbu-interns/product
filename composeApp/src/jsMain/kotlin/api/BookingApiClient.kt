@@ -7,12 +7,13 @@ import org.interns.project.dto.*
 
 class BookingApiClient {
     private val client = ApiConfig.httpClient
+    val BASE_URL = "http://localhost:8001"
 
     // ---- slots ----
 
     suspend fun listDoctorSlots(doctorId: Long, date: String? = null): Result<List<SlotResponse>> =
         runCatching {
-            val response = client.get("${ApiConfig.BASE_URL}/doctors/$doctorId/slots") {
+            val response = client.get("$BASE_URL/doctors/$doctorId/slots") {
                 date?.let { parameter("date", it) }
             }
             response.body()
@@ -20,7 +21,7 @@ class BookingApiClient {
 
     suspend fun createSlot(doctorId: Long, req: SlotCreateRequest): Result<SlotResponse> =
         runCatching {
-            val response = client.post("${ApiConfig.BASE_URL}/doctors/$doctorId/slots") {
+            val response = client.post("$BASE_URL/doctors/$doctorId/slots") {
                 setBody(req)
             }
             response.body()
@@ -28,7 +29,7 @@ class BookingApiClient {
 
     suspend fun deleteSlot(doctorId: Long, slotId: Long): Result<Boolean> =
         runCatching {
-            val response = client.delete("${ApiConfig.BASE_URL}/doctors/$doctorId/slots/$slotId")
+            val response = client.delete("$BASE_URL/doctors/$doctorId/slots/$slotId")
             response.status.isSuccess()
         }
 
@@ -36,7 +37,7 @@ class BookingApiClient {
 
     suspend fun bookAppointment(req: AppointmentCreateRequest): Result<AppointmentResponse> =
         runCatching {
-            val response = client.post("${ApiConfig.BASE_URL}/appointments") {
+            val response = client.post("$BASE_URL/appointments") {
                 setBody(req)
             }
             response.body()
@@ -44,7 +45,7 @@ class BookingApiClient {
 
     suspend fun cancelAppointment(id: Long): Result<Boolean> =
         runCatching {
-            val response = client.post("${ApiConfig.BASE_URL}/appointments/$id/cancel")
+            val response = client.post("$BASE_URL/appointments/$id/cancel")
             response.status.isSuccess()
         }
 }

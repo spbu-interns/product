@@ -17,6 +17,15 @@
     gap: 16px;
 }
 
+.date-calendar .calendar-header-select {
+    height: 32px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .avatar.circle.has-image {
     background-size: cover;
     background-position: center;

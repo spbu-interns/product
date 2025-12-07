@@ -12,6 +12,7 @@ import io.kvision.core.TextAlign
 import io.kvision.core.onEvent
 import io.kvision.form.select.Select
 import io.kvision.form.select.select
+import io.kvision.html.Button
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.panel.SimplePanel
@@ -39,6 +40,8 @@ class DateCalendar(
     private lateinit var daysContainer: SimplePanel
     private lateinit var monthSelect: Select
     private lateinit var yearSelect: Select
+    private lateinit var prevButton: Button
+    private lateinit var nextButton: Button
 
     init {
         addCssClass("date-calendar")
@@ -64,19 +67,22 @@ class DateCalendar(
             display = Display.FLEX
             flexDirection = FlexDirection.ROW
             alignItems = AlignItems.CENTER
-            justifyContent = JustifyContent.SPACEBETWEEN
+            justifyContent = JustifyContent.CENTER
 
-            button("←", className = "btn-secondary") {
+            // Левая стрелка
+            prevButton = button("←", className = "btn-secondary calendar-nav-btn") {
                 onClick { changeMonth(-1) }
                 marginRight = 8.px
             }
 
+            // Месяц
             monthSelect = select(
                 options = monthNames.mapIndexed { index, title -> index.toString() to title },
                 label = null
             ) {
                 value = displayedMonth.toString()
                 marginRight = 8.px
+                addCssClass("calendar-header-select")
                 onEvent {
                     change = {
                         displayedMonth = value?.toIntOrNull()?.coerceIn(0, 11) ?: displayedMonth
@@ -85,12 +91,13 @@ class DateCalendar(
                 }
             }
 
+            // Год
             yearSelect = select(
                 options = buildYearOptions(),
                 label = null
             ) {
                 value = displayedYear.toString()
-                marginRight = 8.px
+                addCssClass("calendar-header-select")
                 onEvent {
                     change = {
                         displayedYear = value?.toIntOrNull() ?: displayedYear
@@ -99,8 +106,10 @@ class DateCalendar(
                 }
             }
 
-            button("→", className = "btn-secondary") {
+            // Правая стрелка
+            nextButton = button("→", className = "btn-secondary calendar-nav-btn") {
                 onClick { changeMonth(1) }
+                marginLeft = 8.px
             }
         }
 
@@ -115,7 +124,7 @@ class DateCalendar(
             listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { day ->
                 div(day) {
                     textAlign = TextAlign.CENTER
-                    width = 36.px
+                    width = 40.px
                     marginRight = 4.px
                 }
             }
@@ -134,6 +143,7 @@ class DateCalendar(
     private fun renderDays() {
         daysContainer.removeAll()
         syncSelectors()
+        updateNavButtons()
 
         val firstDayOfMonth = Date(displayedYear, displayedMonth, 1)
         val daysInMonth = Date(displayedYear, displayedMonth + 1, 0).getDate()
@@ -214,6 +224,25 @@ class DateCalendar(
         displayedMonth = clamped.getMonth()
         displayedYear = clamped.getFullYear()
         renderDays()
+    }
+
+    private fun updateNavButtons() {
+        val currentStart = Date(displayedYear, displayedMonth, 1)
+        val minStart = Date(effectiveMinDate.getFullYear(), effectiveMinDate.getMonth(), 1)
+        val maxStart = Date(effectiveMaxDate.getFullYear(), effectiveMaxDate.getMonth(), 1)
+
+        val currentMillis = currentStart.getTime()
+        val minMillis = minStart.getTime()
+        val maxMillis = maxStart.getTime()
+
+        val canGoPrev = currentMillis > minMillis
+        val canGoNext = currentMillis < maxMillis
+
+        prevButton.disabled = !canGoPrev
+        nextButton.disabled = !canGoNext
+
+        prevButton.cursor = if (canGoPrev) Cursor.POINTER else Cursor.DEFAULT
+        nextButton.cursor = if (canGoNext) Cursor.POINTER else Cursor.DEFAULT
     }
 
     private fun sameDate(first: Date, second: Date): Boolean {

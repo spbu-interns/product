@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
@@ -27,6 +28,13 @@ from passlib.hash import bcrypt
 from datetime import date
 
 app = FastAPI(title="Users DB API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Настройки для аватарок
 AVATARS_DIR = Path(__file__).parent.parent / "avatars"

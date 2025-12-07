@@ -52,27 +52,30 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     // Загружаем данные при создании экрана
-    val doctorId = Session.userId
-    if (doctorId != null) {
-        state.loadDoctorDashboard(doctorId)
+    val userId = Session.userId
+    if (userId != null) {
+        state.loadDoctorDashboard(userId)
     }
 
     // Используем данные из состояния или сессии как fallback
-    val dashboard = state.dashboardData
-    val doctorName = dashboard?.user?.let { user ->
-        listOfNotNull(user.surname, user.name, user.patronymic).takeIf { it.isNotEmpty() }?.joinToString(" ")
+    val initialDashboard = state.dashboardData
+    val initialDoctorName = initialDashboard?.user?.let { user ->
+        listOfNotNull(user.surname, user.name, user.patronymic)
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(" ")
     } ?: Session.fullName() ?: Session.email ?: "Врач"
-    val doctorAvatarUrl = dashboard?.user?.avatar ?: Session.avatar
+    val initialDoctorAvatarUrl = initialDashboard?.user?.avatar ?: Session.avatar
 
-    val doctorInitials = doctorName
+    val initialDoctorInitials = initialDoctorName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .take(2)
         .joinToString("")
         .ifBlank { Session.email?.firstOrNull()?.uppercaseChar()?.toString() ?: "ВР" }
+
     val defaultSpecialty = "Специальность не указана"
     val doctorSubtitleSpan = Span(
-        dashboard?.doctor?.profession?.takeIf { it.isNotBlank() } ?: defaultSpecialty,
+        initialDashboard?.doctor?.profession?.takeIf { it.isNotBlank() } ?: defaultSpecialty,
         className = "account id"
     )
 
@@ -130,6 +133,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
     renderPatients = fun() {
         patientsContainer.removeAll()
+        val dashboard = state.dashboardData
 
         when {
             state.isLoading -> {
@@ -137,22 +141,25 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                     span("Загрузка пациентов...", className = "doctor-patient-condition")
                 }
             }
+
             state.error != null -> {
                 patientsContainer.div(className = "record item") {
                     span("Ошибка загрузки", className = "record subtitle")
                     button("Повторить", className = "btn-ghost-sm").onClick {
-                        doctorId?.let { state.loadDoctorDashboard(it) }
+                        userId?.let { state.loadDoctorDashboard(it) }
                     }
                 }
             }
+
             dashboard?.patients.isNullOrEmpty() -> {
                 patientsContainer.div(className = "record item") {
                     span("Пациенты не найдены", className = "record subtitle")
                     button("Обновить", className = "btn-ghost-sm").onClick {
-                        doctorId?.let { state.loadDoctorDashboard(it) }
+                        userId?.let { state.loadDoctorDashboard(it) }
                     }
                 }
             }
+
             else -> {
                 dashboard.patients.forEach { patient ->
                     val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
@@ -176,6 +183,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     renderSchedule = fun() {
         val listContainer = scheduleListContainer ?: return
         listContainer.removeAll()
+        val dashboard = state.dashboardData
 
         when {
             state.isLoading -> {
@@ -183,19 +191,22 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                     span("Загрузка расписания...", className = "doctor-patient-condition")
                 }
             }
+
             state.error != null -> {
                 listContainer.div(className = "record item") {
                     span(state.error ?: "Не удалось загрузить расписание", className = "record subtitle")
                     button("Повторить", className = "btn-ghost-sm").onClick {
-                        doctorId?.let { state.loadDoctorDashboard(it) }
+                        userId?.let { state.loadDoctorDashboard(it) }
                     }
                 }
             }
+
             dashboard?.patients.isNullOrEmpty() -> {
                 listContainer.div(className = "record item") {
                     span("Пока нет записанных пациентов", className = "record subtitle")
                 }
             }
+
             else -> {
                 dashboard.patients.forEach { patient ->
                     val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
@@ -232,8 +243,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         div(className = "account grid") {
             div(className = "sidebar card") {
                 avatarContainer = div(className = "avatar circle") {}
-                avatarContainer.updateAvatar(doctorAvatarUrl, doctorInitials)
-                doctorNameHeader = h4(doctorName, className = "account name")
+                avatarContainer.updateAvatar(initialDoctorAvatarUrl, initialDoctorInitials)
+                doctorNameHeader = h4(initialDoctorName, className = "account name")
                 add(doctorSubtitleSpan)
 
                 nav {
@@ -281,10 +292,18 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                     Navigator.showStub("Создание приема скоро будет доступно")
                 }
                 button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
-                    timetableController.open(doctorName)
+                    val currentDoctorId = state.dashboardData?.doctor?.id
+                    if (currentDoctorId == null) {
+                        Toast.danger("Не удалось загрузить профиль врача")
+                    } else {
+                        timetableController.open(doctorNameHeader.content.toString(), currentDoctorId)
+                    }
                 }
                 button("Выйти", className = "btn-logout-sm").onClick {
-                    ApiConfig.clearToken(); Session.clear(); cleanup(); onLogout()
+                    ApiConfig.clearToken()
+                    Session.clear()
+                    cleanup()
+                    onLogout()
                 }
             }
 
@@ -314,7 +333,6 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
                         if (todayAppointments.isNotEmpty()) {
                             todayAppointments.forEach { appointment ->
-                                // TODO: Создать карточку приема с реальными данными
                                 div(className = "appointment card") {
                                     span("Приём #${appointment.id}", className = "record title")
                                     span("Статус: ${appointment.status}", className = "record subtitle")
@@ -349,7 +367,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                             span("Ошибка: $errorMessage", className = "record subtitle")
                             button("Повторить", className = "btn-primary") {
                                 onClick {
-                                    doctorId?.let { state.loadDoctorDashboard(it) }
+                                    userId?.let { state.loadDoctorDashboard(it) }
                                 }
                             }
                         }
@@ -368,22 +386,26 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     state.onUpdate = {
-        val updatedDoctorName = state.dashboardData?.user?.let { user ->
-            listOfNotNull(user.surname, user.name, user.patronymic).takeIf { it.isNotEmpty() }
+        val dashboard = state.dashboardData
+
+        val updatedDoctorName = dashboard?.user?.let { user ->
+            listOfNotNull(user.surname, user.name, user.patronymic)
+                .takeIf { it.isNotEmpty() }
                 ?.joinToString(" ")
-        } ?: doctorName
+        } ?: initialDoctorName
 
         val updatedInitials = updatedDoctorName
             .split(' ', '-', '_')
             .mapNotNull { it.firstOrNull()?.uppercaseChar() }
             .take(2)
             .joinToString("")
-            .ifBlank { doctorInitials }
+            .ifBlank { initialDoctorInitials }
 
-        doctorSubtitleSpan.content = state.dashboardData?.doctor?.profession?.takeIf { it.isNotBlank() }
+        doctorSubtitleSpan.content = dashboard?.doctor?.profession?.takeIf { it.isNotBlank() }
             ?: defaultSpecialty
         doctorNameHeader.content = updatedDoctorName
-        avatarContainer.updateAvatar(state.dashboardData?.user?.avatar ?: Session.avatar, updatedInitials)
+        avatarContainer.updateAvatar(dashboard?.user?.avatar ?: Session.avatar, updatedInitials)
+
         renderPatients()
         renderSchedule()
     }
