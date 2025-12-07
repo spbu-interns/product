@@ -122,6 +122,13 @@
     flex-shrink: 0;
 }
 
+.doctor-card-avatar.has-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: transparent;
+}
+
 .doctor-card-content {
     display: flex;
     flex-direction: column;

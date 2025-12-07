@@ -3,6 +3,8 @@
 import api.ApiConfig
 import io.kvision.core.Container
 import io.kvision.core.onClick
+import io.kvision.html.Div
+import io.kvision.html.H4
 import io.kvision.html.Span
 import io.kvision.html.button
 import io.kvision.html.div
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 import state.DoctorState
 import state.DoctorState.dashboardData
 import ui.components.timetableModal
+import ui.components.updateAvatar
 import utils.normalizeGender
 
 private data class DoctorPatientListItem(
@@ -59,6 +62,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     val doctorName = dashboard?.user?.let { user ->
         listOfNotNull(user.surname, user.name, user.patronymic).takeIf { it.isNotEmpty() }?.joinToString(" ")
     } ?: Session.fullName() ?: Session.email ?: "Врач"
+    val doctorAvatarUrl = dashboard?.user?.avatar ?: Session.avatar
 
     val doctorInitials = doctorName
         .split(' ', '-', '_')
@@ -75,6 +79,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     lateinit var patientsContainer: Container
     lateinit var overviewContainer: Container
     lateinit var scheduleContainer: Container
+    lateinit var avatarContainer: Div
+    lateinit var doctorNameHeader: H4
     var scheduleListContainer: Container? = null
 
     var renderPatients: () -> Unit = {}
@@ -225,8 +231,9 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     div(className = "account container") {
         div(className = "account grid") {
             div(className = "sidebar card") {
-                div(className = "avatar circle") { +doctorInitials }
-                h4(doctorName, className = "account name")
+                avatarContainer = div(className = "avatar circle") {}
+                avatarContainer.updateAvatar(doctorAvatarUrl, doctorInitials)
+                doctorNameHeader = h4(doctorName, className = "account name")
                 add(doctorSubtitleSpan)
 
                 nav {
@@ -361,8 +368,22 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     state.onUpdate = {
+        val updatedDoctorName = state.dashboardData?.user?.let { user ->
+            listOfNotNull(user.surname, user.name, user.patronymic).takeIf { it.isNotEmpty() }
+                ?.joinToString(" ")
+        } ?: doctorName
+
+        val updatedInitials = updatedDoctorName
+            .split(' ', '-', '_')
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .take(2)
+            .joinToString("")
+            .ifBlank { doctorInitials }
+
         doctorSubtitleSpan.content = state.dashboardData?.doctor?.profession?.takeIf { it.isNotBlank() }
             ?: defaultSpecialty
+        doctorNameHeader.content = updatedDoctorName
+        avatarContainer.updateAvatar(state.dashboardData?.user?.avatar ?: Session.avatar, updatedInitials)
         renderPatients()
         renderSchedule()
     }

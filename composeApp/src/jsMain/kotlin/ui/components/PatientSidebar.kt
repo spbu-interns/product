@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ui.PatientSection
 import ui.Session
+import ui.components.updateAvatar
 
 private fun initialsFrom(displayName: String): String = displayName
     .split(' ', '-', '_')
@@ -42,9 +43,11 @@ fun Container.patientSidebar(
     onLogout: (() -> Unit)? = null
 ) {
     val displayName = displayNameState.value
+    val avatarUrl = Session.avatar
 
     div(className = "sidebar card") {
-        val avatar = div(className = "avatar circle") { +(initialsState.value) }
+        val avatar = div(className = "avatar circle") {}
+        avatar.updateAvatar(avatarUrl, initialsState.value)
         val nameHeader = h3(displayName, className = "account name")
         patientId?.let { id ->
             p("ID: #$id", className = "account id")
@@ -54,7 +57,9 @@ fun Container.patientSidebar(
             displayNameState.collect { updated -> nameHeader.content = updated }
         }
         coroutineScope?.launch {
-            initialsState.collect { updated -> avatar.content = updated }
+            initialsState.collect { updated ->
+                if (avatarUrl.isNullOrBlank()) avatar.updateAvatar(null, updated)
+            }
         }
 
         nav {

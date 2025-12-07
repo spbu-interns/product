@@ -8,5 +8,6 @@ data class DoctorProfile(
     val price: Int,
     val location: String,
     val bio: String,
-    val gender: String?
+    val gender: String?,
+    val avatarUrl: String?
 )

@@ -17,6 +17,7 @@ import io.kvision.panel.simplePanel
 import io.kvision.panel.vPanel
 import ui.components.bookingModal
 import ui.components.doctorProfileModal
+import ui.components.updateAvatar
 
 import api.DoctorApiClient
 import kotlinx.browser.window
@@ -113,7 +114,8 @@ private fun DoctorSearchResultDto.toUiProfile(profile: UserResponseDto?): Doctor
         price = (price ?: 0.0).toInt(),
         location = city ?: "Не указан",
         bio = info ?: "Информация отсутствует",
-        gender = profile?.gender
+        gender = profile?.gender,
+        avatarUrl = profile?.avatar
     )
 }
 
@@ -320,16 +322,15 @@ private fun Container.doctorCard(
     onBook: (DoctorProfile) -> Unit,
     onViewProfile: (DoctorProfile) -> Unit
 ) {
-    val initials = profile.name
-        .split(" ")
-        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .take(2)
-
     div(className = "doctor-card") {
-        div(className = "doctor-card-avatar") {
-            +(initials.ifBlank { "Фото" })
-        }
+        val initials = profile.name
+            .split(" ")
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .joinToString("")
+            .take(2)
+
+        div(className = "doctor-card-avatar")
+            .apply { updateAvatar(profile.avatarUrl, initials.ifBlank { "Фото" }) }
         div(className = "doctor-card-content") {
             div(className = "doctor-card-header") {
                 h3(profile.name, className = "doctor-card-name")
