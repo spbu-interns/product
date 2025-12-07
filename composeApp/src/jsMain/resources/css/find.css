@@ -179,9 +179,21 @@
     gap: 16px;
 }
 
+.doctor-card-price-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .doctor-card-price {
     margin: 0;
     font-weight: 600;
+}
+
+.doctor-card-price-note {
+    margin: 0;
+    color: rgba(51, 65, 85, 0.6);
+    font-size: 12px;
 }
 
 .doctor-card-actions {
@@ -313,6 +325,12 @@
     margin: 4px 0 0;
     font-weight: 600;
     color: #0f172a;
+}
+
+.doctor-profile-meta-note {
+    margin: 2px 0 0;
+    color: rgba(15, 23, 42, 0.6);
+    font-size: 12px;
 }
 
 .doctor-profile-bio {

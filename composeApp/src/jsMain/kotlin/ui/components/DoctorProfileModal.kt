@@ -73,7 +73,11 @@ fun Container.doctorProfileModal(
                         metaItem("Рейтинг", "★ ${profile.rating.format1()}")
                         metaItem("Стаж", "${profile.experienceYears} лет")
                         metaItem("Локация", profile.location)
-                        metaItem("Стоимость", "от ${profile.price} ₽ / приём")
+                        metaItem(
+                            label = "Стоимость",
+                            value = "${profile.price} ₽ / приём",
+                            note = "Может вырасти при добавлении услуг"
+                        )
                     }
 
                     p(profile.bio, className = "doctor-profile-bio")
@@ -101,9 +105,12 @@ fun Container.doctorProfileModal(
     )
 }
 
-private fun Container.metaItem(label: String, value: String) {
+private fun Container.metaItem(label: String, value: String, note: String? = null) {
     div(className = "doctor-profile-meta-item") {
         p(label, className = "doctor-profile-meta-label")
         p(value, className = "doctor-profile-meta-value")
+        note?.let {
+            p(it, className = "doctor-profile-meta-note")
+        }
     }
 }

@@ -23,6 +23,7 @@ class DateCalendar(
     initialDate: Date?,
     private val minDate: Date? = null,
     private val maxDate: Date? = null,
+    private val availableDates: Set<String>? = null,
     private val onDateSelected: (Date) -> Unit
 ) : SimplePanel() {
     private val monthNames = listOf(
@@ -33,7 +34,9 @@ class DateCalendar(
     private val effectiveMinDate = minDate ?: Date(1900, 0, 1)
     private val effectiveMaxDate = maxDate ?: Date(2100, 11, 31)
 
-    private var selectedDate: Date? = initialDate?.let { clampToRange(it) }
+    private var allowedDates: Set<String>? = availableDates?.toSet()
+
+    private var selectedDate: Date? = initialDate?.let { clampToRange(it) }?.takeIf { isAllowed(it) }
     private var displayedMonth: Int = (selectedDate ?: clampToRange(Date())).getMonth()
     private var displayedYear: Int = (selectedDate ?: clampToRange(Date())).getFullYear()
 
@@ -49,11 +52,19 @@ class DateCalendar(
     }
 
     fun setSelectedDate(date: Date?) {
-        selectedDate = date?.let { clampToRange(it) }
+        selectedDate = date?.let { clampToRange(it) }?.takeIf { isAllowed(it) }
         val target = selectedDate ?: Date(displayedYear, displayedMonth, 1)
         displayedMonth = target.getMonth()
         displayedYear = target.getFullYear()
         syncSelectors()
+        renderDays()
+    }
+
+    fun setAllowedDates(dates: Set<String>?) {
+        allowedDates = dates?.toSet()
+        if (selectedDate?.let { !isAllowed(it) } == true) {
+            selectedDate = null
+        }
         renderDays()
     }
 
@@ -175,7 +186,7 @@ class DateCalendar(
         // 2) Реальные дни месяца
         for (day in 1..daysInMonth) {
             val currentDate = Date(displayedYear, displayedMonth, day)
-            val disabled = !isWithinRange(currentDate)
+            val disabled = !isWithinRange(currentDate) || !isAllowed(currentDate)
             val isSelected = selectedDate?.let { sameDate(it, currentDate) } == true
 
             daysContainer.button(day.toString()) {
@@ -251,6 +262,10 @@ class DateCalendar(
                 first.getDate() == second.getDate()
     }
 
+    private fun isAllowed(date: Date): Boolean {
+        return allowedDates?.contains(date.toIsoDate()) != false
+    }
+
     private fun isWithinRange(date: Date): Boolean {
         val time = date.getTime()
         return time in effectiveMinDate.getTime()..effectiveMaxDate.getTime()
@@ -265,6 +280,13 @@ class DateCalendar(
             time > max -> Date(effectiveMaxDate.getTime())
             else -> date
         }
+    }
+
+    private fun Date.toIsoDate(): String {
+        val year = this.getFullYear()
+        val month = (this.getMonth() + 1).toString().padStart(2, '0')
+        val day = this.getDate().toString().padStart(2, '0')
+        return "$year-$month-$day"
     }
 
     private fun syncSelectors() {
@@ -284,5 +306,6 @@ fun Container.dateCalendar(
     initialDate: Date?,
     minDate: Date? = null,
     maxDate: Date? = null,
+    availableDates: Set<String>? = null,
     onDateSelected: (Date) -> Unit
-): DateCalendar = DateCalendar(initialDate, minDate, maxDate, onDateSelected).also { add(it) }
+): DateCalendar = DateCalendar(initialDate, minDate, maxDate, availableDates, onDateSelected).also { add(it) }

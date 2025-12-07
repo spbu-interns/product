@@ -16,6 +16,7 @@ import io.kvision.panel.SimplePanel
 import io.kvision.panel.hPanel
 import io.kvision.panel.simplePanel
 import io.kvision.panel.vPanel
+import state.PatientState
 import ui.components.bookingModal
 import ui.components.doctorProfileModal
 import ui.components.updateAvatar
@@ -110,6 +111,7 @@ private fun DoctorSearchResultDto.toUiProfile(profile: UserResponseDto?): Doctor
     val safeName = if (fullName.isNullOrBlank()) "Доктор №${id}" else fullName
 
     return DoctorProfile(
+        doctorId = id,
         name = safeName,
         specialty = specializationNames.joinToString().ifBlank { profession },
         rating = rating ?: 0.0,
@@ -150,11 +152,13 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
     lateinit var resultsPanel: SimplePanel
     lateinit var searchField: Text
 
-    val bookingModalController = bookingModal()
-    val profileModalController = doctorProfileModal(onBook = {
-        bookingModalController.open(it.name)
+    val bookingModalController = bookingModal(onAppointmentsUpdated = {
+        Session.userId?.let { PatientState.loadPatientDashboard(it) }
     })
-    val onBookDoctor: (DoctorProfile) -> Unit = { bookingModalController.open(it.name) }
+    val profileModalController = doctorProfileModal(onBook = {
+        bookingModalController.open(it)
+    })
+    val onBookDoctor: (DoctorProfile) -> Unit = { bookingModalController.open(it) }
 
     suspend fun enrichProfiles(doctors: List<DoctorSearchResultDto>) {
         doctors.forEach { doc ->
@@ -407,7 +411,10 @@ private fun Container.doctorCard(
             )
             p(profile.bio, className = "doctor-card-bio")
             div(className = "doctor-card-footer") {
-                p("от ${profile.price} ₽ / приём", className = "doctor-card-price")
+                div(className = "doctor-card-price-block") {
+                    p("${profile.price} ₽ / приём", className = "doctor-card-price")
+                    p("Может вырасти при добавлении услуг", className = "doctor-card-price-note")
+                }
                 div(className = "doctor-card-actions") {
                     button("Посмотреть профиль", className = "btn btn-secondary btn-sm").onClick {
                         onViewProfile(profile)

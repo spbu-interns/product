@@ -1,9 +1,11 @@
 ﻿package ui.components
 
+import api.BookingApiClient
+import api.PatientApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.core.onEvent
-import io.kvision.form.select.select
+import io.kvision.form.select.Select
 import io.kvision.form.text.textArea
 import io.kvision.html.button
 import io.kvision.html.div
@@ -12,34 +14,54 @@ import io.kvision.html.p
 import io.kvision.panel.SimplePanel
 import io.kvision.panel.simplePanel
 import io.kvision.toast.Toast
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import org.interns.project.dto.AppointmentCreateRequest
+import state.PatientState
+import ui.DoctorProfile
+import ui.Session
+import kotlin.js.Date
 
-data class BookingDay(
-    val day: Int,
-    val isCurrentMonth: Boolean = true,
-    val isAvailable: Boolean = false
+data class SlotOption(
+    val id: Long,
+    val label: String
 )
 
 class BookingModalController internal constructor(
     private val renderModal: () -> Unit,
-    private val openAction: (String) -> Unit,
+    private val openAction: (DoctorProfile) -> Unit,
     private val closeAction: () -> Unit
 ) {
-    fun open(doctorName: String) = openAction(doctorName)
+    fun open(doctor: DoctorProfile) = openAction(doctor)
     fun close() = closeAction()
     internal fun render() = renderModal()
 }
 
 fun Container.bookingModal(
-    bookingMonthTitle: String = "Ноябрь 2025",
-    bookingCalendar: List<List<BookingDay>> = defaultBookingCalendar(),
-    daySlotMap: Map<Int, List<String>> = defaultDaySlotMap()
+    onAppointmentsUpdated: (() -> Unit)? = null
 ): BookingModalController {
-    var bookingVisible = false
-    var selectedDoctor: String? = null
-    var selectedDay: BookingDay? = null
-    var selectedTime: String? = null
-    var showingTimes = false
+    val uiScope = MainScope()
+    val apiClient = BookingApiClient()
+    val patientApiClient = PatientApiClient()
 
+    var bookingVisible = false
+    var selectedDoctor: DoctorProfile? = null
+    var selectedDate: Date? = null
+    var selectedSlotId: Long? = null
+    var notesText = ""
+
+    var availableDates: Set<String> = emptySet()
+    var availableSlots: List<SlotOption> = emptyList()
+
+    var isLoadingDates = false
+    var isLoadingSlots = false
+    var bookingInProgress = false
+    var cachedClientId: Long? = null
+
+    var minDate = todayDateOnly()
+    var maxDate = addMonthsClamped(minDate, 6)
+
+    var calendar: DateCalendar? = null
     lateinit var renderBookingModal: () -> Unit
 
     val bookingOverlay: SimplePanel = simplePanel(className = "booking-overlay-root") {
@@ -49,9 +71,14 @@ fun Container.bookingModal(
     fun resetBookingState() {
         bookingVisible = false
         selectedDoctor = null
-        selectedDay = null
-        selectedTime = null
-        showingTimes = false
+        selectedDate = null
+        selectedSlotId = null
+        notesText = ""
+        availableDates = emptySet()
+        availableSlots = emptyList()
+        isLoadingDates = false
+        isLoadingSlots = false
+        bookingInProgress = false
     }
 
     fun closeBookingModal() {
@@ -59,13 +86,138 @@ fun Container.bookingModal(
         renderBookingModal()
     }
 
-    fun openBookingModal(doctorName: String) {
-        bookingVisible = true
-        selectedDoctor = doctorName
-        selectedDay = null
-        selectedTime = null
-        showingTimes = false
+    fun loadSlotsForDate(date: Date) {
+        val doctorId = selectedDoctor?.doctorId ?: return
+        isLoadingSlots = true
+        selectedSlotId = null
         renderBookingModal()
+
+        uiScope.launch {
+            val response = apiClient.listDoctorSlots(doctorId, date.toIsoDate())
+            response.onSuccess { slots ->
+                availableSlots = slots
+                    .filter { !it.isBooked }
+                    .mapNotNull { slot ->
+                        val start = extractDateAndTime(slot.startTime)?.second ?: return@mapNotNull null
+                        val end = extractDateAndTime(slot.endTime)?.second
+                        val label = end?.let { "$start–$it" } ?: start
+                        SlotOption(id = slot.id, label = label)
+                    }
+                    .sortedBy { parseTimeToMinutes(it.label.substringBefore("–")) ?: Int.MAX_VALUE }
+
+                if (availableSlots.isEmpty()) {
+                    selectedSlotId = null
+                }
+            }.onFailure {
+                Toast.danger("Не удалось загрузить слоты на выбранный день")
+            }
+
+            isLoadingSlots = false
+            renderBookingModal()
+        }
+    }
+
+    fun loadAvailableDates() {
+        val doctorId = selectedDoctor?.doctorId ?: return
+        isLoadingDates = true
+        availableDates = emptySet()
+        renderBookingModal()
+
+        uiScope.launch {
+            val response = apiClient.listDoctorSlots(doctorId)
+            response.onSuccess { slots ->
+                val allowedDates = slots
+                    .filter { !it.isBooked }
+                    .mapNotNull { slot ->
+                        val isoDate = extractDateAndTime(slot.startTime)?.first ?: return@mapNotNull null
+                        val date = parseIsoDate(isoDate) ?: return@mapNotNull null
+                        if (isWithinRange(date, minDate, maxDate)) date.toIsoDate() else null
+                    }
+                    .toSet()
+
+                availableDates = allowedDates
+
+                if (availableDates.isNotEmpty()) {
+                    calendar?.setAllowedDates(availableDates)
+                }
+
+                val firstDateIso = availableDates.minOrNull()
+                selectedDate = firstDateIso?.let { parseIsoDate(it) }
+
+                selectedDate?.let { date ->
+                    calendar?.setSelectedDate(date)
+                    loadSlotsForDate(date)
+                }
+            }.onFailure {
+                Toast.danger("Не удалось загрузить доступные даты врача")
+            }
+
+            isLoadingDates = false
+            renderBookingModal()
+        }
+    }
+
+    fun openBookingModal(doctor: DoctorProfile) {
+        bookingVisible = true
+        selectedDoctor = doctor
+        selectedDate = null
+        selectedSlotId = null
+        notesText = ""
+        availableSlots = emptyList()
+        availableDates = emptySet()
+        minDate = todayDateOnly()
+        maxDate = addMonthsClamped(minDate, 6)
+
+        renderBookingModal()
+        loadAvailableDates()
+    }
+
+    fun submitBooking() {
+        val slotId = selectedSlotId
+        val userId = Session.userId
+        if (slotId == null || selectedDate == null) return
+        if (userId == null) {
+            Toast.danger("Требуется войти как пациент, чтобы создать запись")
+            return
+        }
+
+        bookingInProgress = true
+        renderBookingModal()
+
+        uiScope.launch {
+            val clientId = cachedClientId ?: patientApiClient.getClientId(userId).getOrElse { error ->
+                Toast.danger(error.message ?: "Не удалось определить профиль пациента")
+                null
+            }
+
+            if (clientId == null) {
+                bookingInProgress = false
+                renderBookingModal()
+                return@launch
+            }
+
+            cachedClientId = clientId
+
+            val request = AppointmentCreateRequest(
+                slotId = slotId,
+                clientId = clientId,
+                comments = notesText.takeIf { it.isNotBlank() }
+            )
+
+            apiClient.bookAppointment(request)
+                .onSuccess {
+                    Toast.success("Запись подтверждена")
+                    closeBookingModal()
+                    onAppointmentsUpdated?.invoke()
+                    Session.userId?.let { PatientState.loadPatientDashboard(it) }
+                }
+                .onFailure {
+                    Toast.danger("Не удалось создать запись")
+                }
+
+            bookingInProgress = false
+            renderBookingModal()
+        }
     }
 
     renderBookingModal = render@{
@@ -79,70 +231,83 @@ fun Container.bookingModal(
 
             div(className = "booking-modal") {
                 div(className = "booking-modal-header") {
-                    h3("Запись к ${selectedDoctor ?: "врачу"}", className = "booking-title")
+                    h3(
+                        "Запись к ${selectedDoctor?.name ?: "врачу"}",
+                        className = "booking-title"
+                    )
                     button("×", className = "booking-close").onClick { closeBookingModal() }
+                }
+
+                selectedDoctor?.let { doctor ->
+                    div(className = "booking-price-line") {
+                        p("${doctor.price} ₽ / приём", className = "booking-price-value")
+                        p(
+                            "Может вырасти при добавлении услуг",
+                            className = "booking-price-note"
+                        )
+                    }
                 }
 
                 div(className = "booking-body") {
                     div(className = "booking-card") {
-                        if (!showingTimes) {
-                            div(className = "booking-card-header") {
-                                h3(bookingMonthTitle, className = "booking-card-title")
-                                p("Выберите дату", className = "booking-subtitle")
-                            }
-
-                            div(className = "booking-weekdays") {
-                                listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { weekday ->
-                                    div(weekday, className = "booking-weekday")
-                                }
-                            }
-
-                            bookingCalendar.forEach { week ->
-                                div(className = "booking-week") {
-                                    week.forEach { day ->
-                                        val dayClasses = mutableListOf("booking-day")
-                                        if (!day.isCurrentMonth) dayClasses += "is-muted"
-                                        if (day.isAvailable && day.isCurrentMonth) dayClasses += "is-available"
-                                        if (selectedDay?.day == day.day && day.isCurrentMonth) dayClasses += "is-selected"
-
-                                        div(day.day.toString(), className = dayClasses.joinToString(" ")) {
-                                            if (day.isAvailable && day.isCurrentMonth) {
-                                                onClick {
-                                                    selectedDay = day
-                                                    showingTimes = true
-                                                    renderBookingModal()
-                                                }
-                                            }
-                                        }
+                        div(className = "booking-card-header") {
+                            h3("Календарь", className = "booking-card-title")
+                            p("Выберите дату", className = "booking-subtitle")
+                        }
+                        div(className = "booking-calendar-row") {
+                            div(className = "booking-calendar-col") {
+                                if (isLoadingDates) {
+                                    p("Загружаем доступные даты...", className = "booking-hint")
+                                } else if (availableDates.isEmpty()) {
+                                    p(
+                                        "Нет свободных дат в ближайшие 6 месяцев",
+                                        className = "booking-empty"
+                                    )
+                                } else {
+                                    calendar = dateCalendar(
+                                        initialDate = selectedDate,
+                                        minDate = minDate,
+                                        maxDate = maxDate,
+                                        availableDates = availableDates
+                                    ) { date ->
+                                        selectedDate = date
+                                        selectedSlotId = null
+                                        loadSlotsForDate(date)
                                     }
                                 }
                             }
-                        } else {
-                            val targetDay = selectedDay?.day
-                            val slots = daySlotMap[targetDay] ?: emptyList()
+                            div(className = "booking-time-col") {
+                                if (selectedDate != null) {
+                                    div(className = "booking-card-header") {
+                                        h3("Доступное время", className = "booking-card-title")
+                                        p(selectedDate?.toIsoDate().orEmpty(), className = "booking-subtitle")
+                                    }
 
-                            div(className = "booking-card-header") {
-                                h3("${targetDay ?: "День"} $bookingMonthTitle", className = "booking-card-title")
-                                button("← Изменить дату", className = "booking-link").onClick {
-                                    showingTimes = false
-                                    selectedTime = null
-                                    renderBookingModal()
-                                }
-                            }
+                                    when {
+                                        isLoadingSlots -> {
+                                            p("Загружаем свободные слоты...", className = "booking-hint")
+                                        }
 
-                            if (slots.isEmpty()) {
-                                p("На выбранный день нет свободных слотов.", className = "booking-empty")
-                            } else {
-                                p("Выберите время", className = "booking-subtitle")
-                                div(className = "booking-time-grid") {
-                                    slots.forEach { slot ->
-                                        val slotClasses = mutableListOf("booking-time")
-                                        if (slot == selectedTime) slotClasses += "is-selected"
+                                        availableSlots.isEmpty() -> {
+                                            p(
+                                                "На выбранный день нет свободных слотов",
+                                                className = "booking-empty"
+                                            )
+                                        }
 
-                                        button(slot, className = slotClasses.joinToString(" ")) {
-                                            onClick {
-                                                selectedTime = slot
-                                                renderBookingModal()
+                                        else -> {
+                                            div(className = "booking-time-grid") {
+                                                availableSlots.forEach { slot ->
+                                                    val slotClasses = mutableListOf("booking-time")
+                                                    if (slot.id == selectedSlotId) slotClasses += "is-selected"
+
+                                                    button(slot.label, className = slotClasses.joinToString(" ")) {
+                                                        onClick {
+                                                            selectedSlotId = slot.id
+                                                            renderBookingModal()
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -156,18 +321,27 @@ fun Container.bookingModal(
 
                         div(className = "booking-form-row") {
                             p("Тип приёма", className = "booking-label")
-                            val typeSelect = select(
+
+                            val typeSelect = Select(
                                 options = listOf(
                                     "first" to "Первичный приём",
                                     "secondary" to "Повторный приём",
                                     "regular" to "Плановый осмотр",
-                                    "consultation" to "Консультация"
-                                )
-                            ) {
+                                    "consultation" to "Консультация",
+                                ),
+                                label = "Укажите тип приёма",
+                            ).apply {
                                 addCssClass("booking-select")
-                                value = "online"
+                                value = "first"
                             }
-                            typeSelect.onEvent { change = { /* UI only */ } }
+
+                            add(typeSelect)
+
+                            typeSelect.onEvent {
+                                change = {
+                                    // логики пока нет, но место есть
+                                }
+                            }
                         }
 
                         div(className = "booking-form-row") {
@@ -175,16 +349,19 @@ fun Container.bookingModal(
                             textArea {
                                 addCssClass("booking-notes")
                                 placeholder = "Опишите симптомы или пожелания"
+                                value = notesText
+                                onEvent {
+                                    input = {
+                                        notesText = value ?: ""
+                                    }
+                                }
                             }
                         }
 
                         button("Подтвердить запись", className = "btn btn-primary booking-submit") {
-                            disabled = selectedTime == null || selectedDay == null
+                            disabled = selectedSlotId == null || selectedDate == null || bookingInProgress
                             onClick {
-                                if (selectedDay != null && selectedTime != null) {
-                                    Toast.success("Запись создана на ${selectedDay!!.day} $bookingMonthTitle, $selectedTime")
-                                    closeBookingModal()
-                                }
+                                submitBooking()
                             }
                         }
                     }
@@ -200,68 +377,54 @@ fun Container.bookingModal(
     )
 }
 
-private fun defaultDaySlotMap(): Map<Int, List<String>> = mapOf(
-    1 to listOf("09:00", "10:30", "14:00", "15:30"),
-    2 to listOf("09:00", "11:00", "12:30", "16:30"),
-    3 to listOf("08:30", "10:00", "13:30", "15:00", "17:00"),
-    6 to listOf("09:00", "10:00", "13:00", "15:00", "16:30"),
-    7 to listOf("09:30", "11:30", "14:30", "16:00"),
-    9 to listOf("10:00", "12:00", "15:00", "17:30"),
-    12 to listOf("09:00", "11:00", "13:00", "15:30"),
-    14 to listOf("09:30", "10:30", "14:00"),
-    18 to listOf("08:30", "10:00", "12:30", "16:00"),
-    20 to listOf("09:00", "11:30", "14:30", "17:00"),
-    22 to listOf("10:00", "12:00", "15:00", "16:30"),
-    25 to listOf("09:00", "10:30", "13:30", "15:30"),
-    27 to listOf("09:30", "11:30", "14:30"),
-    29 to listOf("10:00", "12:00", "15:00", "16:00"),
-    30 to listOf("09:00", "11:00", "13:00", "16:00")
-)
+private fun todayDateOnly(): Date {
+    val now = Date()
+    return Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
 
-private fun defaultBookingCalendar(): List<List<BookingDay>> = listOf(
-    listOf(
-        BookingDay(26, isCurrentMonth = false),
-        BookingDay(27, isCurrentMonth = false),
-        BookingDay(28, isCurrentMonth = false),
-        BookingDay(29, isCurrentMonth = false),
-        BookingDay(30, isCurrentMonth = false),
-        BookingDay(1, isAvailable = true),
-        BookingDay(2, isAvailable = true)
-    ),
-    listOf(
-        BookingDay(3, isAvailable = true),
-        BookingDay(4, isAvailable = true),
-        BookingDay(5, isAvailable = true),
-        BookingDay(6, isAvailable = true),
-        BookingDay(7, isAvailable = true),
-        BookingDay(8, isAvailable = true),
-        BookingDay(9, isAvailable = true)
-    ),
-    listOf(
-        BookingDay(10, isAvailable = true),
-        BookingDay(11, isAvailable = true),
-        BookingDay(12, isAvailable = true),
-        BookingDay(13, isAvailable = true),
-        BookingDay(14, isAvailable = true),
-        BookingDay(15, isAvailable = true),
-        BookingDay(16, isAvailable = true)
-    ),
-    listOf(
-        BookingDay(17, isAvailable = true),
-        BookingDay(18, isAvailable = true),
-        BookingDay(19, isAvailable = true),
-        BookingDay(20, isAvailable = true),
-        BookingDay(21, isAvailable = true),
-        BookingDay(22, isAvailable = true),
-        BookingDay(23, isAvailable = true)
-    ),
-    listOf(
-        BookingDay(24, isAvailable = true),
-        BookingDay(25, isAvailable = true),
-        BookingDay(26, isAvailable = true),
-        BookingDay(27, isAvailable = true),
-        BookingDay(28, isAvailable = true),
-        BookingDay(29, isAvailable = true),
-        BookingDay(30, isAvailable = true)
-    )
-)
+private fun addMonthsClamped(base: Date, months: Int): Date {
+    val year = base.getFullYear()
+    val month = base.getMonth()
+    val day = base.getDate()
+    return Date(year, month + months, day)
+}
+
+private fun extractDateAndTime(iso: String): Pair<String, String>? {
+    val date = iso.substringBefore("T", "")
+    val timeRaw = iso.substringAfter("T", "").takeWhile { it != 'Z' && it != '+' }
+    val timeParts = timeRaw.split(":")
+    if (date.isBlank() || timeParts.size < 2) return null
+    val hours = timeParts.getOrNull(0)?.padStart(2, '0') ?: return null
+    val minutes = timeParts.getOrNull(1)?.padStart(2, '0') ?: return null
+    return date to "$hours:$minutes"
+}
+
+private fun parseTimeToMinutes(value: String): Int? {
+    val parts = value.split(":")
+    if (parts.size != 2) return null
+    val h = parts[0].toIntOrNull() ?: return null
+    val m = parts[1].toIntOrNull() ?: return null
+    if (h !in 0..23 || m !in 0..59) return null
+    return h * 60 + m
+}
+
+private fun parseIsoDate(value: String): Date? {
+    val parts = value.split("-")
+    if (parts.size != 3) return null
+    val year = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull()?.minus(1) ?: return null
+    val day = parts[2].toIntOrNull() ?: return null
+    return Date(year, month, day)
+}
+
+private fun Date.toIsoDate(): String {
+    val year = this.getFullYear()
+    val month = (this.getMonth() + 1).toString().padStart(2, '0')
+    val day = this.getDate().toString().padStart(2, '0')
+    return "$year-$month-$day"
+}
+
+private fun isWithinRange(date: Date, start: Date, end: Date): Boolean {
+    val time = date.getTime()
+    return time in start.getTime()..end.getTime()
+}
