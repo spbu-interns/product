@@ -95,10 +95,6 @@ fun Container.authScreen(
                         })
                     })
 
-                    val error = Span("").apply { addCssClass("text-danger") }
-
-                    content.add(div { add(error) })
-
                     content.add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
                         width = 100.perc
                         onClick {
@@ -112,7 +108,6 @@ fun Container.authScreen(
                                 !emailOk -> Toast.danger("Некорректный email")
                                 !passOk -> Toast.danger("Проверьте пароль")
                                 else -> {
-                                    error.content = ""
                                     this.disabled = true
 
                                     uiScope.launch {
@@ -188,7 +183,6 @@ fun Container.authScreen(
                                                         )
                                                     )
                                                 } else {
-                                                    error.content = localizeLoginError(e.message)
                                                     Toast.danger(localizeLoginError(e.message))
                                                 }
                                                 this@apply.disabled = false
