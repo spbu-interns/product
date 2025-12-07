@@ -232,3 +232,99 @@
     background: #1e4fcc !important;
     box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
 }
+
+.timetable-topbar {
+    margin-bottom: 12px;
+}
+
+.timetable-main {
+    margin-top: 4px;
+}
+
+.timetable-main-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.timetable-calendar-col,
+.timetable-day-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.timetable-week-toggle-row {
+    margin-top: 8px;
+}
+
+.timetable-advanced {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.timetable-advanced-card,
+.timetable-templates-card,
+.timetable-constructor-card,
+.timetable-vacation-card,
+.timetable-week-view-card {
+    margin: 0;
+    padding: 16px;
+}
+
+.timetable-advanced-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.timetable-advanced-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+.timetable-week-view-card {
+    margin-top: 8px;
+}
+
+.timetable-week-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.timetable-week-row:last-child {
+    border-bottom: none;
+}
+
+.timetable-week-day-label {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.timetable-week-day-empty {
+    color: #94a3b8;
+}
+
+.timetable-week-day-slots {
+    max-width: 420px;
+    text-align: right;
+}
+
+@media (max-width: 960px) {
+    .timetable-main-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .timetable-week-day-slots {
+        text-align: left;
+    }
+}

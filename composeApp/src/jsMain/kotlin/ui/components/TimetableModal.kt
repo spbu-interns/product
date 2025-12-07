@@ -31,6 +31,7 @@ private data class DaySchedule(
     val label: String,
     val slots: MutableList<String> = mutableListOf(),
     val lockedSlots: MutableSet<String> = mutableSetOf(), // слоты, которые нельзя удалить (забронированы)
+    val slotIds: MutableMap<String, Long> = mutableMapOf(),
 )
 
 private data class ScheduleTemplate(
@@ -60,6 +61,7 @@ fun Container.timetableModal(): TimetableModalController {
     var doctorId: Long? = null
 
     var saving = false
+    var loadingExistingSlots = false
 
     // Диапазон редактируемых дат: сегодня — минимум, +6 месяцев — максимум
     var today = todayDateOnly()
@@ -165,14 +167,54 @@ fun Container.timetableModal(): TimetableModalController {
         vacationEndDate = today
     }
 
+    fun loadExistingSlots() {
+        val id = doctorId ?: return
+        loadingExistingSlots = true
+        renderModal()
+
+        uiScope.launch {
+            val response = apiClient.listDoctorSlots(id)
+            response.onSuccess { slots ->
+                allDays.forEach { day ->
+                    day.slots.clear()
+                    day.lockedSlots.clear()
+                    day.slotIds.clear()
+                }
+
+                slots.forEach { slot ->
+                    val (datePart, timePart) = extractDateAndTime(slot.startTime) ?: return@forEach
+                    val endTime = extractDateAndTime(slot.endTime)?.second ?: return@forEach
+                    val day = allDays.firstOrNull { it.date.toIsoDate() == datePart } ?: return@forEach
+                    val label = "$timePart-$endTime"
+                    day.slots.add(label)
+                    day.slotIds[label] = slot.id
+                    if (slot.isBooked) {
+                        day.lockedSlots.add(label)
+                    }
+                }
+
+                allDays.forEach { day ->
+                    day.slots.sortBy { parseTimeToMinutes(it.split("-")[0]) }
+                }
+            }.onFailure {
+                Toast.danger("Не удалось загрузить слоты врача")
+            }
+
+            loadingExistingSlots = false
+            renderModal()
+        }
+    }
+
     fun openModal(name: String, id: Long?) {
         doctorName = name
         doctorId = id
         resetDays()
+        loadingExistingSlots = false
         visible = true
-        showAdvanced = false
+        showAdvanced = true
         saving = false
         renderModal()
+        loadExistingSlots()
     }
 
     fun closeModal() {
@@ -202,6 +244,10 @@ fun Container.timetableModal(): TimetableModalController {
             return
         }
         val label = "${formatMinutes(startMinutes)}-${formatMinutes(endMinutes)}"
+        if (day.slots.contains(label)) {
+            Toast.info("Такой слот уже есть в расписании")
+            return
+        }
         day.slots.add(label)
         day.slots.sortBy { parseTimeToMinutes(it.split("-")[0]) }
         renderModal()
@@ -213,8 +259,28 @@ fun Container.timetableModal(): TimetableModalController {
             Toast.info("Этот слот уже забронирован пациентом и не может быть отменён")
             return
         }
-        day.slots.removeAt(index)
-        renderModal()
+        val slotId = day.slotIds[slot]
+        if (slotId != null) {
+            val id = doctorId
+            if (id == null) {
+                Toast.danger("Не выбран врач — удаление слота невозможно")
+                return
+            }
+
+            uiScope.launch {
+                val result = apiClient.deleteSlot(id, slotId)
+                if (result.isSuccess) {
+                    day.slotIds.remove(slot)
+                    day.slots.removeAt(index)
+                    renderModal()
+                } else {
+                    Toast.danger("Не удалось удалить слот")
+                }
+            }
+        } else {
+            day.slots.removeAt(index)
+            renderModal()
+        }
     }
 
     fun applyTemplate(template: ScheduleTemplate) {
@@ -228,6 +294,8 @@ fun Container.timetableModal(): TimetableModalController {
         targetWeeks.forEach { week ->
             week.forEach { day ->
                 day.slots.clear()
+                day.lockedSlots.clear()
+                day.slotIds.clear()
                 val generated = template.generator(day.date, duration)
                 val filtered = generated.filter { label -> !isSlotInPast(day.date, label) }
                 day.slots.addAll(filtered)
@@ -272,6 +340,8 @@ fun Container.timetableModal(): TimetableModalController {
 
                 if (isWorking) {
                     day.slots.clear()
+                    day.lockedSlots.clear()
+                    day.slotIds.clear()
                     val generated = generateSlots(
                         constructorStartTime,
                         constructorEndTime,
@@ -282,6 +352,8 @@ fun Container.timetableModal(): TimetableModalController {
                     day.slots.addAll(filtered)
                 } else {
                     day.slots.clear()
+                    day.lockedSlots.clear()
+                    day.slotIds.clear()
                 }
             }
         }
@@ -291,10 +363,16 @@ fun Container.timetableModal(): TimetableModalController {
     }
 
     fun applyVacationRange() {
+        val id = doctorId
+        if (id == null) {
+            Toast.danger("Не выбран врач")
+            return
+        }
         val startMillis = vacationStartDate.getTime()
         val endMillis = vacationEndDate.getTime()
         var removedCount = 0
         var lockedKept = 0
+        val slotsToDelete = mutableListOf<Long>()
 
         allDays.forEach { day ->
             val t = day.date.getTime()
@@ -304,6 +382,20 @@ fun Container.timetableModal(): TimetableModalController {
                 lockedKept += locked.size
                 day.slots.clear()
                 day.slots.addAll(locked)
+                day.slotIds.keys.toList().forEach { label ->
+                    if (!locked.contains(label)) {
+                        day.slotIds[label]?.let { slotsToDelete.add(it) }
+                        day.slotIds.remove(label)
+                    }
+                }
+            }
+        }
+
+        if (slotsToDelete.isNotEmpty()) {
+            uiScope.launch {
+                slotsToDelete.forEach { slotId ->
+                    apiClient.deleteSlot(id, slotId)
+                }
             }
         }
 
@@ -337,6 +429,7 @@ fun Container.timetableModal(): TimetableModalController {
         uiScope.launch {
             val slotRequests = allDays.flatMap { day ->
                 day.slots.mapNotNull { label ->
+                    if (day.slotIds.containsKey(label)) return@mapNotNull null
                     val range = parseSlotRange(label) ?: return@mapNotNull null
                     val dateIso = day.date.toIsoDate()
                     SlotCreateRequest(
@@ -361,6 +454,10 @@ fun Container.timetableModal(): TimetableModalController {
 
             saving = false
             renderModal()
+
+            if (successCount == slotRequests.size) {
+                loadExistingSlots()
+            }
         }
     }
 
@@ -890,6 +987,9 @@ fun Container.timetableModal(): TimetableModalController {
                 // правая колонка — карточка выбранного дня + сохранение
                 div(className = "timetable-day-column") {
                     if (selectedDay != null) {
+                        if (loadingExistingSlots) {
+                            p("Загружаем опубликованные слоты...", className = "booking-hint")
+                        }
                         renderDayCard(selectedDay)
 
                         // кнопка показать/скрыть недельное расписание
@@ -945,10 +1045,10 @@ fun Container.timetableModal(): TimetableModalController {
                     button("×", className = "booking-close").onClick { closeModal() }
                 }
                 renderTopControls()
-                renderMainContent()
                 if (showAdvanced) {
                     renderAdvancedPanel()
                 }
+                renderMainContent()
             }
         }
     }
@@ -1036,6 +1136,16 @@ private fun parseSlotRange(label: String): Pair<String, String>? {
     val parts = label.split("-")
     if (parts.size != 2) return null
     return parts[0].trim() to parts[1].trim()
+}
+
+private fun extractDateAndTime(iso: String): Pair<String, String>? {
+    val date = iso.substringBefore("T", "")
+    val timeRaw = iso.substringAfter("T", "").takeWhile { it != 'Z' && it != '+' }
+    val timeParts = timeRaw.split(":")
+    if (date.isBlank() || timeParts.size < 2) return null
+    val hours = timeParts.getOrNull(0)?.padStart(2, '0') ?: return null
+    val minutes = timeParts.getOrNull(1)?.padStart(2, '0') ?: return null
+    return date to "$hours:$minutes"
 }
 
 private fun parseTimeToMinutes(value: String): Int? {
