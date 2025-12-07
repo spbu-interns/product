@@ -6,6 +6,7 @@ import io.kvision.form.check.checkBox
 import io.kvision.form.select.select
 import io.kvision.form.text.Text
 import io.kvision.form.text.text
+import io.kvision.html.InputType
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.h2
@@ -70,13 +71,15 @@ private fun specToId(name: String): Int? = when (name.lowercase()) {
 private suspend fun loadDoctors(
     query: String,
     specialties: Set<String>,
-    location: String?
+    location: String?,
+    date: String?
 ): Result<List<DoctorSearchResultDto>> {
 
     val filter = DoctorSearchFilterDto(
         city = location,
         specializationIds = specialties.mapNotNull { specToId(it) },
         minRating = null,
+        date = date,
         limit = 50
     )
 
@@ -138,6 +141,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
     )
 
     var selectedLocation: String? = null
+    var selectedDate: String? = null
     var sortOption = SortOption.RATING_DESC
     val selectedSpecialties = mutableSetOf<String>().apply {
         pendingSpecialty?.let { add(it) }
@@ -176,13 +180,22 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                     searchQuery = searchField.value?.trim().orEmpty()
 
                     MainScope().launch {
-                        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+                        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation, selectedDate)
                         result.onSuccess {
                             loadedDoctors = it
                             enrichProfiles(loadedDoctors)
-                        }.onFailure { println("Ошибка загрузки врачей: ${it.message}") }
+                        }
+                            .onFailure { println("Ошибка загрузки врачей: ${it.message}") }
 
-                        renderResultsSort(resultsPanel, loadedDoctors, doctorProfilesCache, sortOption, onBookDoctor, profileModalController::open, searchQuery)
+                        renderResultsSort(
+                            resultsPanel,
+                            loadedDoctors,
+                            doctorProfilesCache,
+                            sortOption,
+                            onBookDoctor,
+                            profileModalController::open,
+                            searchQuery
+                        )
                     }
                 }
             }
@@ -221,7 +234,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                                         else selectedSpecialties.remove(specialty)
 
                                         MainScope().launch {
-                                            val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+                                            val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation, selectedDate)
                                             println(result)
                                             result.onSuccess {
                                                 loadedDoctors = it
@@ -253,7 +266,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                                     selectedLocation = locationSelect.value?.takeIf { it.isNotBlank() }
 
                                     MainScope().launch {
-                                        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+                                        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation, selectedDate)
                                         println(result)
                                         result.onSuccess {
                                             loadedDoctors = it
@@ -267,6 +280,50 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                             }
                         }
                     }
+
+                    // ---------- Date ----------
+                    div(className = "find-filter-card") {
+                        h3("Дата приёма", className = "find-filter-title")
+
+                        val dateInput = text(
+                            value = selectedDate ?: "",
+                            type = InputType.DATE,
+                        ) {
+                            addCssClass("find-date-input")
+                        }
+
+                        dateInput.onEvent {
+                            change = {
+                                selectedDate = dateInput.value?.takeIf { it.isNotBlank() }
+
+                                MainScope().launch {
+                                    val result = loadDoctors(
+                                        searchQuery,
+                                        selectedSpecialties,
+                                        selectedLocation,
+                                        selectedDate,
+                                    )
+
+                                    result
+                                        .onSuccess {
+                                            loadedDoctors = it
+                                            enrichProfiles(loadedDoctors)
+                                        }
+                                        .onFailure { println("Ошибка: ${it.message}") }
+
+                                    renderResultsSort(
+                                        resultsPanel,
+                                        loadedDoctors,
+                                        doctorProfilesCache,
+                                        sortOption,
+                                        onBookDoctor,
+                                        profileModalController::open,
+                                        searchQuery,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 resultsPanel = simplePanel(className = "find-results")
@@ -275,7 +332,7 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
     }
 
     MainScope().launch {
-        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation)
+        val result = loadDoctors(searchQuery, selectedSpecialties, selectedLocation, selectedDate)
         result.onSuccess {
             loadedDoctors = it
             enrichProfiles(loadedDoctors)
