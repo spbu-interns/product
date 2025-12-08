@@ -66,40 +66,52 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
                 h4("Следующий приём", className = "block title")
 
                 nextAppointment?.let { appointment ->
-                    div(className = "appointment-info") {
-                        div(className = "appointment-header") {
-                            h4("Запись #${appointment.id}", className = "appointment-title")
-                            span(appointment.status, className = "appointment-status")
+                    // Кликабельная карточка приёма (как у врача)
+                    div(className = "appointment card full next-appointment-card") {
+                        onClick {
+                            Navigator.showAppointmentDetails(appointment.id)
                         }
-                        appointment.comments?.takeIf { it.isNotBlank() }?.let { comments ->
-                            p("Комментарии: $comments", className = "appointment-comments")
-                        }
-                        div(className = "appointment-actions") {
-                            button("Подробнее", className = "btn-secondary") {
-                                onClick {
-                                    Navigator.showAppointmentDetails(appointment.id)
-                                }
-                            }
-                            button("Отменить", className = "btn-outline") {
-                                onClick {
-                                    val id = appointment.id
-                                    val userId = patientId
-                                    if (userId == null) {
-                                        Toast.danger("Не удалось определить пользователя")
-                                        return@onClick
-                                    }
 
-                                    scope.launch {
-                                        val result = bookingClient.cancelAppointment(id)
-                                        result.onSuccess { success ->
-                                            if (success) {
-                                                Toast.success("Запись отменена")
-                                                state.loadPatientDashboard(userId)
-                                            } else {
-                                                Toast.danger("Не удалось отменить запись")
+                        // Внутреннее содержимое карточки
+                        div(className = "appointment row") {
+                            // Аватар-иконка пациента/врача — можно просто эмодзи
+                            div(className = "appointment avatar colored") { +"📅" }
+
+                            // Основная информация
+                            div(className = "appointment info") {
+                                h4("Запись #${appointment.id}", className = "appointment-title")
+                                span(appointment.status, className = "appointment-status")
+
+                                appointment.comments
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { comments ->
+                                        p("Комментарии: $comments", className = "appointment-comments")
+                                    }
+                            }
+
+                            // Кнопка отмены
+                            div(className = "appointment actions") {
+                                button("Отменить", className = "btn-outline") {
+                                    onClick {
+                                        val id = appointment.id
+                                        val userId = patientId
+                                        if (userId == null) {
+                                            Toast.danger("Не удалось определить пользователя")
+                                            return@onClick
+                                        }
+
+                                        scope.launch {
+                                            val result = bookingClient.cancelAppointment(id)
+                                            result.onSuccess { success ->
+                                                if (success) {
+                                                    Toast.success("Запись отменена")
+                                                    state.loadPatientDashboard(userId)
+                                                } else {
+                                                    Toast.danger("Не удалось отменить запись")
+                                                }
+                                            }.onFailure { error ->
+                                                Toast.danger(error.message ?: "Ошибка отмены записи")
                                             }
-                                        }.onFailure { error ->
-                                            Toast.danger(error.message ?: "Ошибка отмены записи")
                                         }
                                     }
                                 }

@@ -580,24 +580,59 @@ def book_appointment(s: Session, body) -> Optional[Dict]:
         # нет такого слота или уже занят
         return None
 
-    r = s.execute(
-        text("""
-            insert into appointments(
-                slot_id,
-                client_id,
-                comments,
-                appointment_type_id
-            )
-            values (:sid, :cid, :com, :atype)
-            returning *
-        """),
-        {
-            "sid": body.slot_id,
-            "cid": body.client_id,
-            "com": body.comments,
-            "atype": getattr(body, "appointment_type_id", None),
-        },
+    canceled = s.execute(
+        text(
+            """
+            select id from appointments
+            where slot_id = :sid and status = 'CANCELED'
+            limit 1
+            """
+        ),
+        {"sid": body.slot_id},
     ).mappings().first()
+
+    if canceled:
+        r = s.execute(
+            text(
+                """
+                update appointments
+                set client_id = :cid,
+                    comments = :com,
+                    appointment_type_id = :atype,
+                    status = 'BOOKED',
+                    canceled_at = null,
+                    completed_at = null,
+                    updated_at = now()
+                where id = :aid
+                returning *
+                """
+            ),
+            {
+                "aid": canceled["id"],
+                "cid": body.client_id,
+                "com": body.comments,
+                "atype": getattr(body, "appointment_type_id", None),
+            },
+        ).mappings().first()
+    else:
+        r = s.execute(
+            text("""
+                insert into appointments(
+                    slot_id,
+                    client_id,
+                    comments,
+                    appointment_type_id
+                )
+                values (:sid, :cid, :com, :atype)
+                returning *
+            """),
+            {
+                "sid": body.slot_id,
+                "cid": body.client_id,
+                "com": body.comments,
+                "atype": getattr(body, "appointment_type_id", None),
+            },
+        ).mappings().first()
 
     s.execute(
         text("update appointment_slots set is_booked=true where id=:id"),
