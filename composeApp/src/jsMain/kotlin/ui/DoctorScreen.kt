@@ -435,6 +435,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             Date(anchorMonday.getTime() + shift * millisPerDay)
         }
 
+        val today = Date()
         val weekGrid = scheduleGridContainer.div(className = "schedule-week-grid") {}
 
         weekDays.forEach { day ->
@@ -449,42 +450,51 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 .filter { it.startTime.startsWith(iso) }
                 .sortedBy { Date(it.startTime).getTime() }
 
-            weekGrid.div(className = "schedule-day-card") {
+            val dayCardClasses = buildString {
+                append("schedule-day-card card")
+                if (day.isSameDay(today)) append(" is-today")
+            }
+
+            weekGrid.div(className = dayCardClasses) {
+                // шапка дня
                 div(className = "schedule-day-header") {
-                    span(dowLabel, className = "schedule-day-dow")   // День недели
-                    span(dateLabel, className = "schedule-day-date") // Дата
+                    span(dowLabel, className = "schedule-day-dow")
+                    span(dateLabel, className = "schedule-day-date")
                 }
 
-                if (daySlots.isEmpty()) {
-                    span("Нет слотов", className = "schedule-day-empty")
-                } else {
-                    daySlots.forEach { slot ->
-                        val appointment = appointmentsBySlot[slot.id]
-                        val patient = appointment?.let { patientsById[it.clientId] }
-                        val booked = appointment != null || slot.isBooked
-                        val slotClass = "schedule-slot" + if (booked) " is-booked" else " is-free"
-                        val statusLabel = if (booked) {
-                            val patientName = listOfNotNull(patient?.surname, patient?.name, patient?.patronymic)
-                                .takeIf { it.isNotEmpty() }
-                                ?.joinToString(" ")
-                                ?: "Бронь подтверждена"
-                            "Занято — $patientName"
-                        } else {
-                            "Свободно для брони"
-                        }
+                // слоты
+                div(className = "schedule-day-body") {
+                    if (daySlots.isEmpty()) {
+                        span("Нет слотов", className = "schedule-day-empty")
+                    } else {
+                        daySlots.forEach { slot ->
+                            val appointment = appointmentsBySlot[slot.id]
+                            val patient = appointment?.let { patientsById[it.clientId] }
+                            val booked = appointment != null || slot.isBooked
+                            val slotClass = "schedule-slot" + if (booked) " is-booked" else " is-free"
+                            val statusLabel = if (booked) {
+                                val patientName = listOfNotNull(patient?.surname, patient?.name, patient?.patronymic)
+                                    .takeIf { it.isNotEmpty() }
+                                    ?.joinToString(" ")
+                                    ?: "Бронь подтверждена"
+                                "Занято — $patientName"
+                            } else {
+                                "Свободно для брони"
+                            }
 
-                        div(className = slotClass) {
-                            span(formatSlotLabel(slot), className = "schedule-slot-time")
-                            span(statusLabel, className = "schedule-slot-status")
-                        }.onClick {
-                            when {
-                                appointment != null && patient != null -> {
-                                    cleanup()
-                                    Navigator.showDoctorPatient(patient.userId, patient.clientId)
+                            div(className = slotClass) {
+                                span(formatSlotLabel(slot), className = "schedule-slot-time")
+                                span(statusLabel, className = "schedule-slot-status")
+                            }.onClick {
+                                when {
+                                    appointment != null && patient != null -> {
+                                        cleanup()
+                                        Navigator.showDoctorPatient(patient.userId, patient.clientId)
+                                    }
+
+                                    appointment != null -> Toast.info("Нет данных пациента по этой брони")
+                                    else -> timetableController.open(doctorNameHeader.content.toString(), doctorId)
                                 }
-
-                                appointment != null -> Toast.info("Нет данных пациента по этой брони")
-                                else -> timetableController.open(doctorNameHeader.content.toString(), doctorId)
                             }
                         }
                     }
