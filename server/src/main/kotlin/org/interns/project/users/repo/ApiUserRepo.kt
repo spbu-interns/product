@@ -637,4 +637,11 @@ class ApiUserRepo(
             body = null,
             successCodes = setOf(HttpStatusCode.NoContent, HttpStatusCode.OK)
         ) { true }
+
+    suspend fun completeAppointment(appointmentId: Long): Boolean =
+        doPost(
+            path = "/appointments/$appointmentId/complete",
+            body = null,
+            successCodes = setOf(HttpStatusCode.NoContent, HttpStatusCode.OK)
+        ) { true }
 }

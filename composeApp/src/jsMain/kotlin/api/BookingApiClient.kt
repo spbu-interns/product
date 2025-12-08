@@ -48,4 +48,10 @@ class BookingApiClient {
             val response = client.post("$BASE_URL/appointments/$id/cancel")
             response.status.isSuccess()
         }
+
+    suspend fun completeAppointment(id: Long): Result<Boolean> =
+        runCatching {
+            val response = client.post("$BASE_URL/appointments/$id/complete")
+            response.status.isSuccess()
+        }
 }

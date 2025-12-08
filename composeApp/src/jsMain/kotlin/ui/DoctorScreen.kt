@@ -47,8 +47,11 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     val state = DoctorState
     val timetableController = timetableModal()
 
+    var unsubscribe: (() -> Unit)? = null
+
     fun cleanup() {
         uiScope.cancel()
+        unsubscribe?.invoke()
     }
 
     // Загружаем данные при создании экрана
@@ -385,7 +388,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         }
     }
 
-    state.onUpdate = {
+    unsubscribe = state.subscribe {
         val dashboard = state.dashboardData
 
         val updatedDoctorName = dashboard?.user?.let { user ->

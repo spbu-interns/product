@@ -653,6 +653,35 @@ def cancel_appointment(s: Session, appointment_id: int) -> bool:
     s.commit()
     return True
 
+
+def complete_appointment(s: Session, appointment_id: int) -> bool:
+    """
+    Пометить запись завершённой и зафиксировать время завершения.
+    """
+    row = s.execute(
+        text("select id from appointments where id = :id"),
+        {"id": appointment_id},
+    ).first()
+
+    if not row:
+        return False
+
+    s.execute(
+        text(
+            """
+            update appointments
+            set status = 'COMPLETED',
+                completed_at = now(),
+                updated_at = now()
+            where id = :id
+            """
+        ),
+        {"id": appointment_id},
+    )
+
+    s.commit()
+    return True
+
 def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
     """
     Удалить слот врача, только если он:

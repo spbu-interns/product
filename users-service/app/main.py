@@ -503,6 +503,20 @@ def api_cancel_appointment(appointment_id: int):
     finally:
         s.close()
 
+@app.post("/appointments/{appointment_id}/complete", status_code=204)
+def api_complete_appointment(appointment_id: int):
+    """
+    Завершить приём (инициировано врачом).
+    """
+    s = get_session()
+    try:
+        ok = repo.complete_appointment(s, appointment_id)
+        if not ok:
+            raise HTTPException(404, "appointment not found")
+        return
+    finally:
+        s.close()
+
 # --- Medical records / documents ---
 @app.post("/records", response_model=MedicalRecordOut, status_code=201)
 def api_create_medical_record(body: MedicalRecordIn):
