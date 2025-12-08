@@ -274,8 +274,10 @@ private val EMAIL_REGEX =
 
 private fun localizeLoginError(message: String?): String = when {
     message.isNullOrBlank() -> "Ошибка входа"
+    message.contains("user not found", ignoreCase = true) -> "Пользователь не найден. Зарегистрируйтесь."
     message.contains("invalid email or password", ignoreCase = true) -> "Неверный email или пароль"
     message.contains("unauthorized", ignoreCase = true) -> "Неверный email или пароль"
+    message.contains("not found", ignoreCase = true) -> "Пользователь не найден. Зарегистрируйтесь."
     else -> message
 }
 
