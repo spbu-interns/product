@@ -104,7 +104,13 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
         clientId = apiClient.getClientId(userId).getOrNull()
         clientId?.let { id ->
             appointments = apiClient.getAppointmentHistoryWithReviews(id).getOrDefault(emptyList())
-            pendingInvites = apiClient.getPendingReviewAppointments(id).getOrDefault(emptyList())
+
+            val explicitInvites = apiClient.getPendingReviewAppointments(id).getOrDefault(emptyList())
+            val localPending = appointments.filter { it.status == "COMPLETED" && it.review == null }
+
+            pendingInvites = (explicitInvites + localPending)
+                .distinctBy { it.appointmentId }
+                .sortedByDescending { Date(it.slotStart).getTime() }
         }
         loading = false
     }
