@@ -36,6 +36,7 @@ object DoctorState {
 
     private val listeners = mutableSetOf<() -> Unit>()
     private var activeWatcher: Job? = null
+    private var finishedAt: Double? = null
 
     fun subscribe(listener: () -> Unit): () -> Unit {
         listeners += listener
@@ -111,7 +112,25 @@ object DoctorState {
 
     private fun updateActiveAppointment(forceNotify: Boolean = false) {
         val previous = activeAppointment
-        activeAppointment = calculateActiveAppointment()
+        val next = calculateActiveAppointment()
+
+        if (next?.status == ActiveAppointmentStatus.FINISHED) {
+            val hasNewFinish = previous?.appointment?.id != next.appointment.id ||
+                    previous.status != ActiveAppointmentStatus.FINISHED
+
+            val finishTime = next.appointment.completedAt?.let { Date(it).getTime() }
+                ?: next.end.getTime()
+
+            if (hasNewFinish || finishedAt == null) {
+                finishedAt = finishTime
+            }
+
+            val cutoff = finishedAt ?: finishTime
+            activeAppointment = if (Date().getTime() - cutoff < 60_000) next else null
+        } else {
+            finishedAt = null
+            activeAppointment = next
+        }
 
         val changed = previous?.appointment?.id != activeAppointment?.appointment?.id ||
                 previous?.status != activeAppointment?.status

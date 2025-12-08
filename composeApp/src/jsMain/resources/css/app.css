@@ -46,10 +46,11 @@
 }
 
 .active-appointment-banner {
-    position: fixed;
+    width: fit-content;
+    position: sticky;
     left: 24px;
     right: 24px;
-    bottom: 20px;
+    top: 88px;
     display: none;
     align-items: center;
     justify-content: space-between;
