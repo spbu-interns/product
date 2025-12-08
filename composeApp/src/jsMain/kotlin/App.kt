@@ -104,9 +104,10 @@ class App : Application() {
             )
         }
 
-        fun showAppointments() {
+        fun showAppointments(appointmentId: Long? = null) {
             r.removeAll()
             r.patientAppointmentsScreen(
+                appointmentId = appointmentId,
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -260,6 +261,10 @@ class App : Application() {
                     path == "/patient" -> showPatient()
                     path == "/patient/medical-records" -> showPatientMedicalRecords()
                     path == "/patient/appointments" -> showAppointments()
+                    path.startsWith("/patient/appointments/") -> {
+                        val appointmentId = path.removePrefix("/patient/appointments/").toLongOrNull()
+                        showAppointments(appointmentId)
+                    }
                     path == "/patient/records" -> showMyRecords()
                     path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
                     path == "/patient/profile" -> showPatientProfileEdit()
@@ -320,6 +325,7 @@ class App : Application() {
             go("/doctor/patient/$patientId", params)
         }
         Navigator.showAppointments = { go("/patient/appointments") }
+        Navigator.showAppointmentDetails = { id -> go("/patient/appointments/$id") }
         Navigator.showPatientProfileEdit = { go("/patient/profile") }
         Navigator.showDoctorProfileEdit = { go("/doctor/profile") }
         Navigator.showPasswordResetSuccess = { go("/auth/password/reset/success") }

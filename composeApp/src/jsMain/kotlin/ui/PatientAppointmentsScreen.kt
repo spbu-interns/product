@@ -25,7 +25,11 @@ import org.interns.project.dto.AppointmentReviewRequest
 import org.interns.project.dto.AppointmentWithReviewDto
 import kotlin.js.Date
 
-fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
+@Suppress("UNUSED_PARAMETER")
+fun Container.patientAppointmentsScreen(
+    appointmentId: Long? = null,
+    onLogout: () -> Unit = { Navigator.showHome() }
+) = vPanel(spacing = 12) {
     headerBar(
         mode = HeaderMode.PATIENT,
         active = NavTab.PROFILE,
@@ -41,6 +45,7 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
     var clientId: Long? = null
 
     var appointments: List<AppointmentWithReviewDto> = emptyList()
+    var upcomingAppointments: List<AppointmentWithReviewDto> = emptyList()
     var pendingInvites: List<AppointmentWithReviewDto> = emptyList()
     var loading = true
     var selectedAppointment: AppointmentWithReviewDto? = null
@@ -48,9 +53,10 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
     var hoverRating = 0
     var commentText = ""
 
-    val reviewModal = Modal("Отзыв о визите", closeButton = true, animation = true, size = io.kvision.modal.ModalSize.LARGE)
+    val reviewModal = Modal("Отзыв о визите", closeButton = true, animation = true, size = ModalSize.LARGE)
 
     lateinit var pendingBanner: SimplePanel
+    lateinit var upcomingList: Container
     lateinit var pastList: Container
     lateinit var starContainer: Container
     var commentField: TextArea? = null
@@ -104,6 +110,7 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
         clientId = apiClient.getClientId(userId).getOrNull()
         clientId?.let { id ->
             appointments = apiClient.getAppointmentHistoryWithReviews(id).getOrDefault(emptyList())
+            upcomingAppointments = appointments.filter { it.status == "BOOKED" }
 
             val explicitInvites = apiClient.getPendingReviewAppointments(id).getOrDefault(emptyList())
             val localPending = appointments.filter { it.status == "COMPLETED" && it.review == null }
@@ -120,7 +127,8 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
         Session.userId?.let { uid ->
             scope.launch {
                 loadClientData(uid)
-                pastList.refreshPastAppointments(appointments, loading, ::openReviewModal, ::formatDateTime)
+                upcomingList.refreshUpcomingAppointments(upcomingAppointments, loading, ::formatDateTime)
+                pastList.refreshPastAppointments(appointments.filter { it.status != "BOOKED" }, loading, ::openReviewModal, ::formatDateTime)
                 pendingBanner.refreshBanner(pendingInvites, ::openReviewModal, ::formatDateTime)
             }
         }
@@ -136,8 +144,8 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
             val upcomingTab = button("Предстоящие", className = "tab-button is-active")
             val pastTab = button("Прошедшие", className = "tab-button")
 
-            val upcomingList = div(className = "appointments list") {
-                p("Нет предстоящих приёмов", className = "empty-state")
+            upcomingList = div(className = "appointments list") {
+                p("Загрузка...", className = "empty-state")
             }
 
             pastList = div(className = "appointments list") {
@@ -239,6 +247,7 @@ fun Container.patientAppointmentsScreen(onLogout: () -> Unit = { Navigator.showH
 }
 
 private fun AppointmentWithReviewDto.statusLabel(): String = when (status) {
+    "BOOKED" -> "Запланировано"
     "COMPLETED" -> "Завершено"
     "CANCELED" -> "Отменено"
     "NO_SHOW" -> "Не состоялось"
@@ -331,5 +340,27 @@ private fun Container.refreshPastAppointments(
 
     data.forEach { appointment ->
         appointmentCard(appointment, onReview, formatDateTime)
+    }
+}
+
+private fun Container.refreshUpcomingAppointments(
+    data: List<AppointmentWithReviewDto>,
+    loading: Boolean,
+    formatDateTime: (String) -> String
+) {
+    removeAll()
+
+    if (loading) {
+        p("Загрузка...", className = "empty-state")
+        return
+    }
+
+    if (data.isEmpty()) {
+        p("Нет предстоящих приёмов", className = "empty-state")
+        return
+    }
+
+    data.forEach { appointment ->
+        appointmentCard(appointment, onReview = {}, formatDateTime = formatDateTime)
     }
 }

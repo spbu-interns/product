@@ -1,7 +1,9 @@
 ﻿package ui
 
 import api.ApiConfig
+import api.BookingApiClient
 import io.kvision.core.Container
+import io.kvision.core.onClick
 
 import io.kvision.html.button
 import io.kvision.html.div
@@ -12,12 +14,17 @@ import io.kvision.html.p
 import io.kvision.html.span
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
+import io.kvision.toast.Toast
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import state.PatientState
 import utils.normalizeGender
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     val state = PatientState
     val patientId = Session.userId
+    val bookingClient = BookingApiClient()
+    val scope = MainScope()
 
     headerBar(
         mode = HeaderMode.PATIENT,
@@ -70,12 +77,31 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
                         div(className = "appointment-actions") {
                             button("Подробнее", className = "btn-secondary") {
                                 onClick {
-                                    // TODO: Переход к деталям записи
+                                    Navigator.showAppointmentDetails(appointment.id)
                                 }
                             }
                             button("Отменить", className = "btn-outline") {
                                 onClick {
-                                    // TODO: Логика отмены записи
+                                    val id = appointment.id
+                                    val userId = patientId
+                                    if (userId == null) {
+                                        Toast.danger("Не удалось определить пользователя")
+                                        return@onClick
+                                    }
+
+                                    scope.launch {
+                                        val result = bookingClient.cancelAppointment(id)
+                                        result.onSuccess { success ->
+                                            if (success) {
+                                                Toast.success("Запись отменена")
+                                                state.loadPatientDashboard(userId)
+                                            } else {
+                                                Toast.danger("Не удалось отменить запись")
+                                            }
+                                        }.onFailure { error ->
+                                            Toast.danger(error.message ?: "Ошибка отмены записи")
+                                        }
+                                    }
                                 }
                             }
                         }

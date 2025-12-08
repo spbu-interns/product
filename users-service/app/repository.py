@@ -825,7 +825,7 @@ def list_appointments_with_reviews(s: Session, client_id: int) -> List[Dict]:
             left join doctors d on d.id = slots.doctor_id
             left join users u on u.id = d.user_id
             left join appointment_reviews r on r.appointment_id = a.id
-            where a.client_id = :cid and a.status in ('COMPLETED','CANCELED','NO_SHOW')
+            where a.client_id = :cid and a.status in ('BOOKED','COMPLETED','CANCELED','NO_SHOW')
             order by slots.start_time desc
             """
         ),
