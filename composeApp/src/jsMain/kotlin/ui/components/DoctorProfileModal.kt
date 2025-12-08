@@ -8,6 +8,7 @@ import io.kvision.html.h3
 import io.kvision.html.p
 import io.kvision.panel.simplePanel
 import ui.DoctorProfile
+import ui.components.updateAvatar
 import kotlin.math.roundToInt
 import kotlin.toString
 
@@ -55,15 +56,24 @@ fun Container.doctorProfileModal(
         if (!visible || currentProfile == null) return@render
 
         val profile = currentProfile!!
+        val initials = profile.name
+            .split(" ")
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .joinToString("")
+            .take(2)
 
         overlay.div(className = "doctor-profile-overlay") {
             div(className = "doctor-profile-backdrop").onClick { closeModal() }
 
             div(className = "doctor-profile-modal") {
                 div(className = "doctor-profile-header") {
-                    div(className = "doctor-profile-title") {
-                        h3(profile.name, className = "doctor-profile-name")
-                        p(profile.specialty, className = "doctor-profile-specialty")
+                    div(className = "doctor-profile-heading") {
+                        div(className = "doctor-profile-avatar")
+                            .apply { updateAvatar(profile.avatarUrl, initials.ifBlank { "Фото" }) }
+                        div(className = "doctor-profile-title") {
+                            h3(profile.name, className = "doctor-profile-name")
+                            p(profile.specialty, className = "doctor-profile-specialty")
+                        }
                     }
                     button("×", className = "doctor-profile-close").onClick { closeModal() }
                 }

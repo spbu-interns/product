@@ -269,6 +269,33 @@
     gap: 12px;
 }
 
+.doctor-profile-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.doctor-profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #d7e4ff, #f3f4ff);
+    color: #1f2a37;
+    font-weight: 600;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.doctor-profile-avatar.has-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: transparent;
+}
+
 .doctor-profile-title {
     display: flex;
     flex-direction: column;
