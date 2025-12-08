@@ -6,6 +6,9 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import org.interns.project.dto.ApiResponse
 import org.interns.project.dto.AppointmentDto
+import org.interns.project.dto.AppointmentReviewDto
+import org.interns.project.dto.AppointmentReviewRequest
+import org.interns.project.dto.AppointmentWithReviewDto
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.ComplaintCreateRequest
 import org.interns.project.dto.ComplaintPatchRequest
@@ -20,6 +23,7 @@ import org.interns.project.dto.UserResponseDto
 
 class PatientApiClient {
     private val client = ApiConfig.httpClient
+    private val reviewsBase = "http://localhost:8001"
 
     // ---- helpers ----
 
@@ -207,6 +211,46 @@ class PatientApiClient {
         } else {
             emptyList()
         }
+    }
+
+    suspend fun getAppointmentHistoryWithReviews(clientId: Long): Result<List<AppointmentWithReviewDto>> =
+        runCatching {
+            val response = client.get("$reviewsBase/clients/$clientId/appointments/history")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                emptyList()
+            }
+        }
+
+    suspend fun getPendingReviewAppointments(clientId: Long): Result<List<AppointmentWithReviewDto>> =
+        runCatching {
+            val response = client.get("$reviewsBase/clients/$clientId/appointments/pending-reviews")
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                emptyList()
+            }
+        }
+
+    suspend fun getAppointmentReview(appointmentId: Long): Result<AppointmentReviewDto?> = runCatching {
+        val response = client.get("$reviewsBase/appointments/$appointmentId/review")
+        if (response.status.isSuccess()) {
+            response.body<AppointmentReviewDto?>()
+        } else {
+            null
+        }
+    }
+
+    suspend fun saveAppointmentReview(
+        appointmentId: Long,
+        request: AppointmentReviewRequest
+    ): Result<AppointmentReviewDto> = runCatching {
+        val response = client.put("$reviewsBase/appointments/$appointmentId/review") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        response.body()
     }
 
     // Получение медицинских записей

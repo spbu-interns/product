@@ -21,6 +21,7 @@ from .models import (
     UserProfilePatch,
     SpecializationOut, DoctorSearchOut, Gender,
     DoctorPatientOut,
+    AppointmentReviewIn, AppointmentReviewOut, AppointmentReviewSummary,
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
@@ -486,6 +487,69 @@ def api_list_appointments_for_client(client_id: int):
         return repo.list_appointments_for_client(s, client_id)
     finally:
         s.close()
+
+
+@app.get("/clients/{client_id}/appointments/history", response_model=List[AppointmentReviewSummary])
+def api_list_appointment_history(client_id: int):
+    s = get_session()
+    try:
+        rows = repo.list_appointments_with_reviews(s, client_id)
+        return [
+            AppointmentReviewSummary(
+                appointment_id=r["appointment_id"],
+                status=r["status"],
+                slot_start=r["slot_start"],
+                slot_end=r["slot_end"],
+                doctor_id=r["doctor_id"],
+                doctor_name=" ".join(
+                    filter(None, [r.get("doctor_surname"), r.get("doctor_name")])
+                ) or None,
+                doctor_profession=r.get("doctor_profession"),
+                review=
+                    AppointmentReviewOut(
+                        id=r["review_id"],
+                        appointment_id=r["review_appointment_id"],
+                        doctor_id=r["review_doctor_id"],
+                        client_id=r["review_client_id"],
+                        rating=r["rating"],
+                        comment=r["comment"],
+                        created_at=r["review_created_at"],
+                        updated_at=r["review_updated_at"],
+                    )
+                    if r.get("review_id")
+                    else None,
+            )
+            for r in rows
+        ]
+    finally:
+        s.close()
+
+
+@app.get(
+    "/clients/{client_id}/appointments/pending-reviews",
+    response_model=List[AppointmentReviewSummary],
+)
+def api_list_pending_reviews(client_id: int):
+    s = get_session()
+    try:
+        rows = repo.list_pending_reviews(s, client_id)
+        return [
+            AppointmentReviewSummary(
+                appointment_id=r["appointment_id"],
+                status=r["status"],
+                slot_start=r["slot_start"],
+                slot_end=r["slot_end"],
+                doctor_id=r["doctor_id"],
+                doctor_name=" ".join(
+                    filter(None, [r.get("doctor_surname"), r.get("doctor_name")])
+                ) or None,
+                doctor_profession=r.get("doctor_profession"),
+                review=None,
+            )
+            for r in rows
+        ]
+    finally:
+        s.close()
         
 @app.post("/appointments/{appointment_id}/cancel", status_code=204)
 def api_cancel_appointment(appointment_id: int):
@@ -514,6 +578,27 @@ def api_complete_appointment(appointment_id: int):
         if not ok:
             raise HTTPException(404, "appointment not found")
         return
+    finally:
+        s.close()
+
+
+@app.get("/appointments/{appointment_id}/review", response_model=AppointmentReviewOut | None)
+def api_get_appointment_review(appointment_id: int):
+    s = get_session()
+    try:
+        return repo.get_appointment_review(s, appointment_id)
+    finally:
+        s.close()
+
+
+@app.put("/appointments/{appointment_id}/review", response_model=AppointmentReviewOut)
+def api_upsert_appointment_review(appointment_id: int, body: AppointmentReviewIn):
+    s = get_session()
+    try:
+        r = repo.upsert_appointment_review(s, appointment_id, body)
+        if not r:
+            raise HTTPException(404, "appointment not found")
+        return r
     finally:
         s.close()
 

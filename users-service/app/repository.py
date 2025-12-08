@@ -680,7 +680,186 @@ def complete_appointment(s: Session, appointment_id: int) -> bool:
     )
 
     s.commit()
+
+    # Immediately record that we should ask the patient for a review
+    try:
+        create_review_invitation(s, appointment_id)
+    except Exception:
+        # уведомление не должно блокировать завершение приёма
+        s.rollback()
+        s.commit()
     return True
+
+
+def create_review_invitation(s: Session, appointment_id: int):
+    info = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   a.client_id,
+                   slots.doctor_id,
+                   u.email
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            join clients c on c.id = a.client_id
+            join users u on u.id = c.user_id
+            where a.id = :aid
+            """
+        ),
+        {"aid": appointment_id},
+    ).mappings().first()
+
+    if not info:
+        return None
+
+    s.execute(
+        text(
+            """
+            insert into appointment_review_requests(appointment_id, client_id, doctor_id)
+            values (:aid, :cid, :did)
+            on conflict (appointment_id) do nothing
+            """
+        ),
+        {
+            "aid": info["appointment_id"],
+            "cid": info["client_id"],
+            "did": info["doctor_id"],
+        },
+    )
+    s.commit()
+
+    # эмуляция отправки письма со ссылкой на отзыв
+    email = info.get("email")
+    if email:
+        print(f"[reviews] Отправляем письмо на {email} c ссылкой на отзыв по приёму {appointment_id}")
+    return info
+
+
+def upsert_appointment_review(s: Session, appointment_id: int, body) -> Optional[Dict]:
+    appointment = s.execute(
+        text(
+            """
+            select a.id, a.client_id, slots.doctor_id
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            where a.id = :aid
+            """
+        ),
+        {"aid": appointment_id},
+    ).mappings().first()
+
+    if not appointment:
+        return None
+
+    existing = s.execute(
+        text("select id from appointment_reviews where appointment_id = :aid"),
+        {"aid": appointment_id},
+    ).first()
+
+    if existing:
+        r = s.execute(
+            text(
+                """
+                update appointment_reviews
+                set rating = :rt,
+                    comment = :cmt,
+                    updated_at = now()
+                where appointment_id = :aid
+                returning *
+                """
+            ),
+            {"rt": body.rating, "cmt": body.comment, "aid": appointment_id},
+        ).mappings().first()
+    else:
+        r = s.execute(
+            text(
+                """
+                insert into appointment_reviews(appointment_id, doctor_id, client_id, rating, comment)
+                values (:aid, :did, :cid, :rt, :cmt)
+                returning *
+                """
+            ),
+            {
+                "aid": appointment_id,
+                "did": appointment["doctor_id"],
+                "cid": appointment["client_id"],
+                "rt": body.rating,
+                "cmt": body.comment,
+            },
+        ).mappings().first()
+
+    s.commit()
+    return dict(r)
+
+
+def get_appointment_review(s: Session, appointment_id: int) -> Optional[Dict]:
+    r = s.execute(
+        text("select * from appointment_reviews where appointment_id = :aid"),
+        {"aid": appointment_id},
+    ).mappings().first()
+    return dict(r) if r else None
+
+
+def list_appointments_with_reviews(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   a.status,
+                   slots.start_time as slot_start,
+                   slots.end_time as slot_end,
+                   slots.doctor_id,
+                   u.name as doctor_name,
+                   u.surname as doctor_surname,
+                   d.profession as doctor_profession,
+                   r.id as review_id,
+                   r.rating,
+                   r.comment,
+                   r.created_at as review_created_at,
+                   r.updated_at as review_updated_at,
+                   r.appointment_id as review_appointment_id,
+                   r.doctor_id as review_doctor_id,
+                   r.client_id as review_client_id
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            left join doctors d on d.id = slots.doctor_id
+            left join users u on u.id = d.user_id
+            left join appointment_reviews r on r.appointment_id = a.id
+            where a.client_id = :cid and a.status in ('COMPLETED','CANCELED','NO_SHOW')
+            order by slots.start_time desc
+            """
+        ),
+        {"cid": client_id},
+    ).mappings().all()
+
+    return [dict(r) for r in rows]
+
+
+def list_pending_reviews(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   a.status,
+                   slots.start_time as slot_start,
+                   slots.end_time as slot_end,
+                   slots.doctor_id,
+                   u.name as doctor_name,
+                   u.surname as doctor_surname,
+                   d.profession as doctor_profession
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            left join doctors d on d.id = slots.doctor_id
+            left join users u on u.id = d.user_id
+            left join appointment_reviews r on r.appointment_id = a.id
+            where a.client_id = :cid and a.status = 'COMPLETED' and r.id is null
+            order by slots.start_time desc
+            """
+        ),
+        {"cid": client_id},
+    ).mappings().all()
+
+    return [dict(r) for r in rows]
 
 def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
     """

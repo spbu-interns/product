@@ -365,4 +365,49 @@
   .statistics.grid { grid-template-columns: 1fr; }
 }
 
-.kv-
+.kv-,
+.review-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.review-stars {
+    display: flex;
+    gap: 8px;
+    font-size: 24px;
+}
+
+.review-star {
+    cursor: pointer;
+    color: #d1d5db;
+    transition: color 0.2s ease;
+}
+
+.review-star.is-active {
+    color: #f59e0b;
+}
+
+.review-comment .input {
+    width: 100%;
+}
+
+.notification.banner.info {
+    background: #ebf8ff;
+    border: 1px solid #bfdbfe;
+    padding: 16px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.notification .banner-title {
+    font-weight: 600;
+}
+
+.notification .banner-meta {
+    margin: 0;
+    color: #4b5563;
+}
