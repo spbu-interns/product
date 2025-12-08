@@ -265,8 +265,19 @@ class AppointmentReviewSummary(BaseModel):
     slot_end: datetime
     doctor_id: int
     doctor_name: Optional[str] = None
+    doctor_surname: Optional[str] = None
+    doctor_patronymic: Optional[str] = None
     doctor_profession: Optional[str] = None
     review: Optional[AppointmentReviewOut] = None
+
+class NextAppointmentOut(BaseModel):
+    appointment_id: int
+    slot_start: datetime
+    doctor_id: int
+    doctor_name: Optional[str] = None
+    doctor_surname: Optional[str] = None
+    doctor_patronymic: Optional[str] = None
+    doctor_profession: Optional[str] = None
 
 # --- Medical records / documents ---
 class MedicalRecordIn(BaseModel):

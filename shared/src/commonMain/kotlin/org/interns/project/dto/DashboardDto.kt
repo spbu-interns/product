@@ -15,6 +15,8 @@ data class AppointmentDto(
     @SerialName("canceled_at") val canceledAt: String? = null,
     @SerialName("completed_at") val completedAt: String? = null,
     @SerialName("appointment_type_id") val appointmentTypeId: Long? = null,
+    @SerialName("doctor_name") val doctorName: String? = null,
+    @SerialName("doctor_specialization") val doctorSpecialization: String? = null,
 )
 
 @Serializable
@@ -44,6 +46,17 @@ data class DoctorPatientDto(
     @SerialName("gender") val gender: String? = null,
 )
 
+@Serializable
+data class NextAppointmentDto(
+    @SerialName("appointment_id") val appointmentId: Long,
+    @SerialName("slot_start") val slotStart: String? = null,
+    @SerialName("doctor_id") val doctorId: Long? = null,
+    @SerialName("doctor_name") val doctorName: String? = null,
+    @SerialName("doctor_surname") val doctorSurname: String? = null,
+    @SerialName("doctor_patronymic") val doctorPatronymic: String? = null,
+    @SerialName("doctor_profession") val doctorProfession: String? = null,
+)
+
 /**
  * общий ответ для /users/{id}/full:
  * для клиента — заполнены client, appointments, medicalRecords
@@ -57,4 +70,5 @@ data class FullUserProfileDto(
     @SerialName("appointments") val appointments: List<AppointmentDto> = emptyList(),
     @SerialName("medical_records") val medicalRecords: List<MedicalRecordDto> = emptyList(),
     @SerialName("patients") val patients: List<DoctorPatientDto> = emptyList(),
+    @SerialName("next_appointment") val nextAppointment: NextAppointmentDto? = null,
 )

@@ -22,6 +22,7 @@ from .models import (
     SpecializationOut, DoctorSearchOut, Gender,
     DoctorPatientOut,
     AppointmentReviewIn, AppointmentReviewOut, AppointmentReviewSummary,
+    NextAppointmentOut,
 )
 from . import repository as repo
 from .repository import RESET_TOKEN_TTL_MIN
@@ -485,6 +486,19 @@ def api_list_appointments_for_client(client_id: int):
     s = get_session()
     try:
         return repo.list_appointments_for_client(s, client_id)
+    finally:
+        s.close()
+
+
+@app.get(
+    "/clients/{client_id}/appointments/next",
+    response_model=NextAppointmentOut | None,
+)
+def api_get_next_appointment_for_client(client_id: int):
+    s = get_session()
+    try:
+        r = repo.get_next_appointment_for_client(s, client_id)
+        return r if r else None
     finally:
         s.close()
 

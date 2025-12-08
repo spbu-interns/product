@@ -863,6 +863,7 @@ def list_appointments_with_reviews(s: Session, client_id: int) -> List[Dict]:
                    slots.doctor_id,
                    u.name as doctor_name,
                    u.surname as doctor_surname,
+                   u.patronymic as doctor_patronymic,
                    d.profession as doctor_profession,
                    r.id as review_id,
                    r.rating,
@@ -898,6 +899,7 @@ def list_pending_reviews(s: Session, client_id: int) -> List[Dict]:
                    slots.doctor_id,
                    u.name as doctor_name,
                    u.surname as doctor_surname,
+                   u.patronymic as doctor_patronymic,
                    d.profession as doctor_profession
             from appointments a
             join appointment_slots slots on slots.id = a.slot_id
@@ -912,6 +914,35 @@ def list_pending_reviews(s: Session, client_id: int) -> List[Dict]:
     ).mappings().all()
 
     return [dict(r) for r in rows]
+
+
+def get_next_appointment_for_client(s: Session, client_id: int) -> Optional[Dict]:
+    row = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   slots.start_time as slot_start,
+                   slots.doctor_id,
+                   u.name as doctor_name,
+                   u.surname as doctor_surname,
+                   u.patronymic as doctor_patronymic,
+                   d.profession as doctor_profession
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            left join doctors d on d.id = slots.doctor_id
+            left join users u on u.id = d.user_id
+            where a.client_id = :cid
+              and a.status = 'BOOKED'
+              and slots.start_time > now()
+            order by slots.start_time asc
+            limit 1
+            """
+        ),
+        {"cid": client_id},
+    ).mappings().first()
+
+    return dict(row) if row else None
+
 
 def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
     """

@@ -19,6 +19,7 @@ import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.DoctorPatientDto
 import org.interns.project.dto.DoctorProfileDto
 import org.interns.project.dto.MedicalRecordDto
+import org.interns.project.dto.NextAppointmentDto
 import org.interns.project.dto.SlotCreateRequest
 import org.interns.project.dto.UserResponseDto
 import org.interns.project.security.token.JwtService
@@ -572,6 +573,16 @@ class ApiUserRepo(
     suspend fun listAppointmentsForClient(clientId: Long): List<AppointmentDto> {
         val path = "/clients/$clientId/appointments"
         val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun getNextAppointmentForClient(clientId: Long): NextAppointmentDto? {
+        val path = "/clients/$clientId/appointments/next"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status == HttpStatusCode.NotFound) return null
         if (resp.status != HttpStatusCode.OK) {
             throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
         }

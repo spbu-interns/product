@@ -216,12 +216,14 @@ class ProfileController(
                             val clientId = client.id
                             val appointments = apiUserRepo.listAppointmentsForClient(clientId)
                             val medicalRecords = apiUserRepo.listMedicalRecordsForClient(clientId)
+                            val nextAppointment = apiUserRepo.getNextAppointmentForClient(clientId)
 
                             FullUserProfileDto(
                                 user = userProfile,
                                 client = client,
                                 appointments = appointments,
-                                medicalRecords = medicalRecords
+                                medicalRecords = medicalRecords,
+                                nextAppointment = nextAppointment
                             )
                         }
                         doctor != null -> {

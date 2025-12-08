@@ -15,10 +15,12 @@ import io.kvision.html.span
 import io.kvision.panel.vPanel
 import io.kvision.utils.perc
 import io.kvision.toast.Toast
+import io.kvision.types.toDateF
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import state.PatientState
-import utils.normalizeGender
+import kotlin.js.Date
+
 
 fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     val state = PatientState
@@ -46,7 +48,10 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
             val upcomingAppointments =
                 dashboard?.appointments?.filter { it.status == "BOOKED" } ?: emptyList()
             val recentMedicalRecords = dashboard?.medicalRecords?.take(3) ?: emptyList()
-            val nextAppointment = upcomingAppointments.firstOrNull()
+            val nextAppointmentDetails = dashboard?.nextAppointment
+            val nextAppointment = nextAppointmentDetails?.let { details ->
+                dashboard.appointments.firstOrNull { it.id == details.appointmentId }
+            } ?: upcomingAppointments.firstOrNull()
 
             div(className = "statistics grid patient-grid") {
                 statisticsCard(
@@ -65,12 +70,21 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
                 width = 100.perc
                 h4("Следующий приём", className = "block title")
 
-                nextAppointment?.let { appointment ->
+                nextAppointmentDetails?.let { details ->
+                    val doctorName = listOfNotNull(
+                        details.doctorSurname,
+                        details.doctorName,
+                        details.doctorPatronymic
+                    ).filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .ifBlank { "Врач не указан" }
+
+                    val appointmentId = details.appointmentId
+                    val appointment = nextAppointment
+
                     // Кликабельная карточка приёма (как у врача)
                     div(className = "appointment card full next-appointment-card") {
-                        onClick {
-                            Navigator.showAppointmentDetails(appointment.id)
-                        }
+                        onClick { Navigator.showAppointmentDetails(appointmentId) }
 
                         // Внутреннее содержимое карточки
                         div(className = "appointment row") {
@@ -79,10 +93,17 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
 
                             // Основная информация
                             div(className = "appointment info") {
-                                h4("Запись #${appointment.id}", className = "appointment-title")
-                                span(appointment.status, className = "appointment-status")
+                                h4("Запись #$appointmentId", className = "appointment-title")
+                                p("Врач: $doctorName", className = "appointment-doctor")
+                                details.doctorProfession?.takeIf { it.isNotBlank() }?.let { profession ->
+                                    p("Специальность: $profession", className = "appointment-profession")
+                                }
+                                details.slotStart?.let { start ->
+                                    val date = Date(start)
+                                    p("Начало: ${formatDateTime(date)}", className = "appointment-time")
+                                }
 
-                                appointment.comments
+                                appointment?.comments
                                     ?.takeIf { it.isNotBlank() }
                                     ?.let { comments ->
                                         p("Комментарии: $comments", className = "appointment-comments")
@@ -91,26 +112,28 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
 
                             // Кнопка отмены
                             div(className = "appointment actions") {
-                                button("Отменить", className = "btn-outline") {
-                                    onClick {
-                                        val id = appointment.id
-                                        val userId = patientId
-                                        if (userId == null) {
-                                            Toast.danger("Не удалось определить пользователя")
-                                            return@onClick
-                                        }
+                                appointment?.let { appointmentToCancel ->
+                                    button("Отменить", className = "btn-outline") {
+                                        onClick {
+                                            val id = appointmentToCancel.id
+                                            val userId = patientId
+                                            if (userId == null) {
+                                                Toast.danger("Не удалось определить пользователя")
+                                                return@onClick
+                                            }
 
-                                        scope.launch {
-                                            val result = bookingClient.cancelAppointment(id)
-                                            result.onSuccess { success ->
-                                                if (success) {
-                                                    Toast.success("Запись отменена")
-                                                    state.loadPatientDashboard(userId)
-                                                } else {
-                                                    Toast.danger("Не удалось отменить запись")
+                                            scope.launch {
+                                                val result = bookingClient.cancelAppointment(id)
+                                                result.onSuccess { success ->
+                                                    if (success) {
+                                                        Toast.success("Запись отменена")
+                                                        state.loadPatientDashboard(userId)
+                                                    } else {
+                                                        Toast.danger("Не удалось отменить запись")
+                                                    }
+                                                }.onFailure { error ->
+                                                    Toast.danger(error.message ?: "Ошибка отмены записи")
                                                 }
-                                            }.onFailure { error ->
-                                                Toast.danger(error.message ?: "Ошибка отмены записи")
                                             }
                                         }
                                     }
@@ -203,4 +226,18 @@ private fun Container.statisticsCard(value: String, label: String, icon: String)
         h3(value, className = "statistics value")
         span(label, className = "statistics label")
     }
+}
+
+private fun parseDate(value: String?): Date? {
+    if (value == null) return null
+    return runCatching { Date(value) }.getOrNull()
+        ?.takeUnless { it.toString() == "Invalid Date" }
+}
+
+private fun formatDateTime(date: Date): String {
+    val day = date.getDate().toString().padStart(2, '0')
+    val month = (date.getMonth() + 1).toString().padStart(2, '0')
+    val hours = date.getHours().toString().padStart(2, '0')
+    val minutes = date.getMinutes().toString().padStart(2, '0')
+    return "$day.$month.${date.getFullYear()} • $hours:$minutes"
 }
