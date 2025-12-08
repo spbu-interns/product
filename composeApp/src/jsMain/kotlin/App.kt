@@ -27,6 +27,7 @@ import ui.recordEditorScreen
 import ui.resetPasswordScreen
 import ui.patientProfileEditScreen
 import ui.doctorProfileEditScreen
+import ui.DoctorSection
 
 class App : Application() {
 
@@ -116,9 +117,10 @@ class App : Application() {
             )
         }
 
-        fun showDoctor() {
+        fun showDoctor(initialSection: DoctorSection = DoctorSection.OVERVIEW) {
             r.removeAll()
             r.doctorScreen(
+                initialSection = initialSection,
                 onLogout = { go("/") }
             )
         }
@@ -188,7 +190,13 @@ class App : Application() {
         fun showDoctorProfileEdit() {
             r.removeAll()
             r.doctorProfileEditScreen(
-                onBack = { go("/doctor") }
+                onBack = {
+                    if (window.history.length > 0) {
+                        window.history.back()
+                    } else {
+                        go("/doctor")
+                    }
+                }
             )
         }
 
@@ -269,6 +277,7 @@ class App : Application() {
                     path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
                     path == "/patient/profile" -> showPatientProfileEdit()
                     path == "/doctor" -> showDoctor()
+                    path == "/doctor/schedule" -> showDoctor(DoctorSection.SCHEDULE)
                     path.startsWith("/doctor/patient/") -> {
                         val patientId = path.removePrefix("/doctor/patient/").toLongOrNull()
                         val recordId = params.get("recordId")?.toLongOrNull()
@@ -319,6 +328,7 @@ class App : Application() {
         Navigator.showMyRecords = { go("/patient/records") }
         Navigator.showRecordEditor = { id -> go("/patient/records/$id") }
         Navigator.showDoctor = { go("/doctor") }
+        Navigator.showDoctorSchedule = { go("/doctor/schedule") }
         Navigator.showDoctorPatient = { patientId, patientRecordId ->
             val params = URLSearchParams()
             patientRecordId?.let { params.set("recordId", it.toString()) }

@@ -51,7 +51,12 @@ private data class DoctorAppointmentCard(
     val slotStart: Date,
 )
 
-fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
+enum class DoctorSection { OVERVIEW, SCHEDULE }
+
+fun Container.doctorScreen(
+    initialSection: DoctorSection = DoctorSection.OVERVIEW,
+    onLogout: () -> Unit = { Navigator.showHome() }
+) = vPanel(spacing = 12) {
     val uiScope = MainScope()
     val state = DoctorState
     val bookingApiClient = BookingApiClient()
@@ -64,11 +69,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         unsubscribe?.invoke()
     }
 
-    // Загружаем данные при создании экрана
     val userId = Session.userId
-    if (userId != null) {
-        state.loadDoctorDashboard(userId)
-    }
 
     // Используем данные из состояния или сессии как fallback
     val initialDashboard = state.dashboardData
@@ -114,6 +115,8 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     var renderStatistics: () -> Unit = {}
     var renderTodayAppointments: () -> Unit = {}
     var renderSchedule: () -> Unit = {}
+    var updateNavSelection: (DoctorSection) -> Unit = {}
+    var activeSection = initialSection
 
     val millisPerDay = 24 * 60 * 60 * 1000
 
@@ -326,14 +329,16 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     renderStatistics = fun() {
         statisticsContainer.removeAll()
 
-        val todayCount = buildTodayAppointments().size
-        val totalPatients = state.dashboardData?.patients?.size ?: 0
-        val doctorRating = state.dashboardData?.doctor?.rating ?: 0.0
+        val dashboard = state.dashboardData
+
+        val todayCount = if (dashboard == null && state.isLoading) null else buildTodayAppointments().size
+        val totalPatients = dashboard?.patients?.size
+        val doctorRating = dashboard?.doctor?.rating
 
         statisticsContainer.apply {
-            doctorStatisticsCard(todayCount.toString(), "Сегодня", "\uD83D\uDCC5")
-            doctorStatisticsCard(totalPatients.toString(), "Пациенты", "\uD83D\uDC65")
-            doctorStatisticsCard(doctorRating.toString(), "Рейтинг", "⭐")
+            doctorStatisticsCard((todayCount ?: 0).toString(), "Сегодня", "\uD83D\uDCC5")
+            doctorStatisticsCard((totalPatients ?: 0).toString(), "Пациенты", "\uD83D\uDC65")
+            doctorStatisticsCard((doctorRating ?: 0.0).toString(), "Рейтинг", "⭐")
         }
     }
 
@@ -524,23 +529,20 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
                 nav {
                     ul(className = "side menu") {
-                        li(className = "side_item is-active") {
+                        val overviewItem = li(className = "side_item") {
                             span("Обзор")
                             span("\uD83D\uDC64", className = "side icon")
                             onClick {
                                 window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
-                                overviewContainer.visible = true
-                                scheduleContainer.visible = false
+                                Navigator.showDoctor()
                             }
                         }
-                        li(className = "side_item") {
+                        val scheduleItem = li(className = "side_item") {
                             span("Расписание")
                             span("\uD83D\uDCC5", className = "side icon")
                             onClick {
                                 window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
-                                overviewContainer.visible = false
-                                scheduleContainer.visible = true
-                                renderSchedule()
+                                Navigator.showDoctorSchedule()
                             }
                         }
                         li(className = "side_item") {
@@ -559,8 +561,20 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                                 Navigator.showDoctorProfileEdit()
                             }
                         }
+
+                        updateNavSelection = { section ->
+                            if (section == DoctorSection.OVERVIEW) {
+                                overviewItem.addCssClass("is-active")
+                                scheduleItem.removeCssClass("is-active")
+                            } else if (section == DoctorSection.SCHEDULE) {
+                                scheduleItem.addCssClass("is-active")
+                                overviewItem.removeCssClass("is-active")
+                            }
+                        }
                     }
                 }
+
+                updateNavSelection(activeSection)
 
                 div(className = "side button")
                 button("Создать приём", className = "btn-primary-lg").onClick {
@@ -585,6 +599,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
             div(className = "main column") {
 
                 overviewContainer = div {
+                    visible = activeSection == DoctorSection.OVERVIEW
                     h1("Аккаунт", className = "account title")
 
                     // Статистика
@@ -606,7 +621,7 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 }
 
                 scheduleContainer = div {
-                    visible = false
+                    visible = activeSection == DoctorSection.SCHEDULE
                     h1("Расписание", className = "account title")
 
                     div(className = "card block appointment-block") {
@@ -667,6 +682,10 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     renderStatistics()
     renderTodayAppointments()
     renderSchedule()
+
+    if (userId != null) {
+        state.loadDoctorDashboard(userId)
+    }
 }
 
 private fun Container.doctorStatisticsCard(value: String, label: String, icon: String) {

@@ -8,6 +8,7 @@ object Navigator {
     var showPatient: () -> Unit = {}
     var showPatientMedicalRecords: () -> Unit = {}
     var showDoctor: () -> Unit = {}
+    var showDoctorSchedule: () -> Unit = {}
     var showStub: (String) -> Unit = {}
     var showResetPassword: () -> Unit = {}
     var showPasswordResetSuccess: () -> Unit = {}

@@ -18,6 +18,17 @@ name,surname,date_of_birth,avatar,gender,
 is_active,email_verified_at,password_changed_at,created_at,updated_at
 """
 
+_DOCTOR_RATING_EXPR_TMPL = """
+    coalesce((
+        select avg(rating)::float
+        from (
+            select rating from appointment_reviews where doctor_id = {doctor_ref}
+            union all
+            select rating from doctor_reviews where doctor_id = {doctor_ref}
+        ) r
+    ), 0)
+"""
+
 def _rowmap(r) -> Dict:
     return dict(r) if r else None
 
@@ -396,9 +407,11 @@ def set_doctor_specializations(s: Session, doctor_id: int, specialization_ids: L
         )
         
 def _get_doctor_with_specs_by_id(s: Session, doctor_id: int) -> Optional[Dict]:
-    r = s.execute(text("""
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref="d.id")
+    r = s.execute(text(f"""
         select
             d.*,
+            {rating_expr} as rating,
             coalesce(
                 array(
                     select ds.specialization_id
@@ -416,9 +429,11 @@ def _get_doctor_with_specs_by_id(s: Session, doctor_id: int) -> Optional[Dict]:
 
 
 def _get_doctor_with_specs_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
-    r = s.execute(text("""
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref="d.id")
+    r = s.execute(text(f"""
         select
             d.*,
+            {rating_expr} as rating,
             coalesce(
                 array(
                     select ds.specialization_id
@@ -453,6 +468,7 @@ def list_specializations(s: Session, popular_only: Optional[bool] = None) -> Lis
 
 
 def create_doctor(s: Session, body) -> Dict:
+    base_rating = body.rating if body.rating is not None else 0.0
     r = s.execute(text("""
         insert into doctors(user_id, clinic_id, profession, info,
                             is_confirmed, rating, experience, price,
@@ -465,7 +481,7 @@ def create_doctor(s: Session, body) -> Dict:
         "prof": body.profession,
         "info": body.info,
         "conf": body.is_confirmed,
-        "rt": body.rating,
+        "rt": base_rating,
         "exp": body.experience,
         "price": body.price,
         "online": body.online_available if body.online_available is not None else False,
@@ -788,6 +804,7 @@ def upsert_appointment_review(s: Session, appointment_id: int, body) -> Optional
             },
         ).mappings().first()
 
+    _refresh_doctor_rating(s, appointment["doctor_id"])
     s.commit()
     return dict(r)
 
@@ -924,6 +941,28 @@ def add_medical_document(s: Session, body) -> Dict:
     return dict(r)
 
 # ===== Reviews =====
+def _refresh_doctor_rating(s: Session, doctor_id: int) -> float:
+    """
+    Пересчитывает рейтинг врача на основе всех доступных отзывов.
+    Используем как отзывы после приёмов, так и прямые отзывы о врачах.
+    """
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref=":did")
+    avg_row = s.execute(
+        text(f"select {rating_expr} as avg_rating"),
+        {"did": doctor_id},
+    ).mappings().first()
+
+    new_rating = (avg_row or {}).get("avg_rating")
+    safe_rating = new_rating if new_rating is not None else 0
+
+    s.execute(
+        text("update doctors set rating = :rt, updated_at = now() where id = :did"),
+        {"rt": safe_rating, "did": doctor_id},
+    )
+
+    return safe_rating
+
+
 def create_doctor_review(s: Session, body) -> Optional[Dict]:
     try:
         r = s.execute(text("""
@@ -931,6 +970,7 @@ def create_doctor_review(s: Session, body) -> Optional[Dict]:
             values (:did,:cid,:rt,:cmt)
             returning *
         """), {"did": body.doctor_id, "cid": body.client_id, "rt": body.rating, "cmt": body.comment}).mappings().first()
+        _refresh_doctor_rating(s, body.doctor_id)
         s.commit()
         return dict(r)
     except Exception:
@@ -1184,9 +1224,11 @@ def search_doctors(
 ) -> List[Dict]:
     safe_limit = 50 if limit is None or limit <= 0 else limit
     safe_offset = 0 if offset is None or offset < 0 else offset
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref="d.id")
     sql = """
         select
             d.*,
+            {rating_expr} as rating,
             u.gender,
             u.date_of_birth,
             c.city,
@@ -1206,7 +1248,7 @@ def search_doctors(
         join users u on u.id = d.user_id
         left join clinics c on c.id = d.clinic_id
         where 1=1
-    """
+    """.format(rating_expr=rating_expr)
     params = {"limit": safe_limit, "offset": safe_offset}
 
     if city is not None:
@@ -1233,7 +1275,7 @@ def search_doctors(
         params["max_price"] = max_price
 
     if min_rating is not None:
-        sql += " and d.rating is not null and d.rating >= :min_rating"
+        sql += f" and {rating_expr} >= :min_rating"
         params["min_rating"] = min_rating
 
     if gender is not None:
@@ -1284,8 +1326,8 @@ def search_doctors(
         """
         params["slot_date"] = date_filter
 
-    sql += """
-            order by d.rating desc nulls last, d.price asc nulls last, d.id
+    sql += f"""
+            order by {rating_expr} desc, d.price asc nulls last, d.id
             limit :limit offset :offset
         """
 
