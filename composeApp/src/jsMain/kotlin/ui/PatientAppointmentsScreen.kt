@@ -5,7 +5,6 @@ import api.PatientApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.core.onEvent
-import io.kvision.core.onInput
 import io.kvision.form.text.TextArea
 import io.kvision.form.text.textArea
 import io.kvision.html.button
@@ -50,7 +49,6 @@ fun Container.patientAppointmentsScreen(
     var loading = true
     var selectedAppointment: AppointmentWithReviewDto? = null
     var rating = 0
-    var hoverRating = 0
     var commentText = ""
 
     val reviewModal = Modal("Отзыв о визите", closeButton = true, animation = true, size = ModalSize.LARGE)
@@ -75,31 +73,20 @@ fun Container.patientAppointmentsScreen(
         (1..5).forEach { index ->
             container.span(
                 "★",
-                className = "review-star " +
-                        if (index <= (hoverRating.takeIf { it > 0 } ?: rating)) "is-active" else ""
+                className = "review-star " + if (index <= rating) "is-active" else ""
             ) {
                 onClick {
                     rating = index
                     renderStars(container)
                 }
-                onEvent {
-                    mouseover = { _ ->
-                        hoverRating = index
-                        renderStars(container)
-                    }
-                    mouseout = { _ ->
-                        hoverRating = 0
-                        renderStars(container)
-                    }
-                }
             }
         }
     }
 
+
     fun openReviewModal(appointment: AppointmentWithReviewDto) {
         selectedAppointment = appointment
         rating = appointment.review?.rating ?: 0
-        hoverRating = 0
         commentText = appointment.review?.comment ?: ""
         renderStars(starContainer)
         commentField?.value = commentText
@@ -116,6 +103,7 @@ fun Container.patientAppointmentsScreen(
             val localPending = appointments.filter { it.status == "COMPLETED" && it.review == null }
 
             pendingInvites = (explicitInvites + localPending)
+                .filter { it.review == null }
                 .distinctBy { it.appointmentId }
                 .sortedByDescending { Date(it.slotStart).getTime() }
         }
@@ -206,23 +194,33 @@ fun Container.patientAppointmentsScreen(
                     button("Отменить", className = "btn ghost") {
                         onClick { reviewModal.hide() }
                     }
-                    button("Сохранить", className = "btn primary") {
-                        onClick {
+                    button("Оставить отзыв", className = "btn primary") {
+                    onClick {
                             val current = selectedAppointment ?: return@onClick
                             if (rating == 0) {
-                                Toast.success("Пожалуйста, оцените визит")
+                                Toast.danger("Пожалуйста, оцените визит")
                                 return@onClick
                             }
 
-                            clientId?.let { cid ->
+                            clientId?.let { _ ->
                                 scope.launch {
                                     apiClient
                                         .saveAppointmentReview(
                                             current.appointmentId,
                                             AppointmentReviewRequest(rating = rating, comment = commentText.ifBlank { null })
                                         )
+                                        .onFailure {
+                                            Toast.danger("Не удалось сохранить отзыв. Попробуйте позже")
+                                            return@launch
+                                        }
+                                    Toast.success("Спасибо за отзыв!")
                                     reviewModal.hide()
                                     loadClientData(Session.userId ?: return@launch)
+                                    upcomingList.refreshUpcomingAppointments(
+                                        upcomingAppointments,
+                                        loading,
+                                        ::formatDateTime
+                                    )
                                     pastList.refreshPastAppointments(
                                         appointments,
                                         loading,
@@ -277,10 +275,9 @@ private fun Container.appointmentCard(
             div(className = "appointment actions") {
                 span(appointment.statusLabel(), className = "status completed")
 
-                if (appointment.status == "COMPLETED") {
+                if (appointment.status == "COMPLETED" && appointment.review == null) {
                     div(className = "appointment buttons") {
-                        val label = if (appointment.review == null) "Оставить отзыв" else "Изменить отзыв"
-                        button(label, className = "btn primary small") {
+                        button("Оставить отзыв", className = "btn primary small") {
                             onClick { onReview(appointment) }
                         }
                     }

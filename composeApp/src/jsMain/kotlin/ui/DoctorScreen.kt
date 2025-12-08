@@ -1,6 +1,7 @@
 ﻿package ui
 
 import api.ApiConfig
+import api.BookingApiClient
 import io.kvision.core.Container
 import io.kvision.core.onClick
 import io.kvision.html.Div
@@ -26,6 +27,7 @@ import state.DoctorState.dashboardData
 import ui.components.timetableModal
 import ui.components.updateAvatar
 import utils.normalizeGender
+import org.interns.project.dto.SlotResponse
 import kotlin.js.Date
 
 private data class DoctorPatientListItem(
@@ -52,6 +54,7 @@ private data class DoctorAppointmentCard(
 fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vPanel(spacing = 12) {
     val uiScope = MainScope()
     val state = DoctorState
+    val bookingApiClient = BookingApiClient()
     val timetableController = timetableModal()
 
     var unsubscribe: (() -> Unit)? = null
@@ -92,16 +95,27 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     lateinit var patientsContainer: Container
     lateinit var overviewContainer: Container
     lateinit var scheduleContainer: Container
+    lateinit var scheduleGridContainer: Container
     lateinit var avatarContainer: Div
     lateinit var statisticsContainer: Container
     lateinit var doctorNameHeader: H4
     lateinit var todayAppointmentsContainer: Container
-    var scheduleListContainer: Container? = null
+    lateinit var weekRangeLabel: Span
+    var isScheduleUiReady = false
+
+    var weeklySlots: List<SlotResponse> = emptyList()
+    var slotsError: String? = null
+    var isLoadingSlots = false
+    var slotsLoaded = false
+    var currentWeekOffset = 0
+    var loadedDoctorId: Long? = null
 
     var renderPatients: () -> Unit = {}
     var renderStatistics: () -> Unit = {}
     var renderTodayAppointments: () -> Unit = {}
     var renderSchedule: () -> Unit = {}
+
+    val millisPerDay = 24 * 60 * 60 * 1000
 
     fun formatDateTime(date: Date): String {
         val day = date.getDate().toString().padStart(2, '0')
@@ -115,6 +129,30 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
         getFullYear() == other.getFullYear() &&
                 getMonth() == other.getMonth() &&
                 getDate() == other.getDate()
+
+    fun Date.toIsoDate(): String {
+        val year = getFullYear()
+        val month = (getMonth() + 1).toString().padStart(2, '0')
+        val day = getDate().toString().padStart(2, '0')
+        return "$year-$month-$day"
+    }
+
+    fun startOfWeek(date: Date): Date {
+        val normalizedDow = if (date.getDay() == 0) 7 else date.getDay()
+        val mondayMillis = date.getTime() - (normalizedDow - 1) * millisPerDay
+        return Date(mondayMillis)
+    }
+
+    fun formatWeekRangeLabel(anchor: Date): String {
+        val end = Date(anchor.getTime() + 6 * millisPerDay)
+        fun format(date: Date): String {
+            val day = date.getDate().toString().padStart(2, '0')
+            val month = (date.getMonth() + 1).toString().padStart(2, '0')
+            return "$day.$month"
+        }
+
+        return "${format(anchor)} — ${format(end)}"
+    }
 
     fun buildTodayAppointments(): List<DoctorAppointmentCard> {
         val dashboard = state.dashboardData ?: return emptyList()
@@ -152,6 +190,43 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
                 slotStart = slotStart,
             )
         }.sortedBy { it.slotStart.getTime() }
+    }
+
+    fun loadWeeklySlots(force: Boolean = false) {
+        val doctorId = state.dashboardData?.doctor?.id ?: return
+        if (loadedDoctorId != doctorId) {
+            slotsLoaded = false
+            weeklySlots = emptyList()
+        }
+        if (isLoadingSlots || (!force && slotsLoaded)) return
+
+        isLoadingSlots = true
+        slotsError = null
+        renderSchedule()
+
+        uiScope.launch {
+            val response = bookingApiClient.listDoctorSlots(doctorId)
+            response.onSuccess {
+                weeklySlots = it.sortedBy { slot -> Date(slot.startTime).getTime() }
+                slotsLoaded = true
+                loadedDoctorId = doctorId
+            }.onFailure {
+                slotsError = it.message ?: "Не удалось загрузить слоты"
+                weeklySlots = emptyList()
+                slotsLoaded = false
+            }
+
+            isLoadingSlots = false
+            renderSchedule()
+        }
+    }
+
+    fun formatSlotLabel(slot: SlotResponse): String {
+        val start = Date(slot.startTime)
+        val end = Date(slot.endTime)
+        val startTime = "${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}"
+        val endTime = "${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}"
+        return "$startTime — $endTime"
     }
 
     fun DoctorPatientListItem.render() {
@@ -298,36 +373,121 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
     }
 
     renderSchedule = fun() {
-        val listContainer = scheduleListContainer ?: return
-        listContainer.removeAll()
+        if (!isScheduleUiReady) return
+        scheduleGridContainer.removeAll()
 
-        val todayAppointments = buildTodayAppointments()
+        if (state.dashboardData == null && state.isLoading) {
+            scheduleGridContainer.div(className = "doctor-empty-state") {
+                span("Загрузка расписания...", className = "doctor-patient-condition")
+            }
+            return
+        }
+
+        val doctorId = state.dashboardData?.doctor?.id
+        if (doctorId == null) {
+            scheduleGridContainer.div(className = "doctor-empty-state") {
+                span("Не удалось определить врача", className = "record subtitle")
+            }
+            return
+        }
+
+        state.error?.let { errorMessage ->
+            scheduleGridContainer.div(className = "record item") {
+                span(errorMessage, className = "record subtitle")
+                button("Обновить", className = "btn-ghost-sm").onClick {
+                    userId?.let { id -> state.loadDoctorDashboard(id) }
+                }
+            }
+            return
+        }
+
+        if (!slotsLoaded && !isLoadingSlots) {
+            loadWeeklySlots()
+        }
+
+        val anchorMonday = startOfWeek(Date(Date().getTime() + currentWeekOffset * 7 * millisPerDay))
+        weekRangeLabel.content = formatWeekRangeLabel(anchorMonday)
 
         when {
-            state.isLoading -> {
-                listContainer.div(className = "doctor-empty-state") {
+            state.isLoading || isLoadingSlots -> {
+                scheduleGridContainer.div(className = "doctor-empty-state") {
                     span("Загрузка расписания...", className = "doctor-patient-condition")
                 }
+                return
             }
 
-            state.error != null -> {
-                listContainer.div(className = "record item") {
-                    span(state.error ?: "Не удалось загрузить расписание", className = "record subtitle")
-                    button("Повторить", className = "btn-ghost-sm").onClick {
-                        userId?.let { state.loadDoctorDashboard(it) }
+            slotsError != null -> {
+                scheduleGridContainer.div(className = "record item") {
+                    span(slotsError ?: "Не удалось загрузить слоты", className = "record subtitle")
+                    button("Обновить", className = "btn-ghost-sm").onClick {
+                        loadWeeklySlots(force = true)
                     }
                 }
+                return
             }
+        }
 
-            todayAppointments.isEmpty() -> {
-                listContainer.div(className = "record item") {
-                    span("Пока нет записанных пациентов", className = "record subtitle")
+        val appointmentsBySlot = state.dashboardData?.appointments?.associateBy { it.slotId } ?: emptyMap()
+        val patientsById = state.dashboardData?.patients?.associateBy { it.clientId } ?: emptyMap()
+
+        val weekdays = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+        val weekDays = (0 until 7).map { shift ->
+            Date(anchorMonday.getTime() + shift * millisPerDay)
+        }
+
+        val weekGrid = scheduleGridContainer.div(className = "schedule-week-grid") {}
+
+        weekDays.forEach { day ->
+            val iso = day.toIsoDate()
+
+            val dowIndex = (if (day.getDay() == 0) 7 else day.getDay()) - 1
+            val dowLabel = weekdays[dowIndex] // "Пн", "Вт", ...
+            val dateLabel = "${day.getDate().toString().padStart(2, '0')}." +
+                    (day.getMonth() + 1).toString().padStart(2, '0')
+
+            val daySlots = weeklySlots
+                .filter { it.startTime.startsWith(iso) }
+                .sortedBy { Date(it.startTime).getTime() }
+
+            weekGrid.div(className = "schedule-day-card") {
+                div(className = "schedule-day-header") {
+                    span(dowLabel, className = "schedule-day-dow")   // День недели
+                    span(dateLabel, className = "schedule-day-date") // Дата
                 }
-            }
 
-            else -> {
-                todayAppointments.forEach { appointment ->
-                    listContainer.renderAppointmentCard(appointment)
+                if (daySlots.isEmpty()) {
+                    span("Нет слотов", className = "schedule-day-empty")
+                } else {
+                    daySlots.forEach { slot ->
+                        val appointment = appointmentsBySlot[slot.id]
+                        val patient = appointment?.let { patientsById[it.clientId] }
+                        val booked = appointment != null || slot.isBooked
+                        val slotClass = "schedule-slot" + if (booked) " is-booked" else " is-free"
+                        val statusLabel = if (booked) {
+                            val patientName = listOfNotNull(patient?.surname, patient?.name, patient?.patronymic)
+                                .takeIf { it.isNotEmpty() }
+                                ?.joinToString(" ")
+                                ?: "Бронь подтверждена"
+                            "Занято — $patientName"
+                        } else {
+                            "Свободно для брони"
+                        }
+
+                        div(className = slotClass) {
+                            span(formatSlotLabel(slot), className = "schedule-slot-time")
+                            span(statusLabel, className = "schedule-slot-status")
+                        }.onClick {
+                            when {
+                                appointment != null && patient != null -> {
+                                    cleanup()
+                                    Navigator.showDoctorPatient(patient.userId, patient.clientId)
+                                }
+
+                                appointment != null -> Toast.info("Нет данных пациента по этой брони")
+                                else -> timetableController.open(doctorNameHeader.content.toString(), doctorId)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -437,31 +597,29 @@ fun Container.doctorScreen(onLogout: () -> Unit = { Navigator.showHome() }) = vP
 
                 scheduleContainer = div {
                     visible = false
-
-                    if (state.isLoading) {
-                        div(className = "loading-state") {
-                            span("Загрузка расписания...", className = "doctor-patient-condition")
-                        }
-                        return@div
-                    }
-
-                    state.error?.let { errorMessage ->
-                        div(className = "error-state") {
-                            span("Ошибка: $errorMessage", className = "record subtitle")
-                            button("Повторить", className = "btn-primary") {
-                                onClick {
-                                    userId?.let { state.loadDoctorDashboard(it) }
-                                }
-                            }
-                        }
-                        return@div
-                    }
-
                     h1("Расписание", className = "account title")
 
                     div(className = "card block appointment-block") {
-                        h4("Запланированные пациенты", className = "block title")
-                        scheduleListContainer = div(className = "records list")
+                        div(className = "schedule-toolbar") {
+                            button("◀ Предыдущая неделя", className = "btn-ghost-sm").onClick {
+                                currentWeekOffset -= 1
+                                renderSchedule()
+                            }
+
+                            weekRangeLabel = span("", className = "schedule-week-range")
+
+                            button("Следующая неделя ▶", className = "btn-ghost-sm").onClick {
+                                currentWeekOffset += 1
+                                renderSchedule()
+                            }
+
+                            button("Редактировать расписание", className = "btn-secondary-lg timetable-trigger").onClick {
+                                timetableController.open(doctorNameHeader.content.toString(), state.dashboardData?.doctor?.id)
+                            }
+                        }
+
+                        scheduleGridContainer = div(className = "records list schedule-grid-wrapper")
+                        isScheduleUiReady = true
                     }
                 }
             }
