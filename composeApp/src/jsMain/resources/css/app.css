@@ -44,3 +44,135 @@
 .text-danger {
     color: #dc2626;
 }
+
+.active-appointment-banner {
+    width: fit-content;
+    position: sticky;
+    left: 24px;
+    right: 24px;
+    top: 88px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    z-index: 1100;
+}
+
+.active-appointment-banner.visible {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.active-appointment-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.active-appointment-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.link-button {
+    background: none;
+    border: none;
+    color: #2563eb;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.active-appointment-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.active-appointment-status {
+    color: #16a34a;
+    font-weight: 700;
+}
+
+.active-appointment-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1200;
+}
+
+.active-appointment-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+    z-index: 1300;
+    min-width: 340px;
+    max-width: 520px;
+    width: 90%;
+}
+
+.active-appointment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.active-appointment-title {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.modal-close {
+    border: none;
+    background: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.active-appointment-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.active-appointment-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.active-appointment-label {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.active-appointment-value {
+    font-weight: 700;
+    text-align: right;
+}
+
+.active-appointment-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    align-items: center;
+}

@@ -26,6 +26,11 @@ class AuthApiClient {
             val status = response.status
             val apiResponse = runCatching { response.body<ApiResponse<LoginResponse>>() }.getOrNull()
             val rawError = apiResponse?.error?.trim()
+            val isUserNotFound =
+                response.status == HttpStatusCode.NotFound ||
+                        rawError?.contains("user not found", ignoreCase = true) == true ||
+                        rawError?.contains("not found", ignoreCase = true) == true ||
+                        rawError?.contains("no user", ignoreCase = true) == true
 
             val isEmailNotVerified =
                 rawError.equals("EMAIL_NOT_VERIFIED", ignoreCase = true) ||
@@ -60,6 +65,10 @@ class AuthApiClient {
                         )
                     }
 
+                    if (isUserNotFound) {
+                        return@withContext Result.failure(Exception("User not found"))
+                    }
+
                     val msg = rawError ?: "Login failed"
                     return@withContext Result.failure(Exception(msg))
                 }
@@ -72,6 +81,10 @@ class AuthApiClient {
                 return@withContext Result.success(data)
             } else {
                 // 3. Любые другие HTTP-ошибки
+                if (isUserNotFound) {
+                    return@withContext Result.failure(Exception("User not found"))
+                }
+
                 val message = rawError ?: "HTTP error: ${status.value}"
 
                 // ⬇️ Добавь эту проверку прямо сюда:

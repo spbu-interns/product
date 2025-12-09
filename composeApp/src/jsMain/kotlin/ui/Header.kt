@@ -8,6 +8,7 @@ import io.kvision.html.image
 import io.kvision.html.link
 import io.kvision.html.span
 import io.kvision.html.nav
+import ui.components.doctorActiveAppointmentBanner
 
 enum class HeaderMode { PUBLIC, PATIENT, DOCTOR }
 enum class NavTab { NONE, HOME, FIND, PROFILE }
@@ -74,5 +75,9 @@ fun Container.headerBar(
                 }
             }
         }
+    }
+
+    if (mode == HeaderMode.DOCTOR) {
+        doctorActiveAppointmentBanner()
     }
 }

@@ -95,10 +95,6 @@ fun Container.authScreen(
                         })
                     })
 
-                    val error = Span("").apply { addCssClass("text-danger") }
-
-                    content.add(div { add(error) })
-
                     content.add(Button("Войти", style = ButtonStyle.PRIMARY).apply {
                         width = 100.perc
                         onClick {
@@ -112,7 +108,6 @@ fun Container.authScreen(
                                 !emailOk -> Toast.danger("Некорректный email")
                                 !passOk -> Toast.danger("Проверьте пароль")
                                 else -> {
-                                    error.content = ""
                                     this.disabled = true
 
                                     uiScope.launch {
@@ -188,7 +183,6 @@ fun Container.authScreen(
                                                         )
                                                     )
                                                 } else {
-                                                    error.content = localizeLoginError(e.message)
                                                     Toast.danger(localizeLoginError(e.message))
                                                 }
                                                 this@apply.disabled = false
@@ -280,8 +274,10 @@ private val EMAIL_REGEX =
 
 private fun localizeLoginError(message: String?): String = when {
     message.isNullOrBlank() -> "Ошибка входа"
+    message.contains("user not found", ignoreCase = true) -> "Пользователь не найден. Зарегистрируйтесь."
     message.contains("invalid email or password", ignoreCase = true) -> "Неверный email или пароль"
     message.contains("unauthorized", ignoreCase = true) -> "Неверный email или пароль"
+    message.contains("not found", ignoreCase = true) -> "Пользователь не найден. Зарегистрируйтесь."
     else -> message
 }
 

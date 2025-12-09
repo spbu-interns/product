@@ -44,6 +44,9 @@ data class ComplaintPatchRequest(
 
 @Serializable
 data class SlotCreateRequest(
+    @SerialName("doctor_id")
+    val doctorId: Long,
+
     @SerialName("start_time")
     val startTime: String,
 

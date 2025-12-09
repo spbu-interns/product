@@ -27,6 +27,7 @@ import ui.recordEditorScreen
 import ui.resetPasswordScreen
 import ui.patientProfileEditScreen
 import ui.doctorProfileEditScreen
+import ui.DoctorSection
 
 class App : Application() {
 
@@ -104,9 +105,10 @@ class App : Application() {
             )
         }
 
-        fun showAppointments() {
+        fun showAppointments(appointmentId: Long? = null) {
             r.removeAll()
             r.patientAppointmentsScreen(
+                appointmentId = appointmentId,
                 onLogout = {
                     ApiConfig.clearToken()
                     Session.clear()
@@ -115,9 +117,10 @@ class App : Application() {
             )
         }
 
-        fun showDoctor() {
+        fun showDoctor(initialSection: DoctorSection = DoctorSection.OVERVIEW) {
             r.removeAll()
             r.doctorScreen(
+                initialSection = initialSection,
                 onLogout = { go("/") }
             )
         }
@@ -187,7 +190,13 @@ class App : Application() {
         fun showDoctorProfileEdit() {
             r.removeAll()
             r.doctorProfileEditScreen(
-                onBack = { go("/doctor") }
+                onBack = {
+                    if (window.history.length > 0) {
+                        window.history.back()
+                    } else {
+                        go("/doctor")
+                    }
+                }
             )
         }
 
@@ -260,10 +269,15 @@ class App : Application() {
                     path == "/patient" -> showPatient()
                     path == "/patient/medical-records" -> showPatientMedicalRecords()
                     path == "/patient/appointments" -> showAppointments()
+                    path.startsWith("/patient/appointments/") -> {
+                        val appointmentId = path.removePrefix("/patient/appointments/").toLongOrNull()
+                        showAppointments(appointmentId)
+                    }
                     path == "/patient/records" -> showMyRecords()
                     path.startsWith("/patient/records/") -> showRecordEditor(path.removePrefix("/patient/records/"))
                     path == "/patient/profile" -> showPatientProfileEdit()
                     path == "/doctor" -> showDoctor()
+                    path == "/doctor/schedule" -> showDoctor(DoctorSection.SCHEDULE)
                     path.startsWith("/doctor/patient/") -> {
                         val patientId = path.removePrefix("/doctor/patient/").toLongOrNull()
                         val recordId = params.get("recordId")?.toLongOrNull()
@@ -314,12 +328,14 @@ class App : Application() {
         Navigator.showMyRecords = { go("/patient/records") }
         Navigator.showRecordEditor = { id -> go("/patient/records/$id") }
         Navigator.showDoctor = { go("/doctor") }
+        Navigator.showDoctorSchedule = { go("/doctor/schedule") }
         Navigator.showDoctorPatient = { patientId, patientRecordId ->
             val params = URLSearchParams()
             patientRecordId?.let { params.set("recordId", it.toString()) }
             go("/doctor/patient/$patientId", params)
         }
         Navigator.showAppointments = { go("/patient/appointments") }
+        Navigator.showAppointmentDetails = { id -> go("/patient/appointments/$id") }
         Navigator.showPatientProfileEdit = { go("/patient/profile") }
         Navigator.showDoctorProfileEdit = { go("/doctor/profile") }
         Navigator.showPasswordResetSuccess = { go("/auth/password/reset/success") }

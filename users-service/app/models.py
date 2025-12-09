@@ -243,6 +243,42 @@ class AppointmentOut(BaseModel):
     # NEW: тип приёма
     appointment_type_id: Optional[int] = None
 
+
+class AppointmentReviewIn(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
+class AppointmentReviewOut(AppointmentReviewIn):
+    id: int
+    appointment_id: int
+    doctor_id: int
+    client_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AppointmentReviewSummary(BaseModel):
+    appointment_id: int
+    status: AppointmentStatus
+    slot_start: datetime
+    slot_end: datetime
+    doctor_id: int
+    doctor_name: Optional[str] = None
+    doctor_surname: Optional[str] = None
+    doctor_patronymic: Optional[str] = None
+    doctor_profession: Optional[str] = None
+    review: Optional[AppointmentReviewOut] = None
+
+class NextAppointmentOut(BaseModel):
+    appointment_id: int
+    slot_start: datetime
+    doctor_id: int
+    doctor_name: Optional[str] = None
+    doctor_surname: Optional[str] = None
+    doctor_patronymic: Optional[str] = None
+    doctor_profession: Optional[str] = None
+
 # --- Medical records / documents ---
 class MedicalRecordIn(BaseModel):
     client_id: int
