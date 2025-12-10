@@ -7,8 +7,11 @@ import io.kvision.html.div
 import io.kvision.html.h3
 import io.kvision.html.p
 import io.kvision.panel.simplePanel
+import kotlinx.browser.window
 import ui.DoctorProfile
 import ui.components.updateAvatar
+import ui.Navigator
+import ui.Session
 import kotlin.math.roundToInt
 import kotlin.toString
 
@@ -97,7 +100,12 @@ fun Container.doctorProfileModal(
                     button("Записаться", className = "btn btn-primary") {
                         onClick {
                             closeModal()
-                            onBook(profile)
+                            if (Session.isLoggedIn) {
+                                onBook(profile)
+                            } else {
+                                window.alert("Для записи на прием необходимо войти в систему")
+                                Navigator.showLogin()
+                            }
                         }
                     }
                     button("Закрыть", className = "btn btn-secondary") {
