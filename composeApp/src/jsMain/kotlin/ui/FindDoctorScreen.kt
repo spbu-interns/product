@@ -60,13 +60,35 @@ var loadedDoctors: List<DoctorSearchResultDto> = emptyList()
 private val doctorProfilesCache: MutableMap<Long, UserResponseDto> = mutableMapOf()
 
 private fun specToId(name: String): Int? = when (name.lowercase()) {
-    "кардиолог" -> 1
+    "терапевт" -> 1
     "педиатр" -> 2
-    "невролог" -> 3
-    "ортопед" -> 4
-    "офтальмолог" -> 5
-    "терапевт" -> 6
+    "стоматолог" -> 3
+    "гинеколог" -> 4
+    "уролог" -> 5
+    "кардиолог" -> 6
+    "невролог" -> 7
+    "эндокринолог" -> 8
+    "дерматолог" -> 9
+    "офтальмолог" -> 10
+    "отоларинголог" -> 11
+    "психолог" -> 12
+    "психотерапевт" -> 13
+    "психиатр" -> 14
+    "ортопед" -> 15  // "Травматолог-ортопед" имеет id 15
+    "гастроэнтеролог" -> 16
+    "аллерголог" -> 17  // "Аллерголог-иммунолог"
+    "иммунолог" -> 17   // "Аллерголог-иммунолог"
+    "диетолог" -> 18
+    "онколог" -> 19
+    "хирург" -> 20
+    "ревматолог" -> 21
     else -> null
+}
+
+private fun isProfileComplete(): Boolean {
+    if (!Session.isLoggedIn) return false
+    return !(Session.fullName().isNullOrBlank() || Session.dateOfBirth == null ||
+            Session.gender.isNullOrBlank() || Session.phoneNumber.isNullOrBlank())
 }
 
 private suspend fun loadDoctors(
@@ -227,8 +249,23 @@ fun Container.findDoctorScreen(onLogout: () -> Unit) {
                     // ---------- Specialties ----------
                     div(className = "find-filter-card") {
                         h3("Специальность", className = "find-filter-title")
-                        val specialties = listOf("Кардиолог", "Педиатр", "Невролог", "Ортопед", "Офтальмолог", "Терапевт")
-
+                        val specialties = listOf(
+                            "Терапевт",
+                            "Педиатр",
+                            "Стоматолог",
+                            "Гинеколог",
+                            "Уролог",
+                            "Кардиолог",
+                            "Невролог",
+                            "Эндокринолог",
+                            "Дерматолог",
+                            "Офтальмолог",
+                            "Отоларинголог",
+                            "Ортопед",
+                            "Гастроэнтеролог",
+                            "Аллерголог",
+                            "Хирург"
+                        )
                         specialties.forEach { specialty ->
                             checkBox(selectedSpecialties.contains(specialty), label = specialty) {
                                 addCssClass("find-checkbox")
@@ -419,8 +456,25 @@ private fun Container.doctorCard(
                     button("Посмотреть профиль", className = "btn btn-secondary btn-sm").onClick {
                         onViewProfile(profile)
                     }
-                    button("Записаться", className = "btn btn-primary btn-sm").onClick {
-                        onBook(profile)
+                    button("Записаться", className = "btn btn-primary btn-sm") {
+//                        disabled = !Session.isLoggedIn
+
+                    }.onClick {
+                        if (Session.isLoggedIn) {
+                            if (isProfileComplete()){
+                                onBook(profile)}
+                            else {
+                                window.alert("Для записи на прием необходимо заполнить ФИО, дату рождения и номер телефона")
+                                if (Session.accountType.equals("DOCTOR", ignoreCase = true)) {
+                                    Navigator.showDoctorProfileEdit()
+                                } else {
+                                    Navigator.showPatientProfileEdit()
+                                }
+                            }
+                        } else {
+                            window.alert("Для записи на прием необходимо войти в систему")
+                            Navigator.showLogin()
+                        }
                     }
                 }
             }

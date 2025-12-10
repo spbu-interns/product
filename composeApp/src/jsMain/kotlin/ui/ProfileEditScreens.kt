@@ -474,61 +474,58 @@ private fun Container.profileEditScreenCommon(
                             placeholder = "+7 (XXX) XXX-XX-XX"
                             value = formatPhone(Session.phoneNumber)
                             addCssClass("kv-input")
+                            var lastValue = self.value ?: ""
+                            var lastCursor = 0
+                            var deleteBefore: Boolean? = null
+
+                            fun String.removeDigit(index: Int): String =
+                                this.filterIndexed { i, _ -> i != index }
+
                             onEvent {
-                                input = {
-                                    val formatted = formatPhone(value)
-                                    if (formatted != value) value = formatted
+                                keydown = { e ->
+                                    val key = e.asDynamic().key?.toString()
+                                    val inputEl = self.getElement()?.unsafeCast<HTMLInputElement?>()
+                                    val current = self.value ?: ""
+
+                                    lastCursor = (inputEl?.selectionStart ?: current.length).coerceIn(0, current.length)
+
+                                    deleteBefore = when (key) {
+                                        "Backspace" -> true
+                                        "Delete" -> false
+                                        else -> null
+                                    }
                                 }
-                                keydown = keydown@{ event ->
-                                    val key = event.asDynamic().key?.toString()
-                                    val allowedControl = event.asDynamic().ctrlKey == true || event.asDynamic().metaKey == true
-                                    val isEditingKey = key in listOf("Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab")
-                                    val isDigit = key?.singleOrNull()?.isDigit() == true
-                                    val allowedSign = key in listOf("+", " ", "(", ")", "-")
 
-                                    if (key == "Backspace" || key == "Delete") {
-                                        val inputEl = self.getElement()?.unsafeCast<HTMLInputElement?>()
-                                        val current = self.value ?: ""
-                                        val cursor = (inputEl?.selectionStart ?: current.length)
-                                            .coerceIn(0, current.length)
+                                input = {
+                                    val inputEl = self.getElement()?.unsafeCast<HTMLInputElement?>()
+                                    val current = self.value ?: ""
 
-                                        val digitPositions = current.mapIndexedNotNull { index, ch ->
-                                            ch.takeIf { it.isDigit() }?.let { index }
-                                        }
-                                        val digits = current.filter { it.isDigit() }
+                                    val digits = current.filter { it.isDigit() }
 
-                                        val targetDigitIndex = when (key) {
-                                            "Backspace" -> digitPositions.indexOfLast { it < cursor }
-                                                .takeIf { it != -1 }
-                                                ?: digitPositions.lastIndex.takeIf { digitPositions.isNotEmpty() }
+                                    // если была попытка удалить цифру перед дефисом
+                                    val adjustedDigits = if (deleteBefore != null) {
+                                        val posInDigits = current.substring(0, lastCursor).count { it.isDigit() }
 
-                                            else -> digitPositions.indexOfFirst { it >= cursor }
-                                                .takeIf { it != -1 }
-                                                ?: digitPositions.firstOrNull()?.let { 0 }
-                                        }
+                                        if (deleteBefore == true && posInDigits > 0) {
+                                            digits.removeDigit(posInDigits - 1)
+                                        } else if (deleteBefore == false && posInDigits < digits.length) {
+                                            digits.removeDigit(posInDigits)
+                                        } else digits
+                                    } else digits
 
-                                        if (targetDigitIndex != null) {
-                                            val newDigits = buildString {
-                                                digits.forEachIndexed { index, ch ->
-                                                    if (index != targetDigitIndex) append(ch)
-                                                }
-                                            }
-                                            val formatted = formatPhone(newDigits)
-                                            val caretPosition = formatPhone(newDigits.take(targetDigitIndex)).length
+                                    deleteBefore = null
 
-                                            self.value = formatted
-                                            inputEl?.let { el ->
-                                                el.selectionStart = caretPosition
-                                                el.selectionEnd = caretPosition
-                                            }
+                                    val formatted = formatPhone(adjustedDigits)
+                                    self.value = formatted
 
-                                            event.preventDefault()
-                                            return@keydown
-                                        }
-                                    }
-                                    if (key != null && !isDigit && !isEditingKey && !allowedSign && !allowedControl) {
-                                        event.preventDefault()
-                                    }
+                                    // восстановление каретки
+                                    val leftDigits = adjustedDigits.take(
+                                        current.substring(0, lastCursor).count { it.isDigit() }
+                                    )
+                                    val newCaret = formatPhone(leftDigits).length
+
+                                    inputEl?.selectionStart = newCaret
+                                    inputEl?.selectionEnd = newCaret
                                 }
                             }
                         }
@@ -668,14 +665,29 @@ private fun Container.profileEditScreenCommon(
 
                         val doctorProfessionField = if (isDoctorMode) {
                             select(
-                                options = listOf(
-                                    "Кардиолог" to "Кардиолог",
-                                    "Педиатр" to "Педиатр",
-                                    "Невролог" to "Невролог",
-                                    "Ортопед" to "Ортопед",
-                                    "Офтальмолог" to "Офтальмолог",
-                                    "Терапевт" to "Терапевт",
-                                ),
+                                    options = listOf(
+                                        "Терапевт" to "Терапевт",
+                                        "Педиатр" to "Педиатр",
+                                        "Стоматолог" to "Стоматолог",
+                                        "Гинеколог" to "Гинеколог",
+                                        "Уролог" to "Уролог",
+                                        "Кардиолог" to "Кардиолог",
+                                        "Невролог" to "Невролог",
+                                        "Эндокринолог" to "Эндокринолог",
+                                        "Дерматолог" to "Дерматолог",
+                                        "Офтальмолог" to "Офтальмолог",
+                                        "Отоларинголог" to "Отоларинголог",
+                                        "Психолог" to "Психолог",
+                                        "Психотерапевт" to "Психотерапевт",
+                                        "Психиатр" to "Психиатр",
+                                        "Ортопед" to "Ортопед",
+                                        "Гастроэнтеролог" to "Гастроэнтеролог",
+                                        "Аллерголог" to "Аллерголог",
+                                        "Диетолог" to "Диетолог",
+                                        "Онколог" to "Онколог",
+                                        "Хирург" to "Хирург",
+                                        "Ревматолог" to "Ревматолог"
+                                    ),
                                 label = "Специальность"
                             ) {
                                 placeholder = "Выберите специальность"
