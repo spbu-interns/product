@@ -9,5 +9,5 @@ data class PatientDashboardDto(
     val upcomingAppointmentsCount: Int,
     val medicalRecordsCount: Int,
     val nextAppointment: AppointmentDto?,
-    val recentMedicalRecords: List<MedicalRecordDto>
+    val recentMedicalRecords: List<MedicalRecordOutDto>
 )

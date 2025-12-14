@@ -18,7 +18,8 @@ import org.interns.project.dto.AppointmentDto
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.DoctorPatientDto
 import org.interns.project.dto.DoctorProfileDto
-import org.interns.project.dto.MedicalRecordDto
+import org.interns.project.dto.MedicalRecordInDto
+import org.interns.project.dto.MedicalRecordOutDto
 import org.interns.project.dto.NextAppointmentDto
 import org.interns.project.dto.SlotCreateRequest
 import org.interns.project.dto.UserResponseDto
@@ -553,6 +554,12 @@ class ApiUserRepo(
         }
     }
 
+    suspend fun patchMedicalRecord(medicalRecordId: Long, patch: MedicalRecordInDto): MedicalRecordOutDto =
+        doPatch("/notes/$medicalRecordId", patch) { it.body() }
+
+    suspend fun deleteMedicalRecord(medicalRecordId: Long): Boolean =
+        doDelete("/notes/$medicalRecordId")
+
     suspend fun listNotes(patientId: Long, includeInternal: Boolean = true): List<NoteOut> {
         val resp = client.get("$baseUrl/patients/$patientId/notes") {
             parameter("include_internal", includeInternal)
@@ -589,13 +596,21 @@ class ApiUserRepo(
         return resp.body()
     }
 
-    suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordDto> {
+    suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordOutDto> {
         val path = "/clients/$clientId/medical-records"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {
             throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
         }
         return resp.body()
+    }
+
+    suspend fun postMedicalRecordForClient(clientId: Long, record: MedicalRecordInDto): MedicalRecordOutDto {
+
+        return doPost("/clients/${clientId}/medical-records", record) { resp ->
+            val raw = resp.body<MedicalRecordOutDto>()
+            raw.copy()
+        }
     }
 
     suspend fun listAppointmentsForDoctor(doctorId: Long): List<AppointmentDto> {

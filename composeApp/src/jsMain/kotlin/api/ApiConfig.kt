@@ -30,8 +30,8 @@ object ApiConfig {
 
         fun patientComplaints(patientId: Long) = "$BASE_URL/api/patient/$patientId/complaints"
         fun patientComplaint(complaintId: Long) = "$BASE_URL/api/patient/complaints/$complaintId"
-        fun patientNotes(patientId: Long) = "$BASE_URL/api/patient/$patientId/notes"
-        fun patientNote(noteId: Long) = "$BASE_URL/api/patient/notes/$noteId"
+        fun clientMedicalRecords(clientId: Long) = "$BASE_URL/api/clients/$clientId/medical-records"
+        fun clientMedicalRecord(medicalRecordId: Long) = "$BASE_URL/api/clients/medical-records/$medicalRecordId"
         fun users() = "$BASE_URL/api/users"
         fun userProfile(userId: Long) = "$BASE_URL/api/users/$userId/profile"
         fun clientByUser(userId: Long) = "$BASE_URL/api/clients/by-user/$userId"

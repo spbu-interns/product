@@ -263,6 +263,20 @@ data class Appointment(
 )
 
 @Serializable
+data class MedicalRecordIn(
+    @SerialName("id") val id: Long,
+    @SerialName("client_id") val clientId: Long,
+    @SerialName("doctor_id") val doctorId: Long? = null,
+    @SerialName("appointment_id") val appointmentId: Long? = null,
+    @SerialName("diagnosis") val diagnosis: String? = null,
+    @SerialName("symptoms") val symptoms: String? = null,
+    @SerialName("treatment") val treatment: String? = null,
+    @SerialName("recommendations") val recommendations: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
+)
+
+@Serializable
 data class MedicalRecordOut(
     @SerialName("id") val id: Long,
     @SerialName("client_id") val clientId: Long,
