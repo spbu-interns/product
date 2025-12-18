@@ -21,10 +21,12 @@ from .models import (
     UserProfilePatch,
     SpecializationOut, DoctorSearchOut, Gender,
     DoctorPatientOut,
+    ChatRequest, ChatResponse, ChatSessionOut,
     AppointmentReviewIn, AppointmentReviewOut, AppointmentReviewSummary,
     NextAppointmentOut,
 )
 from . import repository as repo
+from . import chat
 from .repository import RESET_TOKEN_TTL_MIN
 from passlib.hash import bcrypt
 from datetime import date
@@ -953,5 +955,101 @@ def delete_avatar(user_id: int):
         s.commit()
         
         return
+    finally:
+        s.close()
+
+
+# ============================================================================
+# Chat Endpoints (OpenRouter AI Medical Assistant)
+# ============================================================================
+
+@app.post("/chat/message", response_model=ChatResponse)
+def send_chat_message(req: ChatRequest):
+    """
+    Send message to medical assistant chatbot
+    
+    Request:
+        - user_id: ID of user sending message
+        - message: User's message/symptoms
+        - session_id: (optional) UUID to continue existing conversation
+    
+    Response:
+        - response: AI assistant's response with doctor recommendation
+        - session_id: UUID to continue this conversation
+    
+    Example:
+        POST /chat/message
+        {
+            "user_id": 1,
+            "message": "У меня болит голова 3 дня и тошнота",
+            "session_id": null
+        }
+    """
+    s = get_session()
+    try:
+        # Verify user exists
+        user = repo.get_user_profile(s, req.user_id)
+        if not user:
+            raise HTTPException(404, "user not found")
+        
+        # Get or create chat session
+        session = repo.get_or_create_chat_session(s, req.user_id, req.session_id)
+        
+        # Get conversation history
+        history = session.get("messages", [])
+        
+        # Send message to OpenRouter with context
+        ai_response = chat.send_message_with_context(req.message, history)
+        
+        # Update history with new messages
+        history.append(chat.format_message_for_db("user", req.message))
+        history.append(chat.format_message_for_db("model", ai_response))
+        
+        # Save updated history to DB
+        repo.update_chat_session_messages(s, session["session_id"], history)
+        
+        return ChatResponse(
+            response=ai_response,
+            session_id=str(session["session_id"])
+        )
+    finally:
+        s.close()
+
+
+@app.get("/chat/history/{user_id}", response_model=List[ChatSessionOut])
+def get_user_chat_history(user_id: int, limit: int = Query(10, ge=1, le=100)):
+    """
+    Get chat conversation history for user
+    
+    Args:
+        user_id: User ID
+        limit: Maximum number of sessions to return (1-100, default 10)
+    
+    Returns:
+        List of chat sessions with full message history
+    """
+    s = get_session()
+    try:
+        user = repo.get_user_profile(s, user_id)
+        if not user:
+            raise HTTPException(404, "user not found")
+        
+        sessions = repo.get_chat_history(s, user_id, limit)
+        return sessions
+    finally:
+        s.close()
+
+
+@app.delete("/chat/session/{session_id}", status_code=204)
+def delete_chat_session(session_id: str):
+    """
+    Delete a chat session
+    
+    Args:
+        session_id: UUID of session to delete
+    """
+    s = get_session()
+    try:
+        repo.delete_chat_session(s, session_id)
     finally:
         s.close()
