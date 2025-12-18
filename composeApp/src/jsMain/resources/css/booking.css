@@ -59,6 +59,25 @@
     gap: 16px;
 }
 
+.booking-price-line {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    margin: 4px 0 8px;
+}
+
+.booking-price-value {
+    margin: 0;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.booking-price-note {
+    margin: 0;
+    color: rgba(15, 23, 42, 0.65);
+    font-size: 12px;
+}
+
 .booking-hint {
     margin: 0;
     color: #475569;
@@ -82,6 +101,21 @@
 .booking-card-title {
     margin: 0;
     font-size: 18px;
+}
+
+.booking-calendar-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.booking-calendar-col {
+    min-width: 0;
+}
+
+.booking-time-col {
+    flex: 1 1 45%;
+    min-width: 0;
 }
 
 .booking-subtitle {
@@ -161,7 +195,8 @@
 
 .booking-time {
     border: 1px solid #e2e8f0;
-    background: #fff;
+    background: #f8fafc;      /* чуть серенький фон */
+    color: #0f172a;           /* тёмный читаемый текст */
     border-radius: 12px;
     padding: 10px 14px;
     cursor: pointer;
@@ -170,7 +205,8 @@
 
 .booking-time:hover {
     border-color: #4338ca;
-    color: #4338ca;
+    background: #eef2ff;      /* подсветка фона при наведении */
+    color: #1d4ed8;           /* синий текст, но уже на светлом фоне */
 }
 
 .booking-time.is-selected {

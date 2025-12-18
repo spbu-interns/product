@@ -122,6 +122,13 @@
     flex-shrink: 0;
 }
 
+.doctor-card-avatar.has-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: transparent;
+}
+
 .doctor-card-content {
     display: flex;
     flex-direction: column;
@@ -172,9 +179,21 @@
     gap: 16px;
 }
 
+.doctor-card-price-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .doctor-card-price {
     margin: 0;
     font-weight: 600;
+}
+
+.doctor-card-price-note {
+    margin: 0;
+    color: rgba(51, 65, 85, 0.6);
+    font-size: 12px;
 }
 
 .doctor-card-actions {
@@ -250,6 +269,33 @@
     gap: 12px;
 }
 
+.doctor-profile-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.doctor-profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #d7e4ff, #f3f4ff);
+    color: #1f2a37;
+    font-weight: 600;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.doctor-profile-avatar.has-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: transparent;
+}
+
 .doctor-profile-title {
     display: flex;
     flex-direction: column;
@@ -306,6 +352,12 @@
     margin: 4px 0 0;
     font-weight: 600;
     color: #0f172a;
+}
+
+.doctor-profile-meta-note {
+    margin: 2px 0 0;
+    color: rgba(15, 23, 42, 0.6);
+    font-size: 12px;
 }
 
 .doctor-profile-bio {

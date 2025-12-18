@@ -67,7 +67,7 @@ if [ "$USER_COUNT" = "0" ] || [ "$RESET_DB" = true ]; then
         echo "📊 Обнаружена пустая БД, применяю все миграции..."
     fi
     
-    for sql_file in sql/*.sql; do
+    for sql_file in $(ls sql/*.sql | sort); do
         filename=$(basename "$sql_file")
         echo "   Применяю $filename..."
         docker exec -i users_pg psql -U userdb -d userdb < "$sql_file" > /dev/null 2>&1 || true
@@ -96,6 +96,23 @@ if [ "$USER_COUNT" = "0" ] || [ "$RESET_DB" = true ]; then
     fi
 else
     echo "   ℹ️  БД уже содержит данные ($USER_COUNT тестовых пользователей)"
+
+    echo ""
+    echo "📊 Обновляю схему (без повторной загрузки тестовых данных)..."
+
+    for sql_file in $(ls sql/*.sql | sort); do
+        filename=$(basename "$sql_file")
+
+        # Пропускаем тестовые данные, чтобы не дублировать записи
+        if [ "$filename" = "016_test_data.sql" ]; then
+            continue
+        fi
+
+        echo "   Применяю $filename..."
+        docker exec -i users_pg psql -U userdb -d userdb < "$sql_file" > /dev/null 2>&1 || true
+    done
+
+    echo "   ✅ Схема актуализирована"
 fi
 
 # 2. Активация виртуального окружения

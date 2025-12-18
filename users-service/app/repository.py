@@ -18,6 +18,17 @@ name,surname,date_of_birth,avatar,gender,
 is_active,email_verified_at,password_changed_at,created_at,updated_at
 """
 
+_DOCTOR_RATING_EXPR_TMPL = """
+    coalesce((
+        select avg(rating)::float
+        from (
+            select rating from appointment_reviews where doctor_id = {doctor_ref}
+            union all
+            select rating from doctor_reviews where doctor_id = {doctor_ref}
+        ) r
+    ), 0)
+"""
+
 def _rowmap(r) -> Dict:
     return dict(r) if r else None
 
@@ -396,9 +407,11 @@ def set_doctor_specializations(s: Session, doctor_id: int, specialization_ids: L
         )
         
 def _get_doctor_with_specs_by_id(s: Session, doctor_id: int) -> Optional[Dict]:
-    r = s.execute(text("""
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref="d.id")
+    r = s.execute(text(f"""
         select
             d.*,
+            {rating_expr} as rating,
             coalesce(
                 array(
                     select ds.specialization_id
@@ -416,9 +429,11 @@ def _get_doctor_with_specs_by_id(s: Session, doctor_id: int) -> Optional[Dict]:
 
 
 def _get_doctor_with_specs_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
-    r = s.execute(text("""
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref="d.id")
+    r = s.execute(text(f"""
         select
             d.*,
+            {rating_expr} as rating,
             coalesce(
                 array(
                     select ds.specialization_id
@@ -453,6 +468,7 @@ def list_specializations(s: Session, popular_only: Optional[bool] = None) -> Lis
 
 
 def create_doctor(s: Session, body) -> Dict:
+    base_rating = body.rating if body.rating is not None else 0.0
     r = s.execute(text("""
         insert into doctors(user_id, clinic_id, profession, info,
                             is_confirmed, rating, experience, price,
@@ -465,7 +481,7 @@ def create_doctor(s: Session, body) -> Dict:
         "prof": body.profession,
         "info": body.info,
         "conf": body.is_confirmed,
-        "rt": body.rating,
+        "rt": base_rating,
         "exp": body.experience,
         "price": body.price,
         "online": body.online_available if body.online_available is not None else False,
@@ -564,24 +580,59 @@ def book_appointment(s: Session, body) -> Optional[Dict]:
         # нет такого слота или уже занят
         return None
 
-    r = s.execute(
-        text("""
-            insert into appointments(
-                slot_id,
-                client_id,
-                comments,
-                appointment_type_id
-            )
-            values (:sid, :cid, :com, :atype)
-            returning *
-        """),
-        {
-            "sid": body.slot_id,
-            "cid": body.client_id,
-            "com": body.comments,
-            "atype": getattr(body, "appointment_type_id", None),
-        },
+    canceled = s.execute(
+        text(
+            """
+            select id from appointments
+            where slot_id = :sid and status = 'CANCELED'
+            limit 1
+            """
+        ),
+        {"sid": body.slot_id},
     ).mappings().first()
+
+    if canceled:
+        r = s.execute(
+            text(
+                """
+                update appointments
+                set client_id = :cid,
+                    comments = :com,
+                    appointment_type_id = :atype,
+                    status = 'BOOKED',
+                    canceled_at = null,
+                    completed_at = null,
+                    updated_at = now()
+                where id = :aid
+                returning *
+                """
+            ),
+            {
+                "aid": canceled["id"],
+                "cid": body.client_id,
+                "com": body.comments,
+                "atype": getattr(body, "appointment_type_id", None),
+            },
+        ).mappings().first()
+    else:
+        r = s.execute(
+            text("""
+                insert into appointments(
+                    slot_id,
+                    client_id,
+                    comments,
+                    appointment_type_id
+                )
+                values (:sid, :cid, :com, :atype)
+                returning *
+            """),
+            {
+                "sid": body.slot_id,
+                "cid": body.client_id,
+                "com": body.comments,
+                "atype": getattr(body, "appointment_type_id", None),
+            },
+        ).mappings().first()
 
     s.execute(
         text("update appointment_slots set is_booked=true where id=:id"),
@@ -653,6 +704,246 @@ def cancel_appointment(s: Session, appointment_id: int) -> bool:
     s.commit()
     return True
 
+
+def complete_appointment(s: Session, appointment_id: int) -> bool:
+    """
+    Пометить запись завершённой и зафиксировать время завершения.
+    """
+    row = s.execute(
+        text("select id from appointments where id = :id"),
+        {"id": appointment_id},
+    ).first()
+
+    if not row:
+        return False
+
+    s.execute(
+        text(
+            """
+            update appointments
+            set status = 'COMPLETED',
+                completed_at = now(),
+                updated_at = now()
+            where id = :id
+            """
+        ),
+        {"id": appointment_id},
+    )
+
+    s.commit()
+
+    # Immediately record that we should ask the patient for a review
+    try:
+        create_review_invitation(s, appointment_id)
+    except Exception:
+        # уведомление не должно блокировать завершение приёма
+        s.rollback()
+        s.commit()
+    return True
+
+
+def create_review_invitation(s: Session, appointment_id: int):
+    info = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   a.client_id,
+                   slots.doctor_id,
+                   u.email
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            join clients c on c.id = a.client_id
+            join users u on u.id = c.user_id
+            where a.id = :aid
+            """
+        ),
+        {"aid": appointment_id},
+    ).mappings().first()
+
+    if not info:
+        return None
+
+    s.execute(
+        text(
+            """
+            insert into appointment_review_requests(appointment_id, client_id, doctor_id)
+            values (:aid, :cid, :did)
+            on conflict (appointment_id) do nothing
+            """
+        ),
+        {
+            "aid": info["appointment_id"],
+            "cid": info["client_id"],
+            "did": info["doctor_id"],
+        },
+    )
+    s.commit()
+
+    # эмуляция отправки письма со ссылкой на отзыв
+    email = info.get("email")
+    if email:
+        print(f"[reviews] Отправляем письмо на {email} c ссылкой на отзыв по приёму {appointment_id}")
+    return info
+
+
+def upsert_appointment_review(s: Session, appointment_id: int, body) -> Optional[Dict]:
+    appointment = s.execute(
+        text(
+            """
+            select a.id, a.client_id, slots.doctor_id
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            where a.id = :aid
+            """
+        ),
+        {"aid": appointment_id},
+    ).mappings().first()
+
+    if not appointment:
+        return None
+
+    existing = s.execute(
+        text("select id from appointment_reviews where appointment_id = :aid"),
+        {"aid": appointment_id},
+    ).first()
+
+    if existing:
+        r = s.execute(
+            text(
+                """
+                update appointment_reviews
+                set rating = :rt,
+                    comment = :cmt,
+                    updated_at = now()
+                where appointment_id = :aid
+                returning *
+                """
+            ),
+            {"rt": body.rating, "cmt": body.comment, "aid": appointment_id},
+        ).mappings().first()
+    else:
+        r = s.execute(
+            text(
+                """
+                insert into appointment_reviews(appointment_id, doctor_id, client_id, rating, comment)
+                values (:aid, :did, :cid, :rt, :cmt)
+                returning *
+                """
+            ),
+            {
+                "aid": appointment_id,
+                "did": appointment["doctor_id"],
+                "cid": appointment["client_id"],
+                "rt": body.rating,
+                "cmt": body.comment,
+            },
+        ).mappings().first()
+
+    _refresh_doctor_rating(s, appointment["doctor_id"])
+    s.commit()
+    return dict(r)
+
+
+def get_appointment_review(s: Session, appointment_id: int) -> Optional[Dict]:
+    r = s.execute(
+        text("select * from appointment_reviews where appointment_id = :aid"),
+        {"aid": appointment_id},
+    ).mappings().first()
+    return dict(r) if r else None
+
+
+def list_appointments_with_reviews(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   a.status,
+                   slots.start_time as slot_start,
+                   slots.end_time as slot_end,
+                   slots.doctor_id,
+                   u.name as doctor_name,
+                   u.surname as doctor_surname,
+                   u.patronymic as doctor_patronymic,
+                   d.profession as doctor_profession,
+                   r.id as review_id,
+                   r.rating,
+                   r.comment,
+                   r.created_at as review_created_at,
+                   r.updated_at as review_updated_at,
+                   r.appointment_id as review_appointment_id,
+                   r.doctor_id as review_doctor_id,
+                   r.client_id as review_client_id
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            left join doctors d on d.id = slots.doctor_id
+            left join users u on u.id = d.user_id
+            left join appointment_reviews r on r.appointment_id = a.id
+            where a.client_id = :cid and a.status in ('BOOKED','COMPLETED','CANCELED','NO_SHOW')
+            order by slots.start_time desc
+            """
+        ),
+        {"cid": client_id},
+    ).mappings().all()
+
+    return [dict(r) for r in rows]
+
+
+def list_pending_reviews(s: Session, client_id: int) -> List[Dict]:
+    rows = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   a.status,
+                   slots.start_time as slot_start,
+                   slots.end_time as slot_end,
+                   slots.doctor_id,
+                   u.name as doctor_name,
+                   u.surname as doctor_surname,
+                   u.patronymic as doctor_patronymic,
+                   d.profession as doctor_profession
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            left join doctors d on d.id = slots.doctor_id
+            left join users u on u.id = d.user_id
+            left join appointment_reviews r on r.appointment_id = a.id
+            where a.client_id = :cid and a.status = 'COMPLETED' and r.id is null
+            order by slots.start_time desc
+            """
+        ),
+        {"cid": client_id},
+    ).mappings().all()
+
+    return [dict(r) for r in rows]
+
+
+def get_next_appointment_for_client(s: Session, client_id: int) -> Optional[Dict]:
+    row = s.execute(
+        text(
+            """
+            select a.id as appointment_id,
+                   slots.start_time as slot_start,
+                   slots.doctor_id,
+                   u.name as doctor_name,
+                   u.surname as doctor_surname,
+                   u.patronymic as doctor_patronymic,
+                   d.profession as doctor_profession
+            from appointments a
+            join appointment_slots slots on slots.id = a.slot_id
+            left join doctors d on d.id = slots.doctor_id
+            left join users u on u.id = d.user_id
+            where a.client_id = :cid
+              and a.status = 'BOOKED'
+              and slots.start_time > now()
+            order by slots.start_time asc
+            limit 1
+            """
+        ),
+        {"cid": client_id},
+    ).mappings().first()
+
+    return dict(row) if row else None
+
+
 def delete_slot_for_doctor(s: Session, doctor_id: int, slot_id: int) -> bool:
     """
     Удалить слот врача, только если он:
@@ -716,6 +1007,28 @@ def add_medical_document(s: Session, body) -> Dict:
     return dict(r)
 
 # ===== Reviews =====
+def _refresh_doctor_rating(s: Session, doctor_id: int) -> float:
+    """
+    Пересчитывает рейтинг врача на основе всех доступных отзывов.
+    Используем как отзывы после приёмов, так и прямые отзывы о врачах.
+    """
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref=":did")
+    avg_row = s.execute(
+        text(f"select {rating_expr} as avg_rating"),
+        {"did": doctor_id},
+    ).mappings().first()
+
+    new_rating = (avg_row or {}).get("avg_rating")
+    safe_rating = new_rating if new_rating is not None else 0
+
+    s.execute(
+        text("update doctors set rating = :rt, updated_at = now() where id = :did"),
+        {"rt": safe_rating, "did": doctor_id},
+    )
+
+    return safe_rating
+
+
 def create_doctor_review(s: Session, body) -> Optional[Dict]:
     try:
         r = s.execute(text("""
@@ -723,6 +1036,7 @@ def create_doctor_review(s: Session, body) -> Optional[Dict]:
             values (:did,:cid,:rt,:cmt)
             returning *
         """), {"did": body.doctor_id, "cid": body.client_id, "rt": body.rating, "cmt": body.comment}).mappings().first()
+        _refresh_doctor_rating(s, body.doctor_id)
         s.commit()
         return dict(r)
     except Exception:
@@ -976,9 +1290,11 @@ def search_doctors(
 ) -> List[Dict]:
     safe_limit = 50 if limit is None or limit <= 0 else limit
     safe_offset = 0 if offset is None or offset < 0 else offset
+    rating_expr = _DOCTOR_RATING_EXPR_TMPL.format(doctor_ref="d.id")
     sql = """
         select
             d.*,
+            {rating_expr} as rating,
             u.gender,
             u.date_of_birth,
             c.city,
@@ -998,7 +1314,7 @@ def search_doctors(
         join users u on u.id = d.user_id
         left join clinics c on c.id = d.clinic_id
         where 1=1
-    """
+    """.format(rating_expr=rating_expr)
     params = {"limit": safe_limit, "offset": safe_offset}
 
     if city is not None:
@@ -1025,7 +1341,7 @@ def search_doctors(
         params["max_price"] = max_price
 
     if min_rating is not None:
-        sql += " and d.rating is not null and d.rating >= :min_rating"
+        sql += f" and {rating_expr} >= :min_rating"
         params["min_rating"] = min_rating
 
     if gender is not None:
@@ -1076,8 +1392,8 @@ def search_doctors(
         """
         params["slot_date"] = date_filter
 
-    sql += """
-            order by d.rating desc nulls last, d.price asc nulls last, d.id
+    sql += f"""
+            order by {rating_expr} desc, d.price asc nulls last, d.id
             limit :limit offset :offset
         """
 
