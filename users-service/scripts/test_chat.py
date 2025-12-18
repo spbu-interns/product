@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script for OpenRouter AI Medical Assistant Chat
-Tests message sending and context preservation
+Tests various symptom descriptions of different lengths
 """
 
 import requests
@@ -9,137 +9,73 @@ import json
 
 BASE_URL = "http://localhost:8001"
 
-def test_chat_conversation():
-    """Test a multi-turn conversation with context"""
-    print("=" * 60)
-    print("Testing OpenRouter Chat API - Context Preservation")
-    print("=" * 60)
+
+def run_single_test(test_name: str, user_id: int, message: str):
+    """Run a single symptom test"""
+    print("\n" + "=" * 70)
+    print(f"🧪 {test_name}")
+    print("=" * 70)
+    print(f"\n📤 Симптомы:\n{message}\n")
     
-    user_id = 1  # Test with first client from 016_test_data.sql
-    
-    # Message 1: Initial symptoms
-    print("\n📤 Message 1: У меня болит голова 3 дня")
-    response1 = requests.post(
+    response = requests.post(
         f"{BASE_URL}/chat/message",
         json={
             "user_id": user_id,
-            "message": "У меня болит голова 3 дня"
+            "message": message
         }
     )
     
-    if response1.status_code != 200:
-        print(f"❌ Error: {response1.status_code}")
-        print(response1.text)
-        return
+    if response.status_code != 200:
+        print(f"❌ Error: {response.status_code}")
+        print(response.text)
+        return False
     
-    data1 = response1.json()
-    session_id = data1["session_id"]
-    print(f"✅ Session ID: {session_id}")
-    print(f"🤖 Response:\n{data1['response']}\n")
+    data = response.json()
+    print(f"Ответ ллм:\n{data['response']}\n")
+    print(f"✅ Session ID: {data['session_id']}")
     
-    # Message 2: Add symptoms (testing context)
-    print("\n📤 Message 2: А еще температура 38 и слабость")
-    response2 = requests.post(
-        f"{BASE_URL}/chat/message",
-        json={
-            "user_id": user_id,
-            "message": "А еще температура 38 и слабость",
-            "session_id": session_id
-        }
-    )
-    
-    if response2.status_code != 200:
-        print(f"❌ Error: {response2.status_code}")
-        print(response2.text)
-        return
-    
-    data2 = response2.json()
-    print(f"🤖 Response:\n{data2['response']}\n")
-    
-    # Message 3: Ask clarifying question
-    print("\n📤 Message 3: К какому врачу мне лучше обратиться?")
-    response3 = requests.post(
-        f"{BASE_URL}/chat/message",
-        json={
-            "user_id": user_id,
-            "message": "К какому врачу мне лучше обратиться?",
-            "session_id": session_id
-        }
-    )
-    
-    if response3.status_code != 200:
-        print(f"❌ Error: {response3.status_code}")
-        print(response3.text)
-        return
-    
-    data3 = response3.json()
-    print(f"🤖 Response:\n{data3['response']}\n")
-    
-    # Get chat history
-    print("\n📜 Retrieving chat history...")
-    history_response = requests.get(f"{BASE_URL}/chat/history/{user_id}")
-    
-    if history_response.status_code != 200:
-        print(f"❌ Error: {history_response.status_code}")
-        print(history_response.text)
-        return
-    
-    history = history_response.json()
-    print(f"✅ Found {len(history)} session(s)")
-    
-    if history:
-        latest_session = history[0]
-        print(f"\n📝 Latest session messages ({len(latest_session['messages'])} total):")
-        for i, msg in enumerate(latest_session["messages"], 1):
-            role = msg["role"]
-            text = msg["parts"][0]["text"] if msg["parts"] else ""
-            icon = "👤" if role == "user" else "🤖"
-            print(f"  {i}. {icon} {role}: {text[:80]}...")
-    
-    print("\n" + "=" * 60)
-    print("✅ Test completed successfully!")
-    print("=" * 60)
-    
-    # Cleanup: delete test session
-    print(f"\n🗑️  Deleting test session {session_id}...")
-    delete_response = requests.delete(f"{BASE_URL}/chat/session/{session_id}")
+    # Cleanup
+    delete_response = requests.delete(f"{BASE_URL}/chat/session/{data['session_id']}")
     if delete_response.status_code == 204:
-        print("✅ Session deleted")
-    else:
-        print(f"⚠️  Delete failed: {delete_response.status_code}")
+        print("🗑️  Session deleted")
+    
+    return True
 
 
-def test_different_symptoms():
-    """Test with different medical scenarios"""
-    print("\n" + "=" * 60)
-    print("Testing Different Medical Scenarios")
-    print("=" * 60)
-    
-    scenarios = [
-        ("Боль в груди при физической нагрузке", 2),
-        ("У ребенка температура 39 и кашель", 3),
-        ("Болит зуб уже неделю", 4),
-        ("Размытое зрение и мушки перед глазами", 5),
-    ]
-    
-    for symptom, user_id in scenarios:
-        print(f"\n📤 Scenario: {symptom}")
-        response = requests.post(
-            f"{BASE_URL}/chat/message",
-            json={
-                "user_id": user_id,
-                "message": symptom
-            }
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"🤖 Response:\n{data['response']}\n")
-            
-            # Cleanup
-            requests.delete(f"{BASE_URL}/chat/session/{data['session_id']}")
-        else:
-            print(f"❌ Error: {response.status_code}")
+def test_short_symptom():
+    """Test 1: Краткое описание (1 предложение)"""
+    return run_single_test(
+        "Тест 1: Краткое описание",
+        user_id=1,
+        message="У меня болит голова и температура 37.5."
+    )
+
+
+def test_medium_symptom():
+    """Test 2: Среднее описание (2 предложения)"""
+    return run_single_test(
+        "Тест 2: Среднее описание",
+        user_id=2,
+        message="У меня сильная боль в груди при физических нагрузках. Температура нормальная, но чувствую одышку."
+    )
+
+
+def test_detailed_symptom():
+    """Test 3: Подробное описание (3 предложения)"""
+    return run_single_test(
+        "Тест 3: Подробное описание",
+        user_id=3,
+        message="У ребенка высокая температура 39.2 третий день. Сильный кашель, особенно ночью, и насморк. Аппетит пропал, жалуется на слабость."
+    )
+
+
+def test_very_detailed_symptom():
+    """Test 4: Очень подробное описание (4 предложения)"""
+    return run_single_test(
+        "Тест 4: Очень подробное описание",
+        user_id=4,
+        message="Болит зуб в левой нижней части челюсти уже неделю. Боль усиливается при жевании и от горячего. Температура поднималась до 37.8 вчера вечером. Десна вокруг зуба покраснела и немного опухла."
+    )
 
 
 if __name__ == "__main__":
@@ -150,9 +86,35 @@ if __name__ == "__main__":
             print("❌ API is not responding properly")
             exit(1)
         
-        # Run tests
-        test_chat_conversation()
-        test_different_symptoms()
+        print("\n" + "🏥" * 35)
+        print("OpenRouter Medical Assistant - Symptom Tests")
+        print("🏥" * 35)
+        
+        # Run all tests
+        results = []
+        results.append(("Тест 1 (краткий)", test_short_symptom()))
+        results.append(("Тест 2 (средний)", test_medium_symptom()))
+        results.append(("Тест 3 (подробный)", test_detailed_symptom()))
+        results.append(("Тест 4 (очень подробный)", test_very_detailed_symptom()))
+        
+        print("\n" + "=" * 70)
+        print("Итоги тестов")
+        print("=" * 70)
+        
+        passed = sum(1 for _, result in results if result)
+        total = len(results)
+        
+        for name, result in results:
+            status = "✅ PASS" if result else "❌ FAIL"
+            print(f"{status} - {name}")
+        
+        print(f"\nИтого: {passed}/{total} тестов пройдено")
+        
+        if passed == total:
+            print("\n🎉 Все тесты успешно пройдены!")
+        else:
+            print(f"\n⚠️  Не пройдено тестов: {total - passed}")
+            exit(1)
         
     except requests.exceptions.ConnectionError:
         print("❌ Error: Cannot connect to API")

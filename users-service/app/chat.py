@@ -1,14 +1,7 @@
-"""
-Medical Assistant Chat with OpenRouter API
-Provides doctor recommendations based on symptoms with context preservation
-Uses free DeepSeek R1 Chimera model with excellent Russian language support
-"""
-
 import os
 import requests
 from typing import List, Dict
 
-# OpenRouter API configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 if not OPENROUTER_API_KEY:
@@ -16,7 +9,6 @@ if not OPENROUTER_API_KEY:
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# System prompt - focus ONLY on recommending the right specialist
 SYSTEM_PROMPT = """
 Ты - ассистент для записи к врачу. Твоя ЕДИНСТВЕННАЯ задача - определить, к какому специалисту направить пациента.
 
@@ -64,7 +56,6 @@ def convert_history_to_openai_format(history: List[dict]) -> List[dict]:
         role = msg.get("role")
         parts = msg.get("parts", [])
         
-        # Extract text from parts
         text = ""
         for part in parts:
             if isinstance(part, dict) and "text" in part:
@@ -96,10 +87,7 @@ def send_message_with_context(user_message: str, history: List[dict]) -> str:
     Returns:
         AI response text
     """
-    # Convert history to OpenAI format
     messages = convert_history_to_openai_format(history)
-    
-    # Add system prompt as first message if history is empty
     if not messages:
         messages.insert(0, {
             "role": "system",
@@ -123,10 +111,9 @@ def send_message_with_context(user_message: str, history: List[dict]) -> str:
         "model": "tngtech/deepseek-r1t2-chimera:free",
         "messages": messages,
         "temperature": 0.6,
-        "max_tokens": 1500  # Increased for DeepSeek to avoid mid-sentence cutoffs
+        "max_tokens": 1500
     }
     
-    # Send request
     response = requests.post(
         OPENROUTER_API_URL, 
         headers=headers, 
@@ -166,7 +153,6 @@ def send_message_with_context(user_message: str, history: List[dict]) -> str:
     content = content.replace("[OUT]", "").replace("[/OUT]", "")
     cleaned_content = content.strip()
     
-    # If empty after cleaning, return error message
     if not cleaned_content:
         print(f"⚠️ Warning: Empty response from API. Raw content: {repr(content)}")
         return "Извините, не смог сформировать ответ. Попробуйте переформулировать вопрос."
