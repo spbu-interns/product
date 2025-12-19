@@ -318,3 +318,17 @@
     opacity: 0.6;
     cursor: default;
 }
+
+.chat-bot-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.chat-bot-close:hover {
+    opacity: 0.85;
+}

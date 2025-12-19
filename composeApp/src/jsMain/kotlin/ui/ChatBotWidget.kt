@@ -62,7 +62,7 @@ fun Container.chatBotWidget() {
     chatWindow = div(className = "chat-bot-window") {
         div(className = "chat-bot-header") {
             span("Чат-бот", className = "chat-bot-title")
-            button("Закрыть", className = "chat-bot-close").onClick {
+            button("✕", className = "chat-bot-close").onClick {
                 state.setOpen(false)
                 updateOpenState()
             }
