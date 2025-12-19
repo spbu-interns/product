@@ -215,11 +215,9 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
                 }
 
                 cachedClientId = clientId
-                val result = apiClient.listNotes(clientId, includeInternal = true)
+                val result = apiClient.listMedicalRecords(clientId, includeInternal = true)
                 result.fold(
-                    onSuccess = { list ->
-                        records = list.map { it.toPatientRecordEntry() }
-                    },
+                    onSuccess = { records },
                     onFailure = { error ->
                         errorMessage = error.message ?: "Не удалось загрузить медицинские записи"
                         Toast.danger(errorMessage ?: "Ошибка загрузки")

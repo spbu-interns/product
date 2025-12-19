@@ -13,11 +13,10 @@ import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.ComplaintCreateRequest
 import org.interns.project.dto.ComplaintPatchRequest
 import org.interns.project.dto.ComplaintResponse
-import org.interns.project.dto.DoctorNoteCreateRequest
-import org.interns.project.dto.DoctorNotePatchRequest
 import org.interns.project.dto.DoctorNoteResponse
 import org.interns.project.dto.FullUserProfileDto
-import org.interns.project.dto.MedicalRecordDto
+import org.interns.project.dto.MedicalRecordInDto
+import org.interns.project.dto.MedicalRecordOutDto
 import org.interns.project.dto.PatientDashboardDto
 import org.interns.project.dto.UserResponseDto
 
@@ -123,40 +122,40 @@ class PatientApiClient {
 
     // ---- doctor notes ----
 
-    suspend fun listNotes(
+    suspend fun listMedicalRecords(
         patientId: Long,
         includeInternal: Boolean = true
-    ): Result<List<DoctorNoteResponse>> = runCatching {
-        val response = client.get(ApiConfig.Endpoints.patientNotes(patientId)) {
+    ): Result<List<MedicalRecordOutDto>> = runCatching {
+        val response = client.get(ApiConfig.Endpoints.clientMedicalRecords(patientId)) {
             parameter("include_internal", includeInternal)
         }
-        parseList<DoctorNoteResponse>(response, "Failed to load notes")
+        parseList<MedicalRecordOutDto>(response, "Failed to load medical records")
     }
 
-    suspend fun createNote(
+    suspend fun createMedicalRecord(
         patientId: Long,
-        request: DoctorNoteCreateRequest
-    ): Result<DoctorNoteResponse> = runCatching {
-        val response = client.post(ApiConfig.Endpoints.patientNotes(patientId)) {
+        request: MedicalRecordInDto
+    ): Result<MedicalRecordOutDto> = runCatching {
+        val response = client.post(ApiConfig.Endpoints.clientMedicalRecords(patientId)) {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
-        parseOne(response, emptyMessage = "Empty note response", failureMessage = "Failed to create note")
+        parseOne(response, emptyMessage = "Empty medical record response", failureMessage = "Failed to create medical record")
     }
 
-    suspend fun updateNote(
+    suspend fun updateMedicalRecord(
         noteId: Long,
-        request: DoctorNotePatchRequest
-    ): Result<DoctorNoteResponse> = runCatching {
-        val response = client.patch(ApiConfig.Endpoints.patientNote(noteId)) {
+        request: MedicalRecordInDto
+    ): Result<MedicalRecordOutDto> = runCatching {
+        val response = client.patch(ApiConfig.Endpoints.clientMedicalRecord(noteId)) {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
         parseOne(response, emptyMessage = "Empty note response", failureMessage = "Failed to update note")
     }
 
-    suspend fun deleteNote(noteId: Long): Result<Boolean> = runCatching {
-        val response = client.delete(ApiConfig.Endpoints.patientNote(noteId))
+    suspend fun deleteMedicalRecord(noteId: Long): Result<Boolean> = runCatching {
+        val response = client.delete(ApiConfig.Endpoints.clientMedicalRecord(noteId))
         parseDelete(response)
     }
 
@@ -253,17 +252,16 @@ class PatientApiClient {
         response.body()
     }
 
-    // Получение медицинских записей
-    suspend fun getMedicalRecords(clientId: Long): Result<List<MedicalRecordDto>> = runCatching {
+    suspend fun getMedicalRecords(clientId: Long): Result<List<MedicalRecordOutDto>> = runCatching {
         val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/medical-records")
         if (!response.status.isSuccess()) {
-            val apiError = runCatching { response.body<ApiResponse<List<MedicalRecordDto>>>() }
+            val apiError = runCatching { response.body<ApiResponse<List<MedicalRecordOutDto>>>() }
                 .getOrNull()
                 ?.error
             throw IllegalStateException(apiError ?: "HTTP error: ${response.status.value}")
         }
 
-        val apiResponse = runCatching { response.body<ApiResponse<List<MedicalRecordDto>>>() }.getOrNull()
+        val apiResponse = runCatching { response.body<ApiResponse<List<MedicalRecordOutDto>>>() }.getOrNull()
         if (apiResponse != null) {
             if (apiResponse.success) {
                 apiResponse.data ?: emptyList()
@@ -295,14 +293,12 @@ class PatientApiClient {
     }
 
     // Получение последних медицинских записей
-    suspend fun getRecentMedicalRecords(clientId: Long, limit: Int = 3): Result<List<MedicalRecordDto>> = runCatching {
+    suspend fun getRecentMedicalRecords(clientId: Long, limit: Int = 3): Result<List<MedicalRecordOutDto>> = runCatching {
         val result = getMedicalRecords(clientId)
         result.getOrThrow().take(limit)
     }
 
-    // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
-    // Получение clientId по userId
     suspend fun getClientId(userId: Long): Result<Long?> = runCatching {
         val response = client.get(ApiConfig.Endpoints.clientByUser(userId))
         if (response.status.isSuccess()) {
@@ -317,17 +313,13 @@ class PatientApiClient {
         }
     }
 
-    // Получение всех данных для дашборда
     suspend fun getPatientDashboardData(userId: Long): Result<PatientDashboardDto> = runCatching {
-        // Получаем полный профиль
         val fullProfile = getFullUserProfile(userId).getOrThrow()
             ?: throw IllegalStateException("User profile not found")
 
-        // Получаем clientId
         val clientId = getClientId(userId).getOrThrow()
             ?: throw IllegalStateException("Client not found")
 
-        // Получаем дополнительные данные
         val upcomingCount = getAppointmentsCount(clientId).getOrThrow()
         val recordsCount = getMedicalRecordsCount(clientId).getOrThrow()
         val nextAppointment = getNextAppointment(clientId).getOrThrow()
@@ -344,16 +336,13 @@ class PatientApiClient {
     }
 
 
-    // Получение статистики для дашборда
     suspend fun getPatientStats(userId: Long): Result<PatientStats> = runCatching {
-        // Получаем clientId
         val clientId = getClientId(userId).getOrThrow()
             ?: throw IllegalStateException("Client not found for user $userId")
 
-        // Параллельно загружаем все данные
         val upcomingAppointments = getUpcomingAppointments(clientId).getOrThrow()
         val allAppointments = getAllAppointments(clientId).getOrThrow()
-        val medicalRecords = getMedicalRecords(clientId).getOrThrow()
+        val medicalRecords = getMedicalRecords(userId).getOrThrow()
 
         val upcomingCount = upcomingAppointments.size
         val totalAppointments = allAppointments.size
@@ -392,7 +381,7 @@ class PatientApiClient {
             throw IllegalStateException(body.error ?: "Failed to load dashboard data")
         }
     }
-    // DTO для статистики
+
     data class PatientStats(
         val upcomingAppointments: Int,
         val totalAppointments: Int,

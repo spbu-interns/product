@@ -20,7 +20,18 @@ data class AppointmentDto(
 )
 
 @Serializable
-data class MedicalRecordDto(
+data class MedicalRecordInDto(
+    @SerialName("client_id") val clientId: Long,
+    @SerialName("doctor_id") val doctorId: Long? = null,
+    @SerialName("appointment_id") val appointmentId: Long? = null,
+    @SerialName("diagnosis") val diagnosis: String? = null,
+    @SerialName("symptoms") val symptoms: String? = null,
+    @SerialName("treatment") val treatment: String? = null,
+    @SerialName("recommendations") val recommendations: String? = null
+)
+
+@Serializable
+data class MedicalRecordOutDto(
     @SerialName("id") val id: Long,
     @SerialName("client_id") val clientId: Long,
     @SerialName("doctor_id") val doctorId: Long? = null,
@@ -68,7 +79,7 @@ data class FullUserProfileDto(
     @SerialName("client") val client: ClientProfileDto? = null,
     @SerialName("doctor") val doctor: DoctorProfileDto? = null,
     @SerialName("appointments") val appointments: List<AppointmentDto> = emptyList(),
-    @SerialName("medical_records") val medicalRecords: List<MedicalRecordDto> = emptyList(),
+    @SerialName("medical_records") val medicalRecords: List<MedicalRecordOutDto> = emptyList(),
     @SerialName("patients") val patients: List<DoctorPatientDto> = emptyList(),
     @SerialName("next_appointment") val nextAppointment: NextAppointmentDto? = null,
 )

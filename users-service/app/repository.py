@@ -994,6 +994,101 @@ def create_medical_record(s: Session, body) -> Dict:
     s.commit()
     return dict(r)
 
+def _doctor_id_by_user_id(s: Session, user_id: int) -> Optional[int]:
+    """Возвращает doctors.id по users.id (user_id) или None."""
+    row = s.execute(text("select id from doctors where user_id = :uid"), {"uid": user_id}).first()
+    return row[0] if row else None
+
+def create_medical_record_for_client(s: Session, client_id: int, body) -> Dict:
+    client_id = _client_id_by_user_id(s, client_id)
+    if client_id is None:
+        raise ValueError("client_not_found")
+
+    doctor_id = None
+    if getattr(body, "doctor_id", None) is not None:
+        doctor_id = _doctor_id_by_user_id(s, body.doctor_id)
+        if doctor_id is None:
+            raise ValueError("doctor_not_found")
+    r = s.execute(text("""
+        insert into medical_records(client_id, doctor_id, appointment_id,
+                                    diagnosis, symptoms, treatment, recommendations)
+        values (:cid, :did, :aid, :dg, :sym, :tr, :rec)
+        returning *
+    """), {
+        "cid": client_id,
+        "did": doctor_id,
+        "aid": body.appointment_id,
+        "dg": body.diagnosis,
+        "sym": body.symptoms,
+        "tr": body.treatment,
+        "rec": body.recommendations
+    }).mappings().first()
+    s.commit()
+    return dict(r)
+
+
+def patch_medical_record(s: Session, client_id: int, record_id: int, p) -> Optional[Dict]:
+    client_id = _client_id_by_user_id(s, client_id)
+    if client_id is None:
+        return None
+    sets = []
+    params = {"rid": record_id, "cid": client_id}
+
+    inc = p.model_dump(exclude_unset=True)
+
+    if "doctor_id" in incoming:
+            if p.doctor_id is None:
+                sets.append("doctor_id = null")
+            else:
+                mapped = _doctor_id_by_user_id(s, p.doctor_id)
+                if mapped is None:
+                    raise ValueError("doctor_not_found")
+                sets.append("doctor_id = :did"); params["did"] = mapped
+
+    if "appointment_id" in inc:
+        sets.append("appointment_id = :aid")
+        params["aid"] = p.appointment_id
+    if "diagnosis" in inc:
+        sets.append("diagnosis = :dg")
+        params["dg"] = p.diagnosis
+    if "symptoms" in inc:
+        sets.append("symptoms = :sym")
+        params["sym"] = p.symptoms
+    if "treatment" in inc:
+        sets.append("treatment = :tr")
+        params["tr"] = p.treatment
+    if "recommendations" in inc:
+        sets.append("recommendations = :rec")
+        params["rec"] = p.recommendations
+
+    if not sets:
+        return None
+
+    sets.append("updated_at = now()")
+
+    r = s.execute(text(f"""
+        update medical_records
+        set {", ".join(sets)}
+        where id = :rid and client_id = :cid
+        returning *
+    """), params).mappings().first()
+
+    s.commit()
+    return dict(r) if r else None
+
+
+def delete_medical_record(s: Session, client_id: int, record_id: int) -> bool:
+    client_id = _client_id_by_user_id(s, client_id)
+    if client_id is None:
+        return False
+    r = s.execute(text("""
+        delete from medical_records
+        where id = :rid and client_id = :cid
+    """), {"rid": record_id, "cid": client_id})
+    s.commit()
+    return r.rowcount > 0
+
+
 def add_medical_document(s: Session, body) -> Dict:
     r = s.execute(text("""
         insert into medical_documents(record_id, client_id, filename, file_url, file_type, encrypted)
@@ -1414,7 +1509,6 @@ def list_medical_records_for_client(s: Session, client_id: int) -> List[Dict]:
         {"c": client_id},
     ).mappings().all()
     return [dict(r) for r in rows]
-
 
 def list_appointments_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
     rows = s.execute(

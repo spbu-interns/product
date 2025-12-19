@@ -627,6 +627,51 @@ def api_create_medical_record(body: MedicalRecordIn):
     finally:
         s.close()
 
+# --- Medical records by client ---
+
+@app.post(
+    "/clients/{client_id}/medical-records",
+    response_model=MedicalRecordOut,
+    status_code=201
+)
+def api_create_medical_record_for_client(client_id: int, body: MedicalRecordIn):
+    s = get_session()
+    try:
+        # client_id из URL является основным
+        return repo.create_medical_record_for_client(s, client_id, body)
+    finally:
+        s.close()
+
+
+@app.patch(
+    "/clients/medical-records/{record_id}",
+    response_model=MedicalRecordOut
+)
+def api_patch_medical_record(client_id: int, record_id: int, p: m.MedicalRecordIn):
+    s = get_session()
+    try:
+        r = repo.patch_medical_record(s, client_id, record_id, p)
+        if not r:
+            raise HTTPException(404, "medical record not found or nothing to update")
+        return r
+    finally:
+        s.close()
+
+
+@app.delete(
+    "/clients/medical-records/{record_id}",
+    status_code=204
+)
+def api_delete_medical_record(client_id: int, record_id: int):
+    s = get_session()
+    try:
+        ok = repo.delete_medical_record(s, client_id, record_id)
+        if not ok:
+            raise HTTPException(404, "medical record not found")
+        return
+    finally:
+        s.close()
+
 @app.post("/records/{record_id}/documents", response_model=MedicalDocumentOut, status_code=201)
 def api_add_medical_document(record_id: int, body: MedicalDocumentIn):
     if body.record_id != record_id:
