@@ -28,6 +28,8 @@ import ui.resetPasswordScreen
 import ui.patientProfileEditScreen
 import ui.doctorProfileEditScreen
 import ui.DoctorSection
+import ui.chatBotWidget
+import io.kvision.core.Container
 
 class App : Application() {
 
@@ -46,23 +48,43 @@ class App : Application() {
 
         fun go(path: String, params: URLSearchParams = URLSearchParams()) = navigate(path, params)
 
-        fun showHome() {
+        fun renderScreen(content: Container.() -> Unit) {
             r.removeAll()
-            r.homeScreen()
+            r.content()
+            r.chatBotWidget()
+        }
+
+        fun showHome() {
+            renderScreen { homeScreen() }
         }
 
         fun showFind() {
-            r.removeAll()
             if (Session.accountType == "DOCTOR") {
-                r.findPatientScreen(
-                    onLogout = {
-                        ApiConfig.clearToken()
-                        Session.clear()
-                        go("/")
-                    }
-                )
+                renderScreen {
+                    findPatientScreen(
+                        onLogout = {
+                            ApiConfig.clearToken()
+                            Session.clear()
+                            go("/")
+                        }
+                    )
+                }
             } else {
-                r.findDoctorScreen(
+                renderScreen {
+                    findDoctorScreen(
+                        onLogout = {
+                            ApiConfig.clearToken()
+                            Session.clear()
+                            go("/")
+                        }
+                    )
+                }
+            }
+        }
+
+        fun showFindPatients() {
+            renderScreen {
+                findPatientScreen(
                     onLogout = {
                         ApiConfig.clearToken()
                         Session.clear()
@@ -72,165 +94,157 @@ class App : Application() {
             }
         }
 
-        fun showFindPatients() {
-            r.removeAll()
-            r.findPatientScreen(
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    go("/")
-                }
-            )
-        }
-
         fun showPatient() {
-            r.removeAll()
-            r.patientScreen(
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    go("/")
-                }
-            )
+            renderScreen {
+                patientScreen(
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    }
+                )
+            }
         }
 
         fun showPatientMedicalRecords() {
-            r.removeAll()
-            r.patientMedicalRecordsScreen(
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    go("/")
-                }
-            )
+            renderScreen {
+                patientMedicalRecordsScreen(
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    }
+                )
+            }
         }
 
         fun showAppointments(appointmentId: Long? = null) {
-            r.removeAll()
-            r.patientAppointmentsScreen(
-                appointmentId = appointmentId,
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    go("/")
-                }
-            )
+            renderScreen {
+                patientAppointmentsScreen(
+                    appointmentId = appointmentId,
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    }
+                )
+            }
         }
 
         fun showDoctor(initialSection: DoctorSection = DoctorSection.OVERVIEW) {
-            r.removeAll()
-            r.doctorScreen(
-                initialSection = initialSection,
-                onLogout = { go("/") }
-            )
+            renderScreen {
+                doctorScreen(
+                    initialSection = initialSection,
+                    onLogout = { go("/") }
+                )
+            }
         }
 
         fun showDoctorPatient(patientUserId: Long, patientRecordId: Long?) {
-            r.removeAll()
-            r.doctorPatientScreen(
-                patientUserId = patientUserId,
-                patientRecordId = patientRecordId,
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    go("/")
-                },
-                onBack = { go("/doctor/find") }
-            )
+            renderScreen {
+                doctorPatientScreen(
+                    patientUserId = patientUserId,
+                    patientRecordId = patientRecordId,
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    },
+                    onBack = { go("/doctor/find") }
+                )
+            }
         }
 
         fun showMyRecords() {
-            r.removeAll()
-            r.myRecordsScreen(
-                onLogout = {
-                    ApiConfig.clearToken()
-                    Session.clear()
-                    go("/")
-                }
-            )
+            renderScreen {
+                myRecordsScreen(
+                    onLogout = {
+                        ApiConfig.clearToken()
+                        Session.clear()
+                        go("/")
+                    }
+                )
+            }
         }
 
         fun showRecordEditor(id: String) {
-            r.removeAll()
-            r.recordEditorScreen(recordId = id) { go("/patient/records") }
+            renderScreen { recordEditorScreen(recordId = id) { go("/patient/records") } }
         }
 
         fun showResetPassword() {
-            r.removeAll()
-            r.resetPasswordScreen()
+            renderScreen { resetPasswordScreen() }
         }
 
         fun showPasswordResetForm(token: String?) {
-            r.removeAll()
-            r.passwordResetFormScreen(token)
+            renderScreen { passwordResetFormScreen(token) }
         }
 
         fun showPasswordResetSuccess() {
-            r.removeAll()
-            r.passwordResetSuccessScreen()
+            renderScreen { passwordResetSuccessScreen() }
         }
 
         fun showStub(message: String) {
-            r.removeAll()
-            r.stubScreen(message = message) { window.history.back() }
+            renderScreen { stubScreen(message = message) { window.history.back() } }
         }
 
         fun showConfirmEmail(email: String) {
-            r.removeAll()
-            r.confirmEmailScreen(email)
+            renderScreen { confirmEmailScreen(email) }
         }
 
         fun showPatientProfileEdit() {
-            r.removeAll()
-            r.patientProfileEditScreen(
-                onBack = { go("/patient") }
-            )
+            renderScreen {
+                patientProfileEditScreen(
+                    onBack = { go("/patient") }
+                )
+            }
         }
 
         fun showDoctorProfileEdit() {
-            r.removeAll()
-            r.doctorProfileEditScreen(
-                onBack = {
-                    if (window.history.length > 0) {
-                        window.history.back()
-                    } else {
-                        go("/doctor")
+            renderScreen {
+                doctorProfileEditScreen(
+                    onBack = {
+                        if (window.history.length > 0) {
+                            window.history.back()
+                        } else {
+                            go("/doctor")
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
         fun showAuth(tab: AuthTab) {
-            r.removeAll()
-            r.authScreen(
-                initial = tab,
-                onLogin = { data ->
-                    Session.setSession(
-                        token = data.token,
-                        userId = data.userId,
-                        email = data.email,
-                        accountType = data.accountType,
-                        firstName = data.firstName,
-                        lastName = data.lastName
-                    )
+            renderScreen {
+                authScreen(
+                    initial = tab,
+                    onLogin = { data ->
+                        Session.setSession(
+                            token = data.token,
+                            userId = data.userId,
+                            email = data.email,
+                            accountType = data.accountType,
+                            firstName = data.firstName,
+                            lastName = data.lastName
+                        )
 
-                    appScope.launch {
-                        Session.hydrateFromBackend()
-                        val needsProfile = Session.requiresProfileCompletion()
-                        when (data.accountType.uppercase()) {
-                            "DOCTOR" -> if (needsProfile) go("/doctor/profile") else go("/doctor")
-                            else -> if (needsProfile) go("/patient/profile") else go("/patient")
+                        appScope.launch {
+                            Session.hydrateFromBackend()
+                            val needsProfile = Session.requiresProfileCompletion()
+                            when (data.accountType.uppercase()) {
+                                "DOCTOR" -> if (needsProfile) go("/doctor/profile") else go("/doctor")
+                                else -> if (needsProfile) go("/patient/profile") else go("/patient")
+                            }
                         }
-                    }
-                },
-                onRegister = { email, _, accountType ->
-                    go(
-                        "/auth/confirm",
-                        URLSearchParams().apply { set("email", email); set("role", accountType) }
-                    )
-                },
-                onGoHome = { go("/") }
-            )
+                    },
+                    onRegister = { email, _, accountType ->
+                        go(
+                            "/auth/confirm",
+                            URLSearchParams().apply { set("email", email); set("role", accountType) }
+                        )
+                    },
+                    onGoHome = { go("/") }
+                )
+            }
         }
 
         renderRoute = { path: String, params: URLSearchParams ->
