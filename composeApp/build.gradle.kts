@@ -33,6 +33,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-logging:2.3.12")
                 implementation("io.kvision:kvision-state:9.1.1")
                 implementation("io.kvision:kvision-datetime:9.1.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
             }
         }
         val jsTest by getting {}

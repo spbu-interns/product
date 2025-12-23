@@ -179,7 +179,7 @@ fun Container.doctorScreen(
                 .mapNotNull { it.firstOrNull()?.uppercaseChar() }
                 .take(2)
                 .joinToString("")
-                .ifBlank { patient?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "ПЦ" }
+                .ifBlank { patient?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: " " }
 
             DoctorAppointmentCard(
                 appointmentId = appointment.id,
@@ -241,7 +241,7 @@ fun Container.doctorScreen(
 
             onClick {
                 cleanup()
-                Navigator.showDoctorPatient(userId, patientRecordId)
+                Navigator.showDoctorPatient(this@render.userId, patientRecordId)
             }
         }
     }
@@ -308,9 +308,9 @@ fun Container.doctorScreen(
 
             else -> {
                 dashboard.patients.forEach { patient ->
-                    val initials = patient.name?.take(2)?.uppercase() ?: "ПЦ"
                     val name = listOfNotNull(patient.surname, patient.name, patient.patronymic)
                         .takeIf { it.isNotEmpty() }?.joinToString(" ") ?: "Пациент #${patient.userId}"
+                    val initials = name.take(2).uppercase()
                     val subtitle = patient.phoneNumber ?: patient.dateOfBirth ?: "Подробнее..."
 
                     DoctorPatientListItem(
@@ -545,14 +545,14 @@ fun Container.doctorScreen(
                                 Navigator.showDoctorSchedule()
                             }
                         }
-                        li(className = "side_item") {
-                            span("Пациенты")
-                            span("\uD83D\uDC65", className = "side icon")
-                            onClick {
-                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
-                                Toast.info("История посещений пациентов скоро будет доступна")
-                            }
-                        }
+//                        li(className = "side_item") {
+//                            span("Пациенты")
+//                            span("\uD83D\uDC65", className = "side icon")
+//                            onClick {
+//                                window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
+//                                Toast.info("История посещений пациентов скоро будет доступна")
+//                            }
+//                        }
                         li(className = "side_item") {
                             span("Мой профиль")
                             span("\uD83D\uDC64", className = "side icon")
@@ -577,9 +577,7 @@ fun Container.doctorScreen(
                 updateNavSelection(activeSection)
 
                 div(className = "side button")
-                button("Создать приём", className = "btn-primary-lg").onClick {
-                    Navigator.showStub("Создание приема скоро будет доступно")
-                }
+
                 button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
                     val currentDoctorId = state.dashboardData?.doctor?.id
                     if (currentDoctorId == null) {

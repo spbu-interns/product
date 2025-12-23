@@ -108,13 +108,13 @@ private fun buildDoctorPatientProfile(
     fallbackRecordId: Long?
 ): DoctorPatientProfile {
     val nameParts = listOfNotNull(user.name, user.surname)
-    val fullName = nameParts.joinToString(" ").ifBlank { user.login }
+    val fullName = nameParts.joinToString(" ")
     val initials = fullName
         .split(' ', '-', '_')
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .take(2)
         .joinToString("")
-        .ifBlank { user.login.firstOrNull()?.uppercaseChar()?.toString() ?: "ПЦ" }
+        .ifBlank { user.email.take(2) }
 
     val summaryParts = mutableListOf<String>()
     user.dateOfBirth?.takeIf { it.isNotBlank() }?.let { summaryParts += "Дата рождения: $it" }
@@ -269,7 +269,7 @@ fun Container.doctorPatientScreen(
     var rerender: () -> Unit = {}
 
     fun applyProfileUi(data: DoctorPatientProfile?) {
-        sidebarAvatar?.content = data?.initials ?: "ПЦ"
+        sidebarAvatar?.content = data?.initials ?: " "
         sidebarName?.content = data?.fullName ?: "Пациент"
         val recordLabel = data?.patientRecordId ?: currentPatientRecordId
         val userLabel = data?.userId ?: patientUserId
@@ -913,7 +913,7 @@ fun Container.doctorPatientScreen(
     div(className = "doctor container") {
         div(className = "doctor-patient grid") {
             div(className = "sidebar card doctor-patient-sidebar") {
-                sidebarAvatar = div(className = "avatar circle doctor-patient-avatar") { +"ПЦ" }
+                sidebarAvatar = div(className = "avatar circle doctor-patient-avatar")
                 sidebarName = h4("Пациент", className = "doctor-patient-sidebar-name")
                 val initialRecordLabel = currentPatientRecordId?.let { "#$it" } ?: "—"
                 sidebarId = span(

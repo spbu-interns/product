@@ -101,7 +101,6 @@ fun Container.doctorProfileModal(
                         onClick {
                             closeModal()
                             if (Session.isLoggedIn) {
-                                onBook(profile)
                             } else {
                                 window.alert("Для записи на прием необходимо войти в систему")
                                 Navigator.showLogin()

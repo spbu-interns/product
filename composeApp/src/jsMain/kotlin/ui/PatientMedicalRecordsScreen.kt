@@ -9,12 +9,15 @@ import io.kvision.html.h1
 import io.kvision.html.h3
 import io.kvision.html.h4
 import io.kvision.html.p
+import io.kvision.panel.vPanel
 import io.kvision.html.span
 import io.kvision.modal.Modal
 import io.kvision.modal.ModalSize
 import io.kvision.panel.vPanel
 import io.kvision.toast.Toast
+import io.kvision.types.LocalDateTime
 import io.kvision.utils.perc
+import io.kvision.utils.px
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -144,12 +147,7 @@ private fun determineMedicalRecordStatus(dto: MedicalRecordOutDto): MedicalRecor
 }
 
 private fun generateMedicalRecordTitle(dto: MedicalRecordOutDto): String {
-    return when {
-        !dto.diagnosis.isNullOrBlank() -> "Диагноз: ${dto.diagnosis!!.take(50)}${if (dto.diagnosis!!.length > 50) "..." else ""}"
-        !dto.symptoms.isNullOrBlank() -> "Симптомы: ${dto.symptoms!!.take(50)}${if (dto.symptoms!!.length > 50) "..." else ""}"
-        !dto.treatment.isNullOrBlank() -> "Лечение: ${dto.treatment!!.take(50)}${if (dto.treatment!!.length > 50) "..." else ""}"
-        else -> "Медицинская запись #${dto.id}"
-    }
+    return "Медицинская запись ${dto.updatedAt}"
 }
 
 private fun determineMedicalRecordCategory(dto: MedicalRecordOutDto): String {
@@ -218,6 +216,8 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
             width = 100.perc
         }
 
+
+
         fun showMedicalRecordDetails(record: MedicalRecordEntry) {
             val modal = Modal(
                 caption = "Детали медицинской записи",
@@ -263,34 +263,6 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
 
                     div(className = "details-meta") {
                         div(className = "meta-grid") {
-                            div(className = "meta-item") {
-                                span("ID записи:", className = "meta-label")
-                                span(record.id.toString(), className = "meta-value")
-                            }
-
-                            div(className = "meta-item") {
-                                span("Категория:", className = "meta-label")
-                                span(record.category, className = "meta-value")
-                            }
-
-                            div(className = "meta-item") {
-                                span("Врач:", className = "meta-label")
-                                span(record.doctorName, className = "meta-value")
-                            }
-
-                            record.doctorId?.let { doctorId ->
-                                div(className = "meta-item") {
-                                    span("ID врача:", className = "meta-label")
-                                    span(doctorId.toString(), className = "meta-value")
-                                }
-                            }
-
-                            record.appointmentId?.let { appointmentId ->
-                                div(className = "meta-item") {
-                                    span("ID приема:", className = "meta-label")
-                                    span(appointmentId.toString(), className = "meta-value")
-                                }
-                            }
 
                             div(className = "meta-item") {
                                 span("Создано:", className = "meta-label")
@@ -315,21 +287,19 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
                                 uiScope.launch {
                                     apiClient.downloadMedicalRecordPdf(record.clientId, record.id)
                                         .onSuccess { bytes ->
-                                            downloadPdf(
-                                                bytes = bytes,
-                                                filename = "medical_record_${record.id}.pdf"
-                                            )
+                                            downloadPdf(bytes, "medical_record_${record.createdAt}.pdf")
+                                            Toast.success("PDF успешно скачан")
                                         }
                                         .onFailure { error ->
                                             Toast.danger(error.message ?: "Не удалось скачать PDF")
                                         }
-                                    hide()
                                 }
                             }
                         }
                     }
                 }
             }
+
             modal.show()
         }
 
@@ -351,16 +321,17 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
 
         fun renderMedicalRecords() {
             recordsContainer.removeAll()
+
             when {
                 isLoading -> {
                     recordsContainer.div(className = "medical-record-card card") {
-                        p("Загрузка медицинских записей...", className = "medical-record-content")
+                        p("Загрузка медицинских записей...")
                     }
                 }
 
                 errorMessage != null -> {
                     recordsContainer.div(className = "medical-record-card card") {
-                        p(errorMessage ?: "Ошибка", className = "medical-record-content")
+                        p(errorMessage ?: "Ошибка")
                         button("Повторить", className = "btn-ghost-sm").onClick {
                             errorMessage = null
                             loadRecords?.invoke(true)
@@ -370,52 +341,47 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
 
                 medicalRecords.isEmpty() -> {
                     recordsContainer.div(className = "medical-record-card card") {
-                        p("Нет медицинских записей", className = "medical-record-content")
+                        p("Нет медицинских записей")
                     }
                 }
 
                 else -> {
                     medicalRecords.forEach { record ->
                         recordsContainer.div(className = "medical-record-card card") {
+
+                            // ---- HEADER ----
                             div(className = "medical-record-header") {
                                 h4(record.title, className = "medical-record-title")
                                 span(record.displayDate, className = "medical-record-date")
-                                span(record.status.label, className = "medical-record-status ${record.status.cssClass}")
                             }
 
+                            // ---- BODY ----
                             div(className = "medical-record-body") {
-                                record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->
-                                    div(className = "record-field") {
-                                        span("Диагноз: ", className = "field-label")
-                                        span(diagnosis, className = "field-value")
+
+                                record.diagnosis?.takeIf { it.isNotBlank() }?.let {
+                                    p(it, className = "record-text")
+                                }
+
+                                record.symptoms?.takeIf { it.isNotBlank() }?.let {
+                                    p(it, className = "record-text")
+                                }
+
+                                record.treatment?.takeIf { it.isNotBlank() }?.let {
+                                    p(it, className = "record-text")
+                                }
+
+                                record.recommendations?.takeIf { it.isNotBlank() }?.let {
+                                    p(it, className = "record-text")
+                                }
+
+                                // ---- ACTIONS UNDER TEXT ----
+                                div(className = "record-actions") {
+                                    button("Подробнее", className = "btn-ghost-sm").onClick {
+                                        showMedicalRecordDetails(record)
                                     }
-                                }
-
-                                record.symptoms?.takeIf { it.isNotBlank() }?.let { symptoms ->
-                                    div(className = "record-field") {
-                                        span("Симптомы: ", className = "field-label")
-                                        span(symptoms, className = "field-value")
+                                    button("Скачать PDF", className = "btn-ghost-sm").onClick {
+                                        downloadMedicalRecordPdf(record.clientId, record.id)
                                     }
-                                }
-
-                                record.treatment?.takeIf { it.isNotBlank() }?.let { treatment ->
-                                    div(className = "record-field") {
-                                        span("Лечение: ", className = "field-label")
-                                        span(treatment, className = "field-value")
-                                    }
-                                }
-                            }
-
-                            div(className = "medical-record-meta") {
-                                span(record.category, className = "medical-record-tag")
-                                span(record.doctorName, className = "medical-record-doctor")
-
-                                button("Подробнее", className = "btn-ghost-sm").onClick {
-                                    showMedicalRecordDetails(record)
-                                }
-
-                                button("Скачать PDF", className = "btn-ghost-sm").onClick {
-                                    downloadMedicalRecordPdf(record.clientId, record.id)
                                 }
                             }
                         }

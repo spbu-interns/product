@@ -209,6 +209,12 @@ fun Container.timetableModal(): TimetableModalController {
         }
     }
 
+    fun Container.infoIcon(text: String) {
+        span("ⓘ", className = "timetable-info-icon").apply {
+            title = text
+        }
+    }
+
     fun openModal(name: String, id: Long?) {
         doctorName = name
         doctorId = id
@@ -698,9 +704,16 @@ fun Container.timetableModal(): TimetableModalController {
     fun Container.renderTopControls() {
         div(className = "timetable-topbar") {
             hPanel(spacing = 8, alignItems = AlignItems.CENTER, className = "timetable-actions") {
-                span("Автозаполнение расписания", className = "booking-subtitle")
+                hPanel(spacing = 6, alignItems = AlignItems.CENTER) {
+                    h3("Автозаполнение расписания", className = "booking-card-title")
+                    infoIcon(
+                        "Массовое создание или изменение расписания\n" +
+                                "с помощью шаблонов или конструктора."
+                    )
+                }
+
                 button(
-                    if (showAdvanced) "Скрыть шаблоны, конструктор и отпуск"
+                    if (showAdvanced) "Скрыть"
                     else "Шаблоны, конструктор и отпуск",
                     className = "btn btn-outline timetable-toggle-advanced",
                 ).onClick {
@@ -717,10 +730,6 @@ fun Container.timetableModal(): TimetableModalController {
             div(className = "booking-card timetable-advanced-card") {
                 div(className = "timetable-advanced-header") {
                     h3("Автозаполнение расписания", className = "booking-card-title")
-                    p(
-                        "Шаблоны, конструктор и отпуск — для массового изменения текущей и следующей недели.",
-                        className = "booking-hint",
-                    )
                 }
 
                 // Куда применяем — общее для шаблонов и конструктора
@@ -744,7 +753,13 @@ fun Container.timetableModal(): TimetableModalController {
                 hPanel(spacing = 16, alignItems = AlignItems.CENTER, className = "timetable-advanced-columns") {
                     // Шаблоны
                     div(className = "booking-card timetable-templates-card") {
-                        h3("Готовые шаблоны", className = "booking-card-title")
+                        hPanel(spacing = 6, alignItems = AlignItems.CENTER) {
+                            h3("Готовые шаблоны", className = "booking-card-title")
+                            infoIcon(
+                                "Преднастроенные варианты расписания.\n" +
+                                        "Применяются к выбранному периоду."
+                            )
+                        }
 
                         vPanel(spacing = 8) {
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
@@ -795,24 +810,19 @@ fun Container.timetableModal(): TimetableModalController {
                                     }
                                 }
                                 p(currentTemplate.description, className = "booking-hint")
-                            } else {
-                                p(
-                                    "Выберите шаблон, чтобы применить его к текущей или следующей неделе.",
-                                    className = "booking-hint",
-                                )
                             }
                         }
                     }
 
                     // Конструктор
                     div(className = "booking-card timetable-constructor-card") {
-                        h3("Конструктор расписания", className = "booking-card-title")
-                        p(
-                            "Выберите схему (по дням недели, чётные / нечётные, 2/2), " +
-                                    "задайте рабочий день, обед и длительность слота. " +
-                                    "Мы автоматически разобьём день на интервалы, пропуская обед и прошлое.",
-                            className = "booking-hint",
-                        )
+                        hPanel(spacing = 6, alignItems = AlignItems.CENTER) {
+                            h3("Конструктор расписания", className = "booking-card-title")
+                            infoIcon(
+                                "Автоматическое формирование слотов по заданным правилам.\n" +
+                                        "Поддерживаются дни недели, чётные/нечётные даты и режим 2/2."
+                            )
+                        }
 
                         var startField: Text? = null
                         var endField: Text? = null
@@ -822,8 +832,10 @@ fun Container.timetableModal(): TimetableModalController {
                         vPanel(spacing = 8) {
                             // Тип расписания
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
-                                span("Тип расписания", className = "booking-subtitle")
-
+                                hPanel(spacing = 4, alignItems = AlignItems.CENTER) {
+                                    span("Тип расписания", className = "booking-subtitle")
+                                    infoIcon("Определяет, по каким дням формируются рабочие слоты.")
+                                }
                                 val patternSelect = Select(
                                     options = listOf(
                                         PatternType.WEEKDAYS.name to "По дням недели",
@@ -847,7 +859,10 @@ fun Container.timetableModal(): TimetableModalController {
                             // Чекбоксы дней недели для режима WEEKDAYS
                             if (constructorPattern == PatternType.WEEKDAYS) {
                                 hPanel(spacing = 6, alignItems = AlignItems.CENTER) {
-                                    span("Дни недели", className = "booking-subtitle")
+                                    hPanel(spacing = 4, alignItems = AlignItems.CENTER) {
+                                        span("Дни недели", className = "booking-subtitle")
+                                        infoIcon("Слоты будут созданы только в выбранные дни.")
+                                    }
                                     val days = listOf(
                                         1 to "Пн",
                                         2 to "Вт",
@@ -878,8 +893,10 @@ fun Container.timetableModal(): TimetableModalController {
 
                             // Рабочий день
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
-                                span("Рабочий день", className = "booking-subtitle")
-
+                                hPanel(spacing = 4, alignItems = AlignItems.CENTER) {
+                                    span("Рабочее время", className = "booking-subtitle")
+                                    infoIcon("Интервал, в котором создаются слоты.")
+                                }
                                 val start = Text(value = constructorStartTime) {
                                     addCssClass("timetable-input")
                                 }
@@ -897,8 +914,10 @@ fun Container.timetableModal(): TimetableModalController {
 
                             // Обед
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
-                                span("Обед", className = "booking-subtitle")
-
+                                hPanel(spacing = 4, alignItems = AlignItems.CENTER) {
+                                    span("Перерыв", className = "booking-subtitle")
+                                    infoIcon("В указанный интервал слоты не создаются.")
+                                }
                                 val lunchStart = Text(value = constructorLunchStart) {
                                     addCssClass("timetable-input")
                                 }
@@ -912,16 +931,17 @@ fun Container.timetableModal(): TimetableModalController {
                                 }
                                 lunchEndField = lunchEnd
                                 add(lunchEnd)
-
-                                span("(можно оставить пустым)", className = "booking-hint")
                             }
 
                             // Длительность
                             hPanel(spacing = 8, alignItems = AlignItems.CENTER) {
-                                span("Длительность слота", className = "booking-subtitle")
-
+                                hPanel(spacing = 4, alignItems = AlignItems.CENTER) {
+                                    span("Длительность слота", className = "booking-subtitle")
+                                    infoIcon("Продолжительность одного приёма.")
+                                }
                                 val durationSelect = Select(
                                     options = listOf(
+                                        "15" to "15 мин",
                                         "30" to "30 мин",
                                         "45" to "45 мин",
                                         "60" to "60 мин",
@@ -954,10 +974,6 @@ fun Container.timetableModal(): TimetableModalController {
                                     constructorLunchEnd = lunchEndField?.value?.trim().orEmpty()
                                     applyConstructorRule()
                                 }
-                                span(
-                                    "Будет заполнена текущая, следующая или обе недели — в зависимости от выбора.",
-                                    className = "booking-hint",
-                                )
                             }
                         }
                     }
@@ -966,12 +982,14 @@ fun Container.timetableModal(): TimetableModalController {
 
             // Карточка отпуска
             div(className = "booking-card timetable-vacation-card") {
-                h3("Отпуск", className = "booking-card-title")
-                p(
-                    "Выберите период отпуска — все свободные слоты в этом промежутке будут удалены. " +
-                            "Забронированные слоты останутся, чтобы не потерять записи пациентов.",
-                    className = "booking-hint",
-                )
+                hPanel(spacing = 6, alignItems = AlignItems.CENTER) {
+                    h3("Отпуск", className = "booking-card-title")
+                    infoIcon(
+                        "Период, в который свободные слоты удаляются.\n" +
+                                "Забронированные слоты сохраняются."
+                    )
+                }
+
 
                 vPanel(spacing = 8) {
                     // начало отпуска

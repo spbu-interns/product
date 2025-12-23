@@ -446,7 +446,15 @@ private fun Container.doctorCard(
                 listOfNotNull("Стаж ${profile.experienceYears} лет", genderLabel, profile.location).joinToString(" • "),
                 className = "doctor-card-meta"
             )
-            p(profile.bio, className = "doctor-card-bio")
+
+            val maxBioLength = 200
+            val displayBio = if (profile.bio.length > maxBioLength) {
+                profile.bio.take(maxBioLength) + "..."
+            } else {
+                profile.bio
+            }
+
+            p(displayBio, className = "doctor-card-bio")
             div(className = "doctor-card-footer") {
                 div(className = "doctor-card-price-block") {
                     p("${profile.price} ₽ / приём", className = "doctor-card-price")

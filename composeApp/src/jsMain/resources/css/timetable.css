@@ -1,3 +1,7 @@
+/* ================================
+   BASE OVERLAY / MODAL
+   ================================ */
+
 .timetable-overlay-root {
     position: relative;
 }
@@ -30,15 +34,98 @@
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
 }
 
-.timetable-slot-editor-layout {
-    display: flex;
-    flex-direction: column;
+/* ================================
+   INPUTS / SELECTS
+   ================================ */
+
+.timetable-input {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 12px;
 }
 
-.timetable-slot-row {
-    display: flex;
-    flex-wrap: wrap;
+/* SELECT BASE */
+.timetable-input select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    background: transparent;
+    border: 1px solid #e0e7ff;
+    border-radius: 12px;
+
+    padding: 6px 28px 6px 10px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+
+    height: 36px;
+    width: auto;
+    min-width: 88px;
+    max-width: none;
 }
+
+/* SELECT ARROW */
+.timetable-input:has(select)::after {
+    content: "▾";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.timetable-input:not(:has(select))::after {
+    display: none;
+}
+
+
+/* TIME SELECTS (hours / minutes) */
+.timetable-time-select {
+    max-width: none;
+    min-width: 72px;
+    width: auto;
+}
+
+.timetable-target-select select {
+    min-width: 240px;
+    max-width: none;
+    width: auto;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+/* TEXT INPUTS */
+input.timetable-input {
+    border: 1px solid #e0e7ff;
+    border-radius: 12px;
+    padding: 6px 10px;
+    height: 36px;
+    font-size: 15px;
+    max-width: 100%;
+}
+
+/* DATE INPUTS */
+
+
+/* ================================
+   INFO ICON
+   ================================ */
+
+.timetable-info-icon {
+    font-size: 14px;
+    color: #64748b;
+    cursor: help;
+    user-select: none;
+    line-height: 1;
+}
+
+/* ================================
+   ACTIONS / BUTTONS
+   ================================ */
 
 .timetable-actions {
     display: flex;
@@ -47,83 +134,19 @@
     margin-bottom: 6px;
 }
 
+/* ================================
+   DAY CARD / SLOTS
+   ================================ */
+
 .timetable-day-card {
     margin-top: 8px;
 }
 
-.timetable-slot-list-editor {
-    margin-top: 12px;
-}
-
 .timetable-slot-list {
     display: grid;
-    /*flex-wrap: wrap;*/
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin-top: 6px;
-}
-
-.timetable-time-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-top: 12px;
-    justify-content: space-between;
-}
-
-.timetable-input select {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-
-    background: transparent !important;
-    border: 1px solid #e0e7ff;
-    line-height: normal;
-    box-shadow: none !important;
-
-    padding: 5px 7px;
-    margin: 0 !important;
-
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-
-    height: 36px;
-    width: 120%;
-
-    display: flex;
-    align-items: center;
-}
-
-.timetable-time-inputs {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.timetable-time-inputs .timetable-input {
-    flex: 0 0 80px;
-    min-width: 80px;
-
-    height: 36px;
-    display: flex;
-    align-items: center;
-}
-
-.timetable-time-inputs .timetable-time-separator {
-    display: flex;
-    align-items: center;
-    height: 36px;
-    font-size: 16px;
-    font-weight: 600;
-    color: #64748b;
-}
-
-.timetable-slot-actions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
 }
 
 .timetable-slot {
@@ -138,9 +161,9 @@
     color: #0f172a;
 }
 
-.timetable-slot.is-selected {
-    background: #eef2ff;
-    border-color: #c7d2fe;
+.timetable-slot.is-locked {
+    background: #f1f5f9;
+    color: #64748b;
 }
 
 .timetable-slot-remove {
@@ -152,101 +175,14 @@
     cursor: pointer;
 }
 
-.timetable-input-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.timetable-input {
-    flex: 1;
-    border: none;
-    min-width: 0;
-    display: inline-flex;
-    border-radius: 12px;
-}
-
-.timetable-template-list {
-    display: grid;
-    gap: 12px;
-    margin-top: 8px;
-}
-
-.timetable-template-card {
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    border-radius: 16px;
-    padding: 12px;
-    cursor: pointer;
-    transition: border-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease;
-}
-
-.timetable-template-card:hover {
-    border-color: #4338ca;
-    box-shadow: 0 14px 30px rgba(67, 56, 202, 0.16);
-    transform: translateY(-2px);
-}
-
-.timetable-template-card.is-selected {
-    border-color: #4338ca;
-    box-shadow: 0 14px 30px rgba(67, 56, 202, 0.2);
-}
-
-.timetable-template-preview {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 6px;
-}
-
-.btn-secondary-lg {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.btn-secondary-lg:hover {
-    background: #f8fafc;
-    border-color: #d1d5db;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-}
-
-.timetable-trigger {
-    margin-top: 20px;
-}
-
-.timetable-trigger.btn-secondary-lg {
-    background: #2563eb !important;
-    color: #ffffff !important;
-    border: none !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-}
-
-.timetable-trigger.btn-secondary-lg:hover {
-    background: #1e4fcc !important;
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
-}
-
-.timetable-topbar {
-    margin-bottom: 12px;
-}
-
-.timetable-main {
-    margin-top: 4px;
-}
+/* ================================
+   LAYOUT
+   ================================ */
 
 .timetable-main-layout {
     display: grid;
     grid-template-columns: minmax(280px, 360px) 1fr;
     gap: 16px;
-    margin: auto;
     align-items: start;
 }
 
@@ -257,9 +193,9 @@
     gap: 12px;
 }
 
-.timetable-week-toggle-row {
-    margin-top: 8px;
-}
+/* ================================
+   ADVANCED PANEL
+   ================================ */
 
 .timetable-advanced {
     display: flex;
@@ -273,23 +209,13 @@
 .timetable-constructor-card,
 .timetable-vacation-card,
 .timetable-week-view-card {
-    margin: 0;
     padding: 16px;
+    margin: 0;
 }
 
-.timetable-advanced-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 4px;
-}
-
-.timetable-advanced-columns {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 16px;
-    align-items: start;
-}
+/* ================================
+   WEEK VIEW
+   ================================ */
 
 .timetable-week-view-card {
     margin-top: 8px;
@@ -302,7 +228,6 @@
     padding: 8px 0;
     border-bottom: 1px solid #e2e8f0;
 }
-
 .timetable-week-row:last-child {
     border-bottom: none;
 }
@@ -321,6 +246,10 @@
     text-align: right;
 }
 
+/* ================================
+   RESPONSIVE
+   ================================ */
+
 @media (max-width: 960px) {
     .timetable-main-layout {
         grid-template-columns: 1fr;
@@ -329,4 +258,4 @@
     .timetable-week-day-slots {
         text-align: left;
     }
-}
+}re
