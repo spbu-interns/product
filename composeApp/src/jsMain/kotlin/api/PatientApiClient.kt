@@ -352,7 +352,7 @@ class PatientApiClient {
 
         val upcomingAppointments = getUpcomingAppointments(clientId).getOrThrow()
         val allAppointments = getAllAppointments(clientId).getOrThrow()
-        val medicalRecords = getMedicalRecords(clientId).getOrThrow()
+        val medicalRecords = getMedicalRecords(userId).getOrThrow()
 
         val upcomingCount = upcomingAppointments.size
         val totalAppointments = allAppointments.size

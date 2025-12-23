@@ -589,7 +589,6 @@ class ApiUserRepo(
     suspend fun patchMedicalRecord(medicalRecordId: Long, patch: MedicalRecordInDto): MedicalRecordOutDto =
         doPatch("/notes/$medicalRecordId", patch) { it.body() }
 
-
     suspend fun deleteMedicalRecord(medicalRecordId: Long): Boolean =
         doDelete("/notes/$medicalRecordId")
 

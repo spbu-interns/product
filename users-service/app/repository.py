@@ -1575,3 +1575,111 @@ def list_patients_for_doctor(s: Session, doctor_id: int) -> List[Dict]:
         {"d": doctor_id},
     ).mappings().all()
     return [dict(r) for r in rows]
+
+
+# ============================================================================
+# Chat Sessions Repository
+# ============================================================================
+
+def get_or_create_chat_session(s, user_id: int, session_id: Optional[str] = None):
+    """
+    Get existing chat session or create new one
+    
+    Args:
+        s: SQLAlchemy session
+        user_id: User ID
+        session_id: Optional UUID to resume existing session
+    
+    Returns:
+        dict with session data (id, user_id, session_id, messages, created_at, updated_at)
+    """
+    if session_id:
+        # Try to find existing session
+        row = s.execute(
+            text("""
+                select id, user_id, session_id, messages, created_at, updated_at
+                from chat_sessions
+                where session_id = :sid and user_id = :uid
+            """),
+            {"sid": session_id, "uid": user_id}
+        ).mappings().first()
+        
+        if row:
+            return dict(row)
+    
+    # Create new session
+    row = s.execute(
+        text("""
+            insert into chat_sessions(user_id, messages)
+            values (:uid, '[]'::jsonb)
+            returning id, user_id, session_id, messages, created_at, updated_at
+        """),
+        {"uid": user_id}
+    ).mappings().first()
+    
+    s.commit()
+    return dict(row)
+
+
+def update_chat_session_messages(s, session_id: str, messages: list):
+    """
+    Update messages in chat session
+    
+    Args:
+        s: SQLAlchemy session
+        session_id: UUID of session
+        messages: List of message dicts to store in JSONB
+    """
+    import json
+    
+    s.execute(
+        text("""
+            update chat_sessions
+            set messages = cast(:msgs as jsonb)
+            where session_id = :sid
+        """),
+        {"sid": str(session_id), "msgs": json.dumps(messages)}
+    )
+    s.commit()
+
+
+def get_chat_history(s, user_id: int, limit: int = 50):
+    """
+    Get chat history for user
+    
+    Args:
+        s: SQLAlchemy session
+        user_id: User ID
+        limit: Maximum number of sessions to return
+    
+    Returns:
+        List of session dicts ordered by updated_at DESC
+    """
+    rows = s.execute(
+        text("""
+            select id, user_id, session_id, messages, created_at, updated_at
+            from chat_sessions
+            where user_id = :uid
+            order by updated_at desc
+            limit :lim
+        """),
+        {"uid": user_id, "lim": limit}
+    ).mappings().all()
+    
+    # Convert UUID to string for JSON serialization
+    result = []
+    for r in rows:
+        session_dict = dict(r)
+        session_dict["session_id"] = str(session_dict["session_id"])
+        result.append(session_dict)
+    
+    return result
+
+
+def delete_chat_session(s, session_id: str):
+    """Delete chat session by session_id"""
+    s.execute(
+        text("delete from chat_sessions where session_id = :sid"),
+        {"sid": session_id}
+    )
+    s.commit()

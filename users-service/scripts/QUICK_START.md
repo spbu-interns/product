@@ -53,8 +53,9 @@ uvicorn app.main:app --reload --port 8001
 ### macOS / Linux:
 ```bash
 # Из корня users-service
-./scripts/run-server.sh
-
+./scripts/run-server.sh --reset
+# Из другого терминале из папки users-service
+python3 scripts/upload_avatars_via_api.py
 # Или из любой папки
 cd /Users/tsagoll/StudioProjects/product/users-service
 ./scripts/run-server.sh
