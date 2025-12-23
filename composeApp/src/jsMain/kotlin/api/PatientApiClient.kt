@@ -122,15 +122,15 @@ class PatientApiClient {
 
     // ---- doctor notes ----
 
-    suspend fun listMedicalRecords(
-        patientId: Long,
-        includeInternal: Boolean = true
-    ): Result<List<MedicalRecordOutDto>> = runCatching {
-        val response = client.get(ApiConfig.Endpoints.clientMedicalRecords(patientId)) {
-            parameter("include_internal", includeInternal)
-        }
-        parseList<MedicalRecordOutDto>(response, "Failed to load medical records")
-    }
+//    suspend fun listMedicalRecords(
+//        patientId: Long,
+//        includeInternal: Boolean = true
+//    ): Result<List<MedicalRecordOutDto>> = runCatching {
+//        val response = client.get(ApiConfig.Endpoints.clientMedicalRecords(patientId)) {
+//            parameter("include_internal", includeInternal)
+//        }
+//        parseList<MedicalRecordOutDto>(response, "Failed to load medical records")
+//    }
 
     suspend fun createMedicalRecord(
         patientId: Long,
@@ -186,12 +186,10 @@ class PatientApiClient {
         parseNullable<FullUserProfileDto>(response, "Failed to load full user profile")
     }
 
-    // Получение предстоящих записей через существующий endpoint
     suspend fun getUpcomingAppointments(clientId: Long): Result<List<AppointmentDto>> = runCatching {
         val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/appointments")
         if (response.status.isSuccess()) {
             val appointments = response.body<List<AppointmentDto>>()
-            // Фильтруем предстоящие записи на фронте
             val upcoming = appointments.filter { it.status == "BOOKED" }
             upcoming
         } else {
@@ -199,12 +197,10 @@ class PatientApiClient {
         }
     }
 
-    // Получение истории записей
     suspend fun getAppointmentHistory(clientId: Long): Result<List<AppointmentDto>> = runCatching {
         val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/appointments")
         if (response.status.isSuccess()) {
             val appointments = response.body<List<AppointmentDto>>()
-            // Фильтруем историю на фронте
             val history = appointments.filter { it.status in listOf("COMPLETED", "CANCELED", "NO_SHOW") }
             history
         } else {
@@ -253,7 +249,12 @@ class PatientApiClient {
     }
 
     suspend fun getMedicalRecords(clientId: Long): Result<List<MedicalRecordOutDto>> = runCatching {
-        val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/medical-records")
+        val response = client.get(ApiConfig.Endpoints.clientMedicalRecords(clientId))
+        val responseBody = response.body<String>()
+        println("=== DEBUG getMedicalRecords ===")
+        println("Status: ${response.status}")
+        println("Response body: $responseBody")
+        println("==============================")
         if (!response.status.isSuccess()) {
             val apiError = runCatching { response.body<ApiResponse<List<MedicalRecordOutDto>>>() }
                 .getOrNull()
@@ -273,26 +274,35 @@ class PatientApiClient {
         }
     }
 
-    // Получение количества предстоящих записей
+    suspend fun downloadMedicalRecordPdf(clientId: Long, recordId: Long): Result<ByteArray> = runCatching {
+        val response = client.get(
+            "${ApiConfig.BASE_URL}/clients/$clientId/medical-documents/$recordId/download"
+        )
+
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("Ошибка загрузки PDF: ${response.status}")
+        }
+
+        response.body()
+    }
+
     suspend fun getAppointmentsCount(clientId: Long): Result<Int> = runCatching {
         val result = getUpcomingAppointments(clientId)
         result.getOrThrow().size
     }
 
-    // Получение количества медицинских записей
     suspend fun getMedicalRecordsCount(clientId: Long): Result<Int> = runCatching {
         val result = getMedicalRecords(clientId)
         result.getOrThrow().size
     }
 
-    // Получение следующей записи
+
     suspend fun getNextAppointment(clientId: Long): Result<AppointmentDto?> = runCatching {
         val result = getUpcomingAppointments(clientId)
         val upcoming = result.getOrThrow()
         upcoming.minByOrNull { it.createdAt }
     }
 
-    // Получение последних медицинских записей
     suspend fun getRecentMedicalRecords(clientId: Long, limit: Int = 3): Result<List<MedicalRecordOutDto>> = runCatching {
         val result = getMedicalRecords(clientId)
         result.getOrThrow().take(limit)
@@ -342,7 +352,7 @@ class PatientApiClient {
 
         val upcomingAppointments = getUpcomingAppointments(clientId).getOrThrow()
         val allAppointments = getAllAppointments(clientId).getOrThrow()
-        val medicalRecords = getMedicalRecords(userId).getOrThrow()
+        val medicalRecords = getMedicalRecords(clientId).getOrThrow()
 
         val upcomingCount = upcomingAppointments.size
         val totalAppointments = allAppointments.size
@@ -357,7 +367,6 @@ class PatientApiClient {
         )
     }
 
-    // Получение всех записей (для статистики)
     suspend fun getAllAppointments(clientId: Long): Result<List<AppointmentDto>> = runCatching {
         val response = client.get("${ApiConfig.BASE_URL}/clients/$clientId/appointments")
         if (response.status.isSuccess()) {

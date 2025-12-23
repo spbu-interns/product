@@ -1,4 +1,4 @@
-package org.interns.project.appointments
+package org.interns.project.controller
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -30,11 +30,11 @@ class AppointmentController(
 
                 runCatching { apiUserRepo.createSlot(doctorId, request).toDto() }
                     .onSuccess { slot ->
-                        call.respond(HttpStatusCode.Created, ApiResponse(success = true, data = slot))
+                        call.respond(HttpStatusCode.Companion.Created, ApiResponse(success = true, data = slot))
                     }
                     .onFailure { error ->
                         call.respond(
-                            HttpStatusCode.BadRequest,
+                            HttpStatusCode.Companion.BadRequest,
                             ApiResponse<SlotResponse>(success = false, error = error.message ?: "Failed to create slot")
                         )
                     }
@@ -47,12 +47,15 @@ class AppointmentController(
 
                 runCatching { apiUserRepo.listSlots(doctorId, date).map { it.toDto() } }
                     .onSuccess { slots ->
-                        call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = slots))
+                        call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = slots))
                     }
                     .onFailure { error ->
                         call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ApiResponse<List<SlotResponse>>(success = false, error = error.message ?: "Failed to load slots")
+                            HttpStatusCode.Companion.InternalServerError,
+                            ApiResponse<List<SlotResponse>>(
+                                success = false,
+                                error = error.message ?: "Failed to load slots"
+                            )
                         )
                     }
             }
@@ -66,14 +69,17 @@ class AppointmentController(
                 runCatching { apiUserRepo.deleteSlot(doctorId, slotId) }
                     .onSuccess { deleted ->
                         if (deleted) {
-                            call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = true))
+                            call.respond(HttpStatusCode.Companion.OK, ApiResponse(success = true, data = true))
                         } else {
-                            call.respond(HttpStatusCode.BadRequest, ApiResponse<Boolean>(success = false, error = "Slot not removable"))
+                            call.respond(
+                                HttpStatusCode.Companion.BadRequest,
+                                ApiResponse<Boolean>(success = false, error = "Slot not removable")
+                            )
                         }
                     }
                     .onFailure { error ->
                         call.respond(
-                            HttpStatusCode.InternalServerError,
+                            HttpStatusCode.Companion.InternalServerError,
                             ApiResponse<Boolean>(success = false, error = error.message ?: "Failed to delete slot")
                         )
                     }
@@ -91,7 +97,10 @@ class AppointmentController(
                     .onFailure { error ->
                         call.respond(
                             HttpStatusCode.BadRequest,
-                            ApiResponse<AppointmentResponse>(success = false, error = error.message ?: "Slot not available")
+                            ApiResponse<AppointmentResponse>(
+                                success = false,
+                                error = error.message ?: "Slot not available"
+                            )
                         )
                     }
             }
@@ -103,15 +112,24 @@ class AppointmentController(
                 runCatching { apiUserRepo.cancelAppointment(appointmentId) }
                     .onSuccess { canceled ->
                         if (canceled) {
-                            call.respond(HttpStatusCode.NoContent, ApiResponse<Boolean>(success = true, data = true))
+                            call.respond(
+                                HttpStatusCode.Companion.NoContent,
+                                ApiResponse<Boolean>(success = true, data = true)
+                            )
                         } else {
-                            call.respond(HttpStatusCode.NotFound, ApiResponse<Boolean>(success = false, error = "Appointment not found"))
+                            call.respond(
+                                HttpStatusCode.Companion.NotFound,
+                                ApiResponse<Boolean>(success = false, error = "Appointment not found")
+                            )
                         }
                     }
                     .onFailure { error ->
                         call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ApiResponse<Boolean>(success = false, error = error.message ?: "Failed to cancel appointment")
+                            HttpStatusCode.Companion.InternalServerError,
+                            ApiResponse<Boolean>(
+                                success = false,
+                                error = error.message ?: "Failed to cancel appointment"
+                            )
                         )
                     }
             }
@@ -119,7 +137,7 @@ class AppointmentController(
     }
 
     private suspend fun respondBadRequest(call: ApplicationCall, message: String) {
-        call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(success = false, error = message))
+        call.respond(HttpStatusCode.Companion.BadRequest, ApiResponse<Unit>(success = false, error = message))
     }
 
     private fun Slot.toDto() = SlotResponse(

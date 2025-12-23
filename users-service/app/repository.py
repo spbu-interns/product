@@ -389,6 +389,21 @@ def get_client_by_user_id(s: Session, user_id: int) -> Optional[Dict]:
     r = s.execute(text("select * from clients where user_id=:u"), {"u": user_id}).mappings().first()
     return dict(r) if r else None
 
+def get_client(s: Session, client_id: int) -> Optional[Dict]:
+    r = s.execute(text("select * from clients where id=:cid"), {"cid": client_id}).mappings().first()
+    return dict(r) if r else None
+
+def get_user_by_client_id(s: Session, client_id: int) -> Optional[Dict]:
+    query = text("""
+        SELECT u.*
+        FROM users u
+        JOIN clients c ON u.id = c.user_id
+        WHERE c.id = :cid
+    """)
+
+    r = s.execute(query, {"cid": client_id}).mappings().first()
+    return dict(r) if r else None
+
 # ===== Doctors =====
 def set_doctor_specializations(s: Session, doctor_id: int, specialization_ids: List[int]) -> None:
     """
@@ -1088,6 +1103,16 @@ def delete_medical_record(s: Session, client_id: int, record_id: int) -> bool:
     s.commit()
     return r.rowcount > 0
 
+def get_medical_record(s: Session, record_id: int) -> Optional[dict]:
+    result = s.execute(text("""
+        select * from medical_records
+        where id = :rid
+    """), {"rid": record_id})
+
+    row = result.mappings().first()
+    if row:
+        return dict(row)
+    return None
 
 def add_medical_document(s: Session, body) -> Dict:
     r = s.execute(text("""

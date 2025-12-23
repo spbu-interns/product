@@ -198,7 +198,6 @@ class ProfileController(
                         )
                     }
 
-                    // Получаем базовый профиль пользователя
                     val userProfile = apiUserRepo.getUserProfile(id)
                         ?: return@get call.respond(
                             HttpStatusCode.NotFound,
