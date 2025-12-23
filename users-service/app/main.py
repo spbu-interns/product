@@ -379,6 +379,22 @@ def api_get_client_by_user(user_id: int):
     finally:
         s.close()
 
+@app.get("/users/by-client/{client_id}", response_model=UserOut | None)
+def api_get_client_by_user(client_id: int):
+    s = get_session()
+    try:
+        return repo.get_user_by_client_id(s, client_id)
+    finally:
+        s.close()
+
+@app.get("/clients/{client_id}", response_model=ClientOut | None)
+def api_get_client(client_id: int):
+    s = get_session()
+    try:
+        return repo.get_client(s, client_id)
+    finally:
+        s.close()
+
 # --- Doctors ---
 @app.post("/doctors", response_model=DoctorOut, status_code=201)
 def api_create_doctor(body: DoctorIn):
@@ -669,6 +685,20 @@ def api_delete_medical_record(client_id: int, record_id: int):
         if not ok:
             raise HTTPException(404, "medical record not found")
         return
+    finally:
+        s.close()
+
+@app.get(
+    "/clients/medical-records/{record_id}",
+    status_code=200
+)
+def api_get_medical_record(record_id: int):
+    s = get_session()
+    try:
+        ok = repo.get_medical_record(s, record_id)
+        if not ok:
+            raise HTTPException(404, "medical record not found")
+        return ok
     finally:
         s.close()
 

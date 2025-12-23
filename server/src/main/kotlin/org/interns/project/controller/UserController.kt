@@ -196,14 +196,39 @@ class UserController(
                 }
             }
 
+//            get("/{clientId}/medical-records") {
+//                val clientId = call.parameters["clientId"]?.toLongOrNull()
+//                    ?: return@get respondBadRequest(call, "Invalid client id")
+//                runCatching {
+//                    val list = apiUserRepo.listMedicalRecordsForClient(clientId)
+//                    println("Found ${list.size} medical records for client $clientId")
+//                    if (list.isNotEmpty()) {
+//                        println("First record: ${list[0]}")
+//                    }
+//                }.onSuccess { list ->
+//                    call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = list))
+//                }.onFailure { error ->
+//                    call.respond(
+//                        HttpStatusCode.InternalServerError,
+//                        ApiResponse<List<MedicalRecordOutDto>>(
+//                            success = false,
+//                            error = error.message ?: "Failed to load medical records"
+//                        )
+//                    )
+//                }
+//            }
             get("/{clientId}/medical-records") {
                 val clientId = call.parameters["clientId"]?.toLongOrNull()
                     ?: return@get respondBadRequest(call, "Invalid client id")
-                runCatching {
-                    apiUserRepo.listMedicalRecordsForClient(clientId)
-                }.onSuccess { list ->
+
+                try {
+                    val list = apiUserRepo.listMedicalRecordsForClient(clientId)
+                    println("Found ${list.size} medical records for client $clientId")
+                    if (list.isNotEmpty()) {
+                        println("First record: ${list[0]}")
+                    }
                     call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = list))
-                }.onFailure { error ->
+                } catch (error: Exception) {
                     call.respond(
                         HttpStatusCode.InternalServerError,
                         ApiResponse<List<MedicalRecordOutDto>>(
@@ -213,7 +238,6 @@ class UserController(
                     )
                 }
             }
-
             patch("/medical-records/{medicalRecordId}") {
                 val medicalRecordId = call.parameters["medicalRecordId"]?.toLongOrNull()
                     ?: return@patch respondBadRequest(call, "Invalid medical record id")

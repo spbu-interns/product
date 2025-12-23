@@ -13,11 +13,12 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
-import org.interns.project.appointments.AppointmentController
+import org.interns.project.controller.AppointmentController
 import org.interns.project.controller.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
 import org.interns.project.controller.FindDoctorsController
+import org.interns.project.controller.MedicalDocumentController
 import org.interns.project.controller.PatientDataController
 import org.interns.project.controller.ProfileController
 import org.interns.project.controller.UserController
@@ -90,7 +91,7 @@ fun Application.module() {
     val userController = UserController(apiUserRepo)
     val findDoctorsController = FindDoctorsController(apiUserRepo)
     val profileController = ProfileController(apiUserRepo)
-
+    val medicalDocumentController = MedicalDocumentController(apiUserRepo)
     routing {
         get("/") {
             call.respondText("Ktor: ${Greeting().greet()}")
@@ -102,6 +103,7 @@ fun Application.module() {
         appointmentController.registerRoutes(this)
         findDoctorsController.registerRoutes(this)
         profileController.registerRoutes(this)
+        medicalDocumentController.registerRoutes(this)
 
         fastApiCompatRoutes(verificationService, passwordResetService)
     }

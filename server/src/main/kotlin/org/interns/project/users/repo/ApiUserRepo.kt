@@ -6,7 +6,10 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.statement.*
+import io.ktor.client.statement.readRawBytes
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -394,6 +397,35 @@ class ApiUserRepo(
             else -> throw RuntimeException("Unexpected response: ${resp.status} ${resp.bodyAsText()}")
         }
     }
+    suspend fun findUserByClientId(clientId: Long): UserResponseDto {
+        val path = "/users/by-client/$clientId"
+        val resp = client.get("$baseUrl$path")
+
+        return when (resp.status) {
+            HttpStatusCode.OK -> resp.body()
+            HttpStatusCode.NotFound ->
+                throw NoSuchElementException("User for clientId=$clientId not found")
+            else ->
+                throw IllegalStateException(
+                    "Unexpected response: ${resp.status} ${resp.bodyAsText()}"
+                )
+        }
+    }
+
+    suspend fun findClientById(clientId: Long): ClientProfileDto {
+        val path = "/clients/$clientId"
+        val resp = client.get("$baseUrl$path")
+
+        return when (resp.status) {
+            HttpStatusCode.OK -> resp.body()
+            HttpStatusCode.NotFound ->
+                throw NoSuchElementException("Client profile clientId=$clientId not found")
+            else ->
+                throw IllegalStateException(
+                    "Unexpected response: ${resp.status} ${resp.bodyAsText()}"
+                )
+        }
+    }
 
     suspend fun searchDoctors(filter: DoctorSearchFilter): List<DoctorSearchResult> {
         println("🎯 Starting searchDoctors with filter: $filter")
@@ -598,6 +630,15 @@ class ApiUserRepo(
 
     suspend fun listMedicalRecordsForClient(clientId: Long): List<MedicalRecordOutDto> {
         val path = "/clients/$clientId/medical-records"
+        val resp = client.get("$baseUrl$path")
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")
+        }
+        return resp.body()
+    }
+
+    suspend fun getMedicalRecord(medicalRecordId: Long): MedicalRecordOutDto {
+        val path = "/clients/medical-records/$medicalRecordId"
         val resp = client.get("$baseUrl$path")
         if (resp.status != HttpStatusCode.OK) {
             throw RuntimeException("unexpected response: ${resp.status} ${resp.bodyAsText()}")

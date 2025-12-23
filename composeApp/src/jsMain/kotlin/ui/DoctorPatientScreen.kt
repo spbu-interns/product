@@ -364,7 +364,7 @@ fun Container.doctorPatientScreen(
                     return@launch
                 }
 
-            val result = apiClient.listMedicalRecords(patientId = clientId, includeInternal = true)
+            val result = apiClient.getMedicalRecords(clientId)
             result.fold(
                 onSuccess = { notes ->
                     recordsLoaded = true
