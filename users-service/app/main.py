@@ -1081,23 +1081,25 @@ def send_chat_message(req: ChatRequest):
         user = repo.get_user_profile(s, req.user_id)
         if not user:
             raise HTTPException(404, "user not found")
-        
+        print("okkkkk")
         # Get or create chat session
         session = repo.get_or_create_chat_session(s, req.user_id, req.session_id)
-        
+        print("ok")
         # Get conversation history
         history = session.get("messages", [])
-        
+        print("okeoke")
         # Send message to OpenRouter with context
         ai_response = chat.send_message_with_context(req.message, history)
-        
+        print("okeokffffffffffffffe")
+
         # Update history with new messages
         history.append(chat.format_message_for_db("user", req.message))
         history.append(chat.format_message_for_db("model", ai_response))
         
         # Save updated history to DB
         repo.update_chat_session_messages(s, session["session_id"], history)
-        
+        print("okeokffffffffffffffffjoidfjvoidfjvsiogdoirse")
+
         return ChatResponse(
             response=ai_response,
             session_id=str(session["session_id"])
