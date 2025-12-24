@@ -147,7 +147,13 @@ private fun determineMedicalRecordStatus(dto: MedicalRecordOutDto): MedicalRecor
 }
 
 private fun generateMedicalRecordTitle(dto: MedicalRecordOutDto): String {
-    return "Медицинская запись ${dto.updatedAt}"
+    val formattedDate = extractDate(dto.updatedAt)
+    return "Медицинская запись $formattedDate"
+}
+
+fun extractDate(date: String?): String {
+    val parts = date?.substringBefore("T")?.split("-")
+    return "${parts?.get(2)}-${parts?.get(1)}-${parts?.get(0)}"
 }
 
 private fun determineMedicalRecordCategory(dto: MedicalRecordOutDto): String {

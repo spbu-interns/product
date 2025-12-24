@@ -15,6 +15,10 @@ import org.interns.project.dto.UserResponseDto
 import utils.normalizeGender
 
 fun Container.homeScreen() {
+    if (Session.accountType.equals("DOCTOR", ignoreCase = true)) {
+        Navigator.showDoctor()
+        return
+    }
     headerBar(
         mode = when {
             Session.accountType.equals("DOCTOR", ignoreCase = true) -> HeaderMode.DOCTOR

@@ -31,12 +31,14 @@ fun Container.headerBar(
             }
 
             div(className = "topnav_links") {
-                val homeClass = "topnav_link" + if (active == NavTab.HOME) " is-active" else ""
+                if (mode != HeaderMode.DOCTOR) {
+                    val homeClass = "topnav_link" + if (active == NavTab.HOME) " is-active" else ""
+                    link("Главная", "#", className = homeClass).onClick {
+                        it.preventDefault(); Navigator.showHome()
+                    }
+                }
                 val findClass = "topnav_link" + if (active == NavTab.FIND) " is-active" else ""
 
-                link("Главная", "#", className = homeClass).onClick {
-                    it.preventDefault(); Navigator.showHome()
-                }
                 val findLabel = if (mode == HeaderMode.DOCTOR) "Найти пациента" else "Найти врача"
                 link(findLabel, "#", className = findClass).onClick {
                     it.preventDefault();

@@ -339,16 +339,10 @@ private fun Container.profileEditScreenCommon(
                                     span("Расписание"); span("\uD83D\uDCC5", className = "side icon")
                                     onClick {
                                         window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
-                                        Navigator.showDoctor()
+                                        Navigator.showDoctorSchedule()
                                     }
                                 }
-                                li(className = "side_item") {
-                                    span("Пациенты"); span("\uD83D\uDC65", className = "side icon")
-                                    onClick {
-                                        window.asDynamic().scrollTo(js("({ top: 0, behavior: 'smooth' })"))
-                                        Toast.info("История посещений пациентов скоро будет доступна")
-                                    }
-                                }
+
                                 li(className = "side_item is-active") {
                                     span("Мой профиль"); span("\uD83D\uDC64", className = "side icon")
                                 }
@@ -357,7 +351,7 @@ private fun Container.profileEditScreenCommon(
 
                         div(className = "side button")
                         button("Расписание", className = "btn-secondary-lg timetable-trigger").onClick {
-                            Navigator.showDoctor()
+                            Navigator.showDoctorSchedule()
                         }
                         button("Выйти", className = "btn-logout-sm").onClick {
                             ApiConfig.clearToken(); Session.clear(); Navigator.showHome()

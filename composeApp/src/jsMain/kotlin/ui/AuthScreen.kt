@@ -278,6 +278,11 @@ private fun localizeLoginError(message: String?): String = when {
     message.contains("invalid email or password", ignoreCase = true) -> "Неверный email или пароль"
     message.contains("unauthorized", ignoreCase = true) -> "Неверный email или пароль"
     message.contains("not found", ignoreCase = true) -> "Пользователь не найден. Зарегистрируйтесь."
+    message.contains("USER_NOT_FOUND", ignoreCase = true) -> "Пользователь не найден. Зарегистрируйтесь."
+    message.contains("ACCOUNT_DISABLED", ignoreCase = true) -> "Аккаунт отключен. Обратитесь в поддержку."
+    message.contains("INVALID_PASSWORD", ignoreCase = true) -> "Неверный пароль."
+    message.contains("invalid or expired token", ignoreCase = true) ->
+        "Код подтверждения недействителен или просрочен. Войдите и запросите новый код."
     else -> message
 }
 

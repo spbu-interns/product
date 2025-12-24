@@ -852,9 +852,9 @@ fun Container.doctorPatientScreen(
         div(className = "doctor-records-header") {
             h1("Медицинские записи", className = "doctor-records-title")
             profileData?.let { span(it.fullName, className = "doctor-records-subtitle") }
-            button("Скачать все", className = "btn-ghost-sm").onClick {
-                Toast.info("Скачивание всех записей скоро будет доступно")
-            }
+//            button("Скачать все", className = "btn-ghost-sm").onClick {
+//                Toast.info("Скачивание всех записей скоро будет доступно")
+//            }
         }
 
         when {

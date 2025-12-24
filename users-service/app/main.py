@@ -168,11 +168,26 @@ def auth_login(req: LoginIn):
         u = repo.find_auth_by_login_or_email(s, req.login_or_email)
 
         # нет юзера, отключен, или неверный пароль
-        if (not u) or (not u["is_active"]) or (not bcrypt.verify(req.password, u["password_hash"])):
+        if not u:
             return ApiLoginResponse(
-                success=False,
-                error="invalid login or password",
+            success=False,
+            error="USER_NOT_FOUND",
             )
+
+        # пользователь отключен
+        if not u["is_active"]:
+            return ApiLoginResponse(
+            success=False,
+            error="ACCOUNT_DISABLED",
+            )
+
+        # неверный пароль
+        if not bcrypt.verify(req.password, u["password_hash"]):
+            return ApiLoginResponse(
+            success=False,
+            error="INVALID_PASSWORD",
+            )
+
 
         # пароль ок, но email не подтверждён
         if u.get("email_verified_at") is None:

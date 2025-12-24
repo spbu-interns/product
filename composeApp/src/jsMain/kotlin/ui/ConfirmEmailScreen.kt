@@ -43,7 +43,22 @@ fun Container.confirmEmailScreen(email: String) {
             add(codeField)
             add(error)
         }
-        
+        fun localizeVerificationError(message: String?): String = when {
+            message.isNullOrBlank() -> "Ошибка подтверждения"
+            message.contains("invalid or expired token", ignoreCase = true) ->
+                "Код подтверждения недействителен или просрочен. Войдите и запросите новый."
+
+            message.contains("invalid token", ignoreCase = true) ->
+                "Неверный код подтверждения. Проверьте правильность ввода."
+
+            message.contains("expired token", ignoreCase = true) ->
+                "Код подтверждения просрочен. Нажмите 'Отправить код повторно'."
+
+            message.contains("verification failed", ignoreCase = true) ->
+                "Не удалось подтвердить email. Попробуйте ещё раз."
+
+            else -> "Ошибка подтверждения email"
+        }
         add(Button("Подтвердить", style = ButtonStyle.PRIMARY).apply {
             width = 100.perc
             onClick {
@@ -52,13 +67,13 @@ fun Container.confirmEmailScreen(email: String) {
                     Toast.danger("Введите код подтверждения")
                     return@onClick
                 }
-                
+
                 this.disabled = true
 
                 uiScope.launch {
                     val authClient = AuthApiClient()
                     val result = authClient.verifyEmail(code)
-                    
+
                     result.fold(
                         onSuccess = { response ->
                             if (response.success) {
@@ -103,12 +118,12 @@ fun Container.confirmEmailScreen(email: String) {
                                     Navigator.showLogin()
                                 }
                             } else {
-                                Toast.danger(response.message ?: "Ошибка подтверждения email")
+                                Toast.danger(localizeVerificationError(response.message))
                                 this@apply.disabled = false
                             }
                         },
                         onFailure = { e ->
-                            Toast.danger(e.message ?: "Ошибка подтверждения email")
+                            Toast.danger(localizeVerificationError(e.message))
                             this@apply.disabled = false
                         }
                     )
