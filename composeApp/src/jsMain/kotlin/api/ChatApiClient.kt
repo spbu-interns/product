@@ -4,22 +4,32 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import org.interns.project.dto.ChatRequest
 import org.interns.project.dto.ChatResponse
 import org.interns.project.dto.ChatSessionOut
+import org.interns.project.dto.ApiResponse
+
+
 
 class ChatApiClient {
 
     private val client = ApiConfig.httpClient
 
-    private suspend inline fun <reified T> parse(response: HttpResponse): T {
+    /**
+     * Десериализация ответа с проверкой статуса
+     */
+    private suspend inline fun <reified T> parse(response: HttpResponse): ApiResponse<T> {
         if (!response.status.isSuccess()) {
             throw IllegalStateException("HTTP ${response.status.value}")
         }
         return response.body()
     }
 
+    /**
+     * Отправка сообщения в чат
+     */
     suspend fun sendMessage(
         request: ChatRequest
     ): ChatResponse {
@@ -27,21 +37,28 @@ class ChatApiClient {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
-        return parse(response)
+
+        val apiResponse: ApiResponse<ChatResponse> = parse(response)
+        return apiResponse.data
+            ?: throw IllegalStateException("No data returned from /chat/message")
     }
 
+    /**
+     * Получение последней активной сессии пользователя
+     */
     suspend fun getActiveSession(
         userId: Int
     ): ChatSessionOut? {
         val response = client.get("${ApiConfig.BASE_URL}/chat/history/$userId") {
             parameter("limit", 1)
         }
-        val sessions: List<ChatSessionOut> = parse(response)
-        return sessions.firstOrNull()
+
+        val apiResponse: ApiResponse<List<ChatSessionOut>> = parse(response)
+        return apiResponse.data?.firstOrNull()
     }
 
     /**
-     * JSONB → (role, text)
+     * Преобразование JSONB сообщений в пары (role, text)
      */
     fun extractMessages(
         session: ChatSessionOut
@@ -75,6 +92,9 @@ class ChatApiClient {
 object ChatApi {
     private val client = ChatApiClient()
 
+    /**
+     * Отправка сообщения от пользователя
+     */
     suspend fun sendMessage(
         userId: Int,
         message: String,
@@ -88,6 +108,9 @@ object ChatApi {
             )
         )
 
+    /**
+     * Загрузка последней сессии пользователя с историей сообщений
+     */
     suspend fun loadLastSession(
         userId: Int
     ): Pair<String?, List<Pair<String, String>>> {

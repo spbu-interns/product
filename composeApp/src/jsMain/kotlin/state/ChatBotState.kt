@@ -33,68 +33,111 @@ object ChatBotState {
     var draft: String = ""
         private set
 
-    fun toggleOpen(userId: Int) {
-        isOpen = !isOpen
-        if (isOpen && messagesStore.isEmpty()) {
-            loadLastSession(userId)
+    /**
+     * Открытие/закрытие чата
+     */
+    fun toggleOpen(userId: Int, onUpdate: () -> Unit = {}) {
+    isOpen = !isOpen
+
+    if (isOpen) {
+        // если открыли чат для нового пользователя, очищаем историю
+        if (messagesStore.isNotEmpty() && sessionId != null) {
+            messagesStore.clear()
+            sessionId = null
         }
+        loadLastSession(userId, onUpdate)
     }
+}
+
 
     fun updateDraft(value: String) {
         draft = value
     }
 
-    fun sendMessage(userId: Int) {
-        val text = draft.trim()
-        if (text.isBlank()) return
+    /**
+     * Отправка сообщения пользователя и получение ответа бота
+     */
+    fun sendMessage(userId: Int, onUpdate: () -> Unit = {}) {
+    val text = draft.trim()
+    if (text.isBlank()) return
 
-        messagesStore += ChatMessage(
-            id = nextId(),
-            author = ChatAuthor.USER,
-            text = text
-        )
-        draft = ""
+    // Добавляем сообщение пользователя
+    messagesStore += ChatMessage(
+        id = nextId(),
+        author = ChatAuthor.USER,
+        text = text
+    )
 
-        CoroutineScope(Dispatchers.Default).launch {
-            try {
-                val response = ChatApi.sendMessage(
-                    userId = userId,
-                    message = text,
-                    sessionId = sessionId
-                )
+    draft = ""
+    onUpdate()
 
-                sessionId = response.sessionId
+    // Добавляем временное сообщение от бота ("typing indicator")
+    val botTypingId = nextId()
+    messagesStore += ChatMessage(
+        id = botTypingId,
+        author = ChatAuthor.BOT,
+        text = "Бот думает..."
+    )
+    onUpdate()
 
-                messagesStore += ChatMessage(
-                    id = nextId(),
+    CoroutineScope(Dispatchers.Default).launch {
+        try {
+            val response = ChatApi.sendMessage(
+                userId = userId,
+                message = text,
+                sessionId = sessionId
+            )
+
+            sessionId = response.sessionId
+
+            // Обновляем временное сообщение на реальный ответ
+            val index = messagesStore.indexOfFirst { it.id == botTypingId }
+            if (index != -1) {
+                messagesStore[index] = ChatMessage(
+                    id = botTypingId,
                     author = ChatAuthor.BOT,
                     text = response.response
                 )
-            } catch (e: Exception) {
-                messagesStore += ChatMessage(
-                    id = nextId(),
+            }
+            onUpdate()
+        } catch (e: Exception) {
+            val index = messagesStore.indexOfFirst { it.id == botTypingId }
+            if (index != -1) {
+                messagesStore[index] = ChatMessage(
+                    id = botTypingId,
                     author = ChatAuthor.BOT,
                     text = "Ошибка связи с сервером"
                 )
             }
+            onUpdate()
         }
     }
+}
 
-    private fun loadLastSession(userId: Int) {
-        CoroutineScope(Dispatchers.Default).launch {
-            val (sid, history) = ChatApi.loadLastSession(userId)
-            sessionId = sid
-            messagesStore.clear()
 
-            history.forEach { (role, text) ->
-                messagesStore += ChatMessage(
-                    id = nextId(),
-                    author = if (role == "user") ChatAuthor.USER else ChatAuthor.BOT,
-                    text = text
-                )
-            }
+    /**
+     * Загрузка последней сессии чата
+     */
+    fun loadLastSession(userId: Int, onUpdate: () -> Unit = {}) {
+    messagesStore.clear()
+    sessionId = null
+
+    CoroutineScope(Dispatchers.Default).launch {
+        val (sid, history) = ChatApi.loadLastSession(userId)
+        sessionId = sid
+
+        history.forEach { (role, text) ->
+            messagesStore += ChatMessage(
+                id = nextId(),
+                author = if (role == "user") ChatAuthor.USER else ChatAuthor.BOT,
+                text = text
+            )
         }
+
+        onUpdate()
     }
+}
+
 
     private fun nextId() = (++nextId).toString()
 }

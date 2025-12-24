@@ -28,7 +28,6 @@ fun Container.chatBotWidget(userId: Int) {
     /* ---------- UI helpers ---------- */
 
     fun updateOpenState() {
-        if (chatWindow.hasCssClass("open")) return
         chatWindow.addCssClass("open")
     }
 
@@ -50,7 +49,7 @@ fun Container.chatBotWidget(userId: Int) {
         val maxHeight = lineHeight * maxLines
         el.style.height = "${min(el.scrollHeight.toDouble(), maxHeight)}px"
     }
-
+    
     fun resetInputHeight() {
         val root = inputField.getElement() ?: return
         val el = (root.querySelector("textarea") as? HTMLTextAreaElement)
@@ -100,7 +99,7 @@ fun Container.chatBotWidget(userId: Int) {
             span("ИИ-консультант", className = "chat-bot-title__text")
 
             button("✕", className = "chat-bot-close").onClick {
-                state.toggleOpen(userId)
+                state.toggleOpen(userId) { renderMessages() }
                 closeChat()
             }
         }
@@ -129,20 +128,20 @@ fun Container.chatBotWidget(userId: Int) {
             }
 
             sendButton.onClick {
-                state.sendMessage(userId)
-                inputField.value = state.draft
-                        resetInputHeight()
-                autoResizeInput()
-
-                renderMessages()
-                updateSendState()
+                state.sendMessage(userId) { 
+                    renderMessages()
+                    updateSendState()
+                    resetInputHeight()
+                    autoResizeInput()
+                }
+                inputField.value = ""
             }
         }
     }
 
     toggleButton = button("💬", className = "chat-bot-toggle")
     toggleButton.onClick {
-        state.toggleOpen(userId)
+        state.toggleOpen(userId) { renderMessages() }
 
         if (chatWindow.hasCssClass("open")) {
             closeChat()

@@ -57,11 +57,11 @@ class ApiUserRepo(
                     }
                 )
             }
-            // install(HttpTimeout) {
-            //     requestTimeoutMillis = 120_000
-            //     connectTimeoutMillis = 110_000
-            //     socketTimeoutMillis  = 120_000
-            // }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 120_000
+                connectTimeoutMillis = 110_000
+                socketTimeoutMillis  = 120_000
+            }
         }
     }
 
@@ -723,8 +723,6 @@ class ApiUserRepo(
         ) { true }
 
     suspend fun sendChatMessage(request: ChatRequest): ChatResponse {
-        log.info("➡️ chat/message START")
-
         return doPost("/chat/message", request) { resp ->
             resp.body()
         }
