@@ -43,6 +43,7 @@ import kotlin.math.roundToInt
 import kotlin.text.Regex
 import utils.normalizeGender
 import io.kvision.utils.perc
+import ui.components.updateAvatar
 
 private const val HEIGHT_MIN = 40
 private const val HEIGHT_MAX = 260
@@ -294,11 +295,18 @@ private fun Container.profileEditScreenCommon(
                         )
                     } else {
                         div(className = "sidebar card") {
+                            val avatarUrl = Session.avatar
                             val avatar = div(className = "avatar circle") { +initialsState.value }
+                            avatar.updateAvatar(avatarUrl, initialsState.value)
                             val nameHeader = h3(displayNameState.value, className = "account name")
 
                             uiScope.launch {
                                 displayNameState.collect { nameHeader.content = it }
+                            }
+                            uiScope.launch {
+                                initialsState.collect { updated ->
+                                    if (avatarUrl.isNullOrBlank()) avatar.updateAvatar(null, updated)  // ← Добавьте этот обработчик
+                                }
                             }
                             uiScope.launch {
                                 initialsState.collect { avatar.content = it }
@@ -361,11 +369,18 @@ private fun Container.profileEditScreenCommon(
 
                 HeaderMode.PUBLIC -> {
                     div(className = "sidebar card") {
+                        val avatarUrl = Session.avatar
                         val avatar = div(className = "avatar circle") { +initialsState.value }
+                        avatar.updateAvatar(avatarUrl, initialsState.value)
                         val nameHeader = h3(displayNameState.value, className = "account name")
 
                         uiScope.launch {
                             displayNameState.collect { nameHeader.content = it }
+                        }
+                        uiScope.launch {
+                            initialsState.collect { updated ->
+                                if (avatarUrl.isNullOrBlank()) avatar.updateAvatar(null, updated)
+                            }
                         }
                         uiScope.launch {
                             initialsState.collect { avatar.content = it }

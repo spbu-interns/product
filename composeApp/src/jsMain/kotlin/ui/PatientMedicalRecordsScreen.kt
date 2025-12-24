@@ -159,8 +159,8 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
                     div(className = "medical-record-details") {
                         div(className = "details-header") {
                             h3(record.title, className = "details-title")
-                            span(record.displayDate, className = "details-date")
-                            span(record.status.label, className = "details-status ${record.status.cssClass}")
+//                            span(record.displayDate, className = "details-date")
+//                            span(record.status.label, className = "details-status ${record.status.cssClass}")
                         }
 
                         div(className = "details-sections") {
@@ -253,14 +253,14 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
 
                 when {
                     isLoading -> {
-                        recordsContainer.div(className = "patient-record-card card") {
-                            p("Загрузка медицинских записей...", className = "patient-record-notes")
+                        recordsContainer.div(className = "card block") {
+                            p("Загрузка медицинских записей...")
                         }
                     }
 
                     errorMessage != null -> {
-                        recordsContainer.div(className = "patient-record-card card") {
-                            p(errorMessage ?: "Ошибка", className = "patient-record-notes")
+                        recordsContainer.div(className = "card block") {
+                            p(errorMessage ?: "Ошибка")
                             button("Повторить", className = "btn-ghost-sm").onClick {
                                 errorMessage = null
                                 loadRecords?.invoke(true)
@@ -269,54 +269,57 @@ fun Container.patientMedicalRecordsScreen(onLogout: () -> Unit = { Navigator.sho
                     }
 
                     medicalRecords.isEmpty() -> {
-                        recordsContainer.div(className = "patient-record-card card") {
-                            p("Нет медицинских записей", className = "patient-record-notes")
+                        recordsContainer.div(className = "card block") {
+                            div(className = "empty-state") {
+                                p("Нет медицинских записей")
+                            }
                         }
                     }
 
                     else -> {
-                        medicalRecords.forEach { record ->
-                            recordsContainer.div(className = "patient-record-card card") {
-                                // HEADER с заголовком и датой
-                                div(className = "patient-record-header") {
-                                    h4(record.title, className = "patient-record-title")
-                                    span(record.displayDate, className = "patient-record-date")
-                                }
-
-                                // BODY с основным содержимым
-                                div(className = "patient-record-body") {
-                                    // Диагноз (если есть)
-                                    record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->
-                                        p("Диагноз: $diagnosis", className = "patient-record-notes")
-                                    }
-
-                                    // Симптомы (если есть)
-                                    record.symptoms?.takeIf { it.isNotBlank() }?.let { symptoms ->
-                                        p("Симптомы: $symptoms", className = "patient-record-notes")
-                                    }
-
-                                    // Лечение (если есть)
-                                    record.treatment?.takeIf { it.isNotBlank() }?.let { treatment ->
-                                        p("Лечение: $treatment", className = "patient-record-notes")
-                                    }
-
-                                    // Рекомендации (если есть)
-                                    record.recommendations?.takeIf { it.isNotBlank() }?.let { recommendations ->
-                                        p("    Рекомендации: $recommendations", className = "patient-record-notes")
-                                    }
-                                }
-
-                                // ACTIONS с кнопками
-                                div(className = "patient-record-actions") {
-                                    justifyContent = JustifyContent.SPACEBETWEEN
-
-                                    // Справа - кнопки действий
-                                    div(className = "patient-record-buttons") {
-                                        button("Подробнее", className = "btn-ghost-sm").onClick {
-                                            showMedicalRecordDetails(record)
+                        recordsContainer.div(className = "card block") {
+                            width = 100.perc
+                            div(className = "records list") {
+                                medicalRecords.forEach { record ->
+                                    div(className = "medical-record") {
+                                        div(className = "record-header") {
+                                            h4(record.title, className = "record-title")
+                                            span(record.displayDate, className = "record-date")
                                         }
-                                        button("Скачать PDF", className = "btn-ghost-sm").onClick {
-                                            downloadMedicalRecordPdf(record.clientId, record.id)
+                                        div(className = "record-content") {
+                                            record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->
+                                                div(className = "record-field") {
+                                                    span("Диагноз: ", className = "field-label")
+                                                    span(diagnosis, className = "field-value")
+                                                }
+                                            }
+                                            record.symptoms?.takeIf { it.isNotBlank() }?.let { symptoms ->
+                                                div(className = "record-field") {
+                                                    span("Симптомы: ", className = "field-label")
+                                                    span(symptoms, className = "field-value")
+                                                }
+                                            }
+                                            record.treatment?.takeIf { it.isNotBlank() }?.let { treatment ->
+                                                div(className = "record-field") {
+                                                    span("Лечение: ", className = "field-label")
+                                                    span(treatment, className = "field-value")
+                                                }
+                                            }
+                                            record.recommendations?.takeIf { it.isNotBlank() }?.let { recommendations ->
+                                                div(className = "record-field") {
+                                                    span("Рекомендации: ", className = "field-label")
+                                                    span(recommendations, className = "field-value")
+                                                }
+                                            }
+                                        }
+                                        div(className = "record-actions") {
+                                            button("Подробнее", className = "btn-text").onClick {
+                                                showMedicalRecordDetails(record)
+                                            }
+                                            span(" ")
+                                            button("Скачать PDF", className = "btn-text").onClick {
+                                                downloadMedicalRecordPdf(record.clientId, record.id)
+                                            }
                                         }
                                     }
                                 }

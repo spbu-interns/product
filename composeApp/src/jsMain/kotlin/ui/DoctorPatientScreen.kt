@@ -38,6 +38,7 @@ import org.interns.project.dto.MedicalRecordOutDto
 import org.interns.project.dto.NoteVisibilityDto
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.UserResponseDto
+import ui.components.updateAvatar
 import utils.downloadPdf
 
 private enum class DoctorPatientTab { OVERVIEW, RECORDS }
@@ -270,7 +271,8 @@ fun Container.doctorPatientScreen(
     var rerender: () -> Unit = {}
 
     fun applyProfileUi(data: DoctorPatientProfile?) {
-        sidebarAvatar?.content = data?.initials ?: " "
+        val avatarUrl = Session.avatar
+        sidebarAvatar?.updateAvatar(avatarUrl, data?.initials ?: " ")
         sidebarName?.content = data?.fullName ?: "Пациент"
         val recordLabel = data?.patientRecordId ?: currentPatientRecordId
         val userLabel = data?.userId ?: patientUserId
@@ -934,7 +936,8 @@ fun Container.doctorPatientScreen(
     div(className = "doctor container") {
         div(className = "doctor-patient grid") {
             div(className = "sidebar card doctor-patient-sidebar") {
-                sidebarAvatar = div(className = "avatar circle doctor-patient-avatar")
+                sidebarAvatar = div(className = "avatar circle doctor-patient-avatar") {
+                }
                 sidebarName = h4("Пациент", className = "doctor-patient-sidebar-name")
                 val initialRecordLabel = currentPatientRecordId?.let { "#$it" } ?: "—"
                 sidebarId = span(
