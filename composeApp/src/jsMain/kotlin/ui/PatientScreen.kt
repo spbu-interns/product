@@ -159,8 +159,9 @@ fun Container.patientScreen(onLogout: () -> Unit = { Navigator.showHome() }) = v
                         recentMedicalRecords.forEach { record ->
                             div(className = "medical-record") {
                                 div(className = "record-header") {
+                                    val date = Date(record.createdAt)
                                     h4("Запись #${record.id}", className = "record-title")
-                                    span(record.createdAt, className = "record-date")
+                                    span(formatDateTime(date), className = "record-date")
                                 }
                                 div(className = "record-content") {
                                     record.diagnosis?.takeIf { it.isNotBlank() }?.let { diagnosis ->

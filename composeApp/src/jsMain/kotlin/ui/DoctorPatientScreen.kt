@@ -38,6 +38,7 @@ import org.interns.project.dto.MedicalRecordOutDto
 import org.interns.project.dto.NoteVisibilityDto
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.UserResponseDto
+import utils.downloadPdf
 
 private enum class DoctorPatientTab { OVERVIEW, RECORDS }
 
@@ -331,6 +332,22 @@ fun Container.doctorPatientScreen(
 //        }
 //    }
 
+    fun downloadMedicalRecordPdf(clientId: Long, recordId: Long) {
+        uiScope.launch {
+            Toast.info("Формирование PDF...")
+            apiClient.downloadMedicalRecordPdf(clientId, recordId)
+                .onSuccess { bytes ->
+                    downloadPdf(
+                        bytes = bytes,
+                        filename = "medical_record_${recordId}.pdf"
+                    )
+                }
+                .onFailure { error ->
+                    Toast.danger(error.message ?: "Не удалось скачать PDF")
+                }
+        }
+    }
+
     fun loadRecords(force: Boolean = false) {
         if (isLoadingRecords) return
         if (recordsLoaded && !force) return
@@ -433,7 +450,11 @@ fun Container.doctorPatientScreen(
 
                                 val deleteButton = button("Удалить", className = "btn-danger-sm")
                                 button("Скачать", className = "btn-ghost-sm").onClick {
-                                    Toast.info("Скачивание отчёта будет добавлено позже")
+                                    if (profile?.patientRecordId == null) {
+                                        Toast.danger("Сначала необходимо создать запись пациента")
+                                        return@onClick
+                                    }
+                                    downloadMedicalRecordPdf(profile!!.patientRecordId!!, record.id)
                                 }
 
                                 deleteButton.onClick {

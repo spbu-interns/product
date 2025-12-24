@@ -1051,14 +1051,11 @@ def patch_medical_record(s: Session, client_id: int, record_id: int, p) -> Optio
 
     inc = p.model_dump(exclude_unset=True)
 
-    if "doctor_id" in incoming:
+    if "doctor_id" in inc:
             if p.doctor_id is None:
                 sets.append("doctor_id = null")
             else:
-                mapped = _doctor_id_by_user_id(s, p.doctor_id)
-                if mapped is None:
-                    raise ValueError("doctor_not_found")
-                sets.append("doctor_id = :did"); params["did"] = mapped
+                sets.append("doctor_id = :did"); params["did"] = p.doctor_id
 
     if "appointment_id" in inc:
         sets.append("appointment_id = :aid")
@@ -1092,14 +1089,11 @@ def patch_medical_record(s: Session, client_id: int, record_id: int, p) -> Optio
     return dict(r) if r else None
 
 
-def delete_medical_record(s: Session, client_id: int, record_id: int) -> bool:
-    client_id = _client_id_by_user_id(s, client_id)
-    if client_id is None:
-        return False
+def delete_medical_record(s: Session, record_id: int) -> bool:
     r = s.execute(text("""
         delete from medical_records
-        where id = :rid and client_id = :cid
-    """), {"rid": record_id, "cid": client_id})
+        where id = :rid
+    """), {"rid": record_id})
     s.commit()
     return r.rowcount > 0
 

@@ -587,10 +587,10 @@ class ApiUserRepo(
     }
 
     suspend fun patchMedicalRecord(medicalRecordId: Long, patch: MedicalRecordInDto): MedicalRecordOutDto =
-        doPatch("/notes/$medicalRecordId", patch) { it.body() }
+        doPatch("/clients/medical-records/$medicalRecordId", patch) { it.body() }
 
     suspend fun deleteMedicalRecord(medicalRecordId: Long): Boolean =
-        doDelete("/notes/$medicalRecordId")
+        doDelete("/clients/medical-records/$medicalRecordId")
 
     suspend fun listNotes(patientId: Long, includeInternal: Boolean = true): List<NoteOut> {
         val resp = client.get("$baseUrl/patients/$patientId/notes") {

@@ -678,10 +678,10 @@ def api_create_medical_record_for_client(client_id: int, body: MedicalRecordIn):
     "/clients/medical-records/{record_id}",
     response_model=MedicalRecordOut
 )
-def api_patch_medical_record(client_id: int, record_id: int, p: m.MedicalRecordIn):
+def api_patch_medical_record(record_id: int, p: m.MedicalRecordIn):
     s = get_session()
     try:
-        r = repo.patch_medical_record(s, client_id, record_id, p)
+        r = repo.patch_medical_record(s, p.client_id, record_id, p)
         if not r:
             raise HTTPException(404, "medical record not found or nothing to update")
         return r
@@ -693,10 +693,10 @@ def api_patch_medical_record(client_id: int, record_id: int, p: m.MedicalRecordI
     "/clients/medical-records/{record_id}",
     status_code=204
 )
-def api_delete_medical_record(client_id: int, record_id: int):
+def api_delete_medical_record(record_id: int):
     s = get_session()
     try:
-        ok = repo.delete_medical_record(s, client_id, record_id)
+        ok = repo.delete_medical_record(s, record_id)
         if not ok:
             raise HTTPException(404, "medical record not found")
         return
