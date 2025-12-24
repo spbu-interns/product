@@ -15,29 +15,33 @@ import state.ChatAuthor
 import state.ChatBotState
 import kotlin.math.min
 
-fun Container.chatBotWidget() {
+fun Container.chatBotWidget(userId: Int) {
+
     val state = ChatBotState
+
     lateinit var messagesContainer: SimplePanel
     lateinit var inputField: TextArea
     lateinit var sendButton: io.kvision.html.Button
     lateinit var chatWindow: SimplePanel
     lateinit var toggleButton: io.kvision.html.Button
 
+    /* ---------- UI helpers ---------- */
+
     fun updateOpenState() {
-        if (state.isOpen) {
-            chatWindow.addCssClass("open")
-        } else {
-            chatWindow.removeCssClass("open")
-        }
+        if (chatWindow.hasCssClass("open")) return
+        chatWindow.addCssClass("open")
+    }
+
+    fun closeChat() {
+        chatWindow.removeCssClass("open")
     }
 
     fun autoResizeInput() {
         val root = inputField.getElement() ?: return
         val el = (root.querySelector("textarea") as? HTMLTextAreaElement)
-            ?: (root.unsafeCast<HTMLTextAreaElement>())
+            ?: root.unsafeCast<HTMLTextAreaElement>()
 
         val maxLines = 10
-
         el.style.height = "auto"
 
         val lineHeight = (js("parseFloat(getComputedStyle(el).lineHeight)") as Double)
@@ -47,11 +51,7 @@ fun Container.chatBotWidget() {
         el.style.height = "${min(el.scrollHeight.toDouble(), maxHeight)}px"
     }
 
-    fun updateSendState() {
-        sendButton.disabled = state.draft.trim().isBlank()
-    }
-
-    fun resetInputHeightToDefault() {
+    fun resetInputHeight() {
         val root = inputField.getElement() ?: return
         val el = (root.querySelector("textarea") as? HTMLTextAreaElement)
             ?: root.unsafeCast<HTMLTextAreaElement>()
@@ -60,15 +60,19 @@ fun Container.chatBotWidget() {
         el.scrollTop = 0.0
     }
 
+    fun updateSendState() {
+        sendButton.disabled = state.draft.trim().isBlank()
+    }
+
     fun scrollMessagesToBottom() {
-        val element = messagesContainer.getElement()?.unsafeCast<HTMLElement>()
-        if (element != null) {
-            element.scrollTop = element.scrollHeight.toDouble()
-        }
+        messagesContainer.getElement()
+            ?.unsafeCast<HTMLElement>()
+            ?.let { it.scrollTop = it.scrollHeight.toDouble() }
     }
 
     fun renderMessages() {
         messagesContainer.removeAll()
+
         if (state.messages.isEmpty()) {
             messagesContainer.div(className = "chat-bot-empty") {
                 span("Задайте вопрос — здесь появится история переписки.")
@@ -87,26 +91,30 @@ fun Container.chatBotWidget() {
         scrollMessagesToBottom()
     }
 
+    /* ---------- UI ---------- */
+
     chatWindow = div(className = "chat-bot-window") {
+
         div(className = "chat-bot-header") {
             span("🤖", className = "chat-bot-title__icon")
             span("ИИ-консультант", className = "chat-bot-title__text")
 
             button("✕", className = "chat-bot-close").onClick {
-                state.setOpen(false)
-                updateOpenState()
+                state.toggleOpen(userId)
+                closeChat()
             }
         }
 
         messagesContainer = div(className = "chat-bot-messages")
 
         div(className = "chat-bot-composer") {
+
             inputField = textArea(value = state.draft) {
                 placeholder = "Введите сообщение"
                 addCssClass("chat-bot-input")
 
                 onEvent {
-                    input = { _ ->
+                    input = {
                         state.updateDraft(value ?: "")
                         updateSendState()
                         autoResizeInput()
@@ -115,16 +123,15 @@ fun Container.chatBotWidget() {
             }
 
             sendButton = button("", className = "chat-bot-send") {
-                image(src = "images/send.png", alt = "Отправить").apply {
+                image(src = "images/send.png", alt = "Отправить") {
                     addCssClass("chat-bot-send__icon")
                 }
             }
 
             sendButton.onClick {
-                state.sendMessage()
+                state.sendMessage(userId)
                 inputField.value = state.draft
-
-                resetInputHeightToDefault()
+                        resetInputHeight()
                 autoResizeInput()
 
                 renderMessages()
@@ -135,11 +142,18 @@ fun Container.chatBotWidget() {
 
     toggleButton = button("💬", className = "chat-bot-toggle")
     toggleButton.onClick {
-        state.toggleOpen()
-        updateOpenState()
+        state.toggleOpen(userId)
+
+        if (chatWindow.hasCssClass("open")) {
+            closeChat()
+        } else {
+            updateOpenState()
+            renderMessages()
+        }
     }
+
+    /* ---------- init ---------- */
 
     renderMessages()
     updateSendState()
-    updateOpenState()
 }

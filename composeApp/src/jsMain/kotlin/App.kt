@@ -51,7 +51,7 @@ class App : Application() {
         fun renderScreen(content: Container.() -> Unit) {
             r.removeAll()
             r.content()
-            r.chatBotWidget()
+            Session.userId?.toInt()?.let { r.chatBotWidget(it) }
         }
 
         fun showHome() {
