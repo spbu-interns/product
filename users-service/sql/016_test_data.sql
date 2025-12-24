@@ -1096,9 +1096,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic1_id, 'Дерматолог', 
-            '{"образование": "Первый МГМУ им. Сеченова", "специализация": "Лечение кожных заболеваний, косметология", "достижения": "Сертифицированный дерматовенеролог"}',
-            TRUE, 4.7, 12, 3500, TRUE)
+    VALUES (
+      v_user_id,
+      v_clinic1_id,
+      'Врач-дерматолог',
+      'Лечение кожных заболеваний, акне, экземы. Косметология и дерматовенерология.',
+      TRUE,
+      4.7,
+      12,
+      3500.00,
+      TRUE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
@@ -1132,9 +1140,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic1_id, 'Эндокринолог', 
-            '{"образование": "СПбГМУ им. Павлова", "специализация": "Диабет, заболевания щитовидной железы", "достижения": "Кандидат медицинских наук"}',
-            TRUE, 4.9, 9, 4000, TRUE)
+    VALUES (
+      v_user_id,
+      v_clinic1_id,
+      'Врач-эндокринолог',
+      'Диагностика и лечение диабета, заболеваний щитовидной железы и гормональных нарушений.',
+      TRUE,
+      4.9,
+      9,
+      4000.00,
+      TRUE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
@@ -1168,9 +1184,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic2_id, 'Уролог', 
-            '{"образование": "Новосибирский медицинский университет", "специализация": "Заболевания мочеполовой системы", "достижения": "Высшая квалификационная категория"}',
-            TRUE, 4.8, 15, 3800, FALSE)
+    VALUES (
+      v_user_id,
+      v_clinic2_id,
+      'Врач-уролог',
+      'Диагностика и лечение заболеваний мочеполовой системы. Консультации по урологическим вопросам.',
+      TRUE,
+      4.8,
+      15,
+      3800.00,
+      FALSE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
@@ -1204,9 +1228,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic2_id, 'Гинеколог', 
-            '{"образование": "Российский национальный исследовательский медицинский университет", "специализация": "Ведение беременности, женское здоровье", "достижения": "Специалист по эндоскопической хирургии"}',
-            TRUE, 4.9, 8, 4200, TRUE)
+    VALUES (
+      v_user_id,
+      v_clinic2_id,
+      'Врач-гинеколог',
+      'Ведение беременности, женское здоровье, эндоскопическая хирургия. Консультации и диагностика.',
+      TRUE,
+      4.9,
+      8,
+      4200.00,
+      TRUE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
@@ -1240,9 +1272,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic3_id, 'ЛОР', 
-            '{"образование": "Уральский медицинский университет", "специализация": "Заболевания уха, горла, носа", "достижения": "Эксперт по микрохирургии"}',
-            TRUE, 4.6, 11, 3300, TRUE)
+    VALUES (
+      v_user_id,
+      v_clinic3_id,
+      'Врач-оториноларинголог (ЛОР)',
+      'Диагностика и лечение заболеваний уха, горла и носа. Микрохирургия ЛОР-органов.',
+      TRUE,
+      4.6,
+      11,
+      3300.00,
+      TRUE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
@@ -1276,9 +1316,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic3_id, 'Психиатр', 
-            '{"образование": "Московский НИИ психиатрии", "специализация": "Депрессия, тревожные расстройства, психотерапия", "достижения": "Кандидат медицинских наук, сертифицированный психотерапевт"}',
-            TRUE, 4.8, 10, 5000, TRUE)
+    VALUES (
+      v_user_id,
+      v_clinic3_id,
+      'Врач-психиатр',
+      'Лечение депрессии, тревожных расстройств. Психотерапия и консультирование по психическому здоровью.',
+      TRUE,
+      4.8,
+      10,
+      5000.00,
+      TRUE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
@@ -1312,9 +1360,17 @@ BEGIN
   
   IF v_user_id IS NOT NULL THEN
     INSERT INTO doctors (user_id, clinic_id, profession, info, is_confirmed, rating, experience, price, online_available)
-    VALUES (v_user_id, v_clinic3_id, 'Ортопед', 
-            '{"образование": "Санкт-Петербургский медицинский университет", "специализация": "Травматология, эндопротезирование суставов", "достижения": "Врач высшей категории, более 500 операций"}',
-            TRUE, 4.9, 14, 4500, FALSE)
+    VALUES (
+      v_user_id,
+      v_clinic3_id,
+      'Врач-ортопед',
+      'Травматология и ортопедия. Эндопротезирование суставов, лечение заболеваний опорно-двигательного аппарата.',
+      TRUE,
+      4.9,
+      14,
+      4500.00,
+      FALSE
+    )
     ON CONFLICT (user_id) DO NOTHING
     RETURNING id INTO v_doctor_id;
     
