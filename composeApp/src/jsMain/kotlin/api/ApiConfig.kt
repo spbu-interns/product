@@ -50,6 +50,11 @@ object ApiConfig {
                 }
             )
         }
+        // install(HttpTimeout) {
+        //         requestTimeoutMillis = 120_000
+        //         connectTimeoutMillis = 110_000
+        //         socketTimeoutMillis  = 120_000
+        //     }
 
         install(Logging) {
             logger = Logger.DEFAULT

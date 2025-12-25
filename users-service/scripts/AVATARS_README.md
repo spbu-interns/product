@@ -11,7 +11,7 @@
 ./scripts/run-server.sh
 
 # 2. В ДРУГОМ терминале загрузить аватарки
-python3 scripts/upload_avatars_via_api.py
+python scripts/upload_avatars_via_api.py
 ```
 
 ### Полная пересборка с нуля

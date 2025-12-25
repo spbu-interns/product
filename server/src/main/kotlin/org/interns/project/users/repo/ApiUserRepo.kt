@@ -16,8 +16,17 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.interns.project.dto.AppointmentCreateRequest
 import org.interns.project.dto.AppointmentDto
+import org.interns.project.dto.ChatMessage
+import org.interns.project.dto.ChatMessagePart
+import org.interns.project.dto.ChatRequest
+import org.interns.project.dto.ChatResponse
+import org.interns.project.dto.ChatSessionOut
 import org.interns.project.dto.ClientProfileDto
 import org.interns.project.dto.DoctorPatientDto
 import org.interns.project.dto.DoctorProfileDto
@@ -31,6 +40,7 @@ import org.interns.project.users.dto.ApiResponse
 import org.interns.project.users.model.*
 import java.time.Instant
 import java.time.LocalDate
+import kotlin.collections.mapNotNull
 
 class ApiUserRepo(
     private val baseUrl: String = "http://127.0.0.1:8001",
@@ -48,9 +58,9 @@ class ApiUserRepo(
                 )
             }
             install(HttpTimeout) {
-                requestTimeoutMillis = 5_000
-                connectTimeoutMillis = 2_000
-                socketTimeoutMillis  = 5_000
+                requestTimeoutMillis = 120_000
+                connectTimeoutMillis = 110_000
+                socketTimeoutMillis  = 120_000
             }
         }
     }
@@ -711,4 +721,62 @@ class ApiUserRepo(
             body = null,
             successCodes = setOf(HttpStatusCode.NoContent, HttpStatusCode.OK)
         ) { true }
+
+    suspend fun sendChatMessage(request: ChatRequest): ChatResponse {
+        return doPost("/chat/message", request) { resp ->
+            resp.body()
+        }
+    }
+
+    suspend fun getChatHistory(userId: Int, limit: Int = 10): List<ChatSessionOut> {
+        val resp = client.get("$baseUrl/chat/history/$userId") {
+            parameter("limit", limit)
+        }
+
+        if (resp.status != HttpStatusCode.OK) {
+            throw RuntimeException("Failed to get chat history: ${resp.status} ${resp.bodyAsText()}")
+        }
+
+        return resp.body()
+    }
+
+    suspend fun deleteChatSession(sessionId: String): Boolean {
+        val resp = client.delete("$baseUrl/chat/session/$sessionId")
+
+        return when (resp.status) {
+            HttpStatusCode.NoContent -> true
+            HttpStatusCode.NotFound -> false
+            else -> throw RuntimeException("Failed to delete session: ${resp.status} ${resp.bodyAsText()}")
+        }
+    }
+
+    // Для преобразования ChatSessionOut в локальные сообщения
+    fun chatSessionToMessages(session: ChatSessionOut): List<ChatMessage> {
+        return session.messages.mapNotNull { element ->
+            try {
+                val obj = element.jsonObject
+
+                val role = obj["role"]
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?: return@mapNotNull null
+
+                val text = obj["parts"]
+                    ?.jsonArray
+                    ?.firstOrNull()
+                    ?.jsonObject
+                    ?.get("text")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?: return@mapNotNull null
+
+                ChatMessage(
+                    role = role,
+                    parts = listOf(ChatMessagePart(text))
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
 }
