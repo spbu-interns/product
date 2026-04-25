@@ -17,6 +17,7 @@ import org.interns.project.controller.AppointmentController
 import org.interns.project.controller.AuthController
 import org.interns.project.auth.routes.fastApiCompatRoutes
 import org.interns.project.config.AppConfig
+import org.interns.project.controller.ChatController
 import org.interns.project.controller.FindDoctorsController
 import org.interns.project.controller.MedicalDocumentController
 import org.interns.project.controller.PatientDataController
@@ -92,6 +93,8 @@ fun Application.module() {
     val findDoctorsController = FindDoctorsController(apiUserRepo)
     val profileController = ProfileController(apiUserRepo)
     val medicalDocumentController = MedicalDocumentController(apiUserRepo)
+    val chatController = ChatController(apiUserRepo)
+
     routing {
         get("/") {
             call.respondText("Ktor: ${Greeting().greet()}")
@@ -104,6 +107,7 @@ fun Application.module() {
         findDoctorsController.registerRoutes(this)
         profileController.registerRoutes(this)
         medicalDocumentController.registerRoutes(this)
+        chatController.registerRoutes(this)
 
         fastApiCompatRoutes(verificationService, passwordResetService)
     }

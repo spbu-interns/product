@@ -36,7 +36,7 @@ if [ "$RESET_DB" = true ]; then
 else
     echo "1️⃣  Запуск PostgreSQL в Docker..."
 fi
-docker compose up -d
+docker-compose up -d
 
 # Ожидание готовности БД с улучшенной проверкой
 echo "   Ожидание готовности PostgreSQL..."
