@@ -4,9 +4,6 @@ from typing import List, Dict
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-if not OPENROUTER_API_KEY:
-    raise ValueError("OPENROUTER_API_KEY must be set in environment variables")
-
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = """
@@ -79,14 +76,17 @@ def convert_history_to_openai_format(history: List[dict]) -> List[dict]:
 def send_message_with_context(user_message: str, history: List[dict]) -> str:
     """
     Send message to OpenRouter API with conversation history
-    
+
     Args:
         user_message: New message from user
         history: Previous messages in JSONB format from DB
-    
+
     Returns:
         AI response text
     """
+    if not OPENROUTER_API_KEY:
+        raise ValueError("OPENROUTER_API_KEY must be set in environment variables")
+
     messages = convert_history_to_openai_format(history)
     if not messages:
         messages.insert(0, {
