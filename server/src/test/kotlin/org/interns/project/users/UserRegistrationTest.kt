@@ -14,9 +14,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 import org.interns.project.users.repo.ApiUserRepo
-import kotlin.test.Ignore
-
-@Ignore
 class UserRegistrationTest {
 
     private fun mockClient(handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient =
@@ -53,7 +50,7 @@ class UserRegistrationTest {
 
         val engine = mockClient { req ->
             when (req.url.encodedPath) {
-                "/users" -> respond(responseJson, HttpStatusCode.Created, jsonHeaders)
+                "/register" -> respond(responseJson, HttpStatusCode.Created, jsonHeaders)
                 "/users/by-email/repo%40example.com" -> respond(responseJson, HttpStatusCode.OK, jsonHeaders)
                 "/users/by-login/repoUser" -> respond(responseJson, HttpStatusCode.OK, jsonHeaders)
                 else -> respondError(HttpStatusCode.NotFound)
@@ -97,7 +94,7 @@ class UserRegistrationTest {
 
         val engine = mockClient { req ->
             when (req.url.encodedPath) {
-                "/users" -> respond(errorBody, HttpStatusCode.UnprocessableEntity, jsonHeaders)
+                "/register" -> respond(errorBody, HttpStatusCode.UnprocessableEntity, jsonHeaders)
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
@@ -128,7 +125,7 @@ class UserRegistrationTest {
         val jsonHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
         val engine = mockClient { req ->
             when (req.url.encodedPath) {
-                "/users" -> respond("""{"detail":"duplicate"}""", HttpStatusCode.Conflict, jsonHeaders)
+                "/register" -> respond("""{"detail":"duplicate"}""", HttpStatusCode.Conflict, jsonHeaders)
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }

@@ -31,6 +31,8 @@ from .repository import RESET_TOKEN_TTL_MIN
 from passlib.hash import bcrypt
 from datetime import date
 
+BYPASS_EMAIL_VERIFICATION = os.getenv("BYPASS_EMAIL_VERIFICATION", "false").lower() == "true"
+
 app = FastAPI(title="Users DB API")
 app.add_middleware(
     CORSMiddleware,
@@ -190,7 +192,7 @@ def auth_login(req: LoginIn):
 
 
         # пароль ок, но email не подтверждён
-        if u.get("email_verified_at") is None:
+        if u.get("email_verified_at") is None and not BYPASS_EMAIL_VERIFICATION:
             return ApiLoginResponse(
                 success=False,
                 error="EMAIL_NOT_VERIFIED",

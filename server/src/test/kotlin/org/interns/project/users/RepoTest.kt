@@ -7,17 +7,15 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.interns.project.users.model.UserInDto
 import org.interns.project.users.repo.ApiUserRepo
-import org.junit.Ignore
-
-@Ignore
 class RepoTest {
     @Test
     fun saveAndFindByEmailAndLogin() = runBlocking {
         val repo = ApiUserRepo("http://127.0.0.1:8001")
         try {
+            val uniq = System.currentTimeMillis().toString()
             val userIn = UserInDto(
-                email = "saschavinnik06@mail.ru",
-                login = "ruavee",
+                email = "test_$uniq@example.com",
+                login = "test_$uniq",
                 password = "kukareku",
                 role = "CLIENT",
                 firstName = "A",
@@ -30,8 +28,8 @@ class RepoTest {
             assertNotNull(created)
             assertTrue(created.id > 0)
 
-            val byEmail = assertNotNull(repo.findByEmail("saschavinnik06@mail.ru"))
-            val byLogin = assertNotNull(repo.findByLogin("ruavee"))
+            val byEmail = assertNotNull(repo.findByEmail("test_$uniq@example.com"))
+            val byLogin = assertNotNull(repo.findByLogin("test_$uniq"))
 
             assertEquals(created.id, byEmail.id)
             assertEquals(created.login, byLogin.login)

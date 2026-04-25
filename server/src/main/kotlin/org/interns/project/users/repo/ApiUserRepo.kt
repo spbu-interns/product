@@ -524,6 +524,7 @@ class ApiUserRepo(
         patch.info?.let { patchMap["info"] = it }
         patch.experience?.let { patchMap["experience"] = it }
         patch.price?.let { patchMap["price"] = it }
+        patch.isConfirmed?.let { patchMap["is_confirmed"] = it }
 
         val cleanPatchMap: Map<String, Any?> = patchMap.filterValues { it != null }
 
