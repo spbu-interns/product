@@ -54,7 +54,7 @@ jobs:
         run: |
           cd users-service
           source .venv/bin/activate
-          uvicorn app.main:app --port 8001 &
+          BYPASS_EMAIL_VERIFICATION=true uvicorn app.main:app --port 8001 &
           for i in $(seq 1 30); do
             curl -f http://127.0.0.1:8001/docs && break
             echo "Waiting for FastAPI... ($i/30)"
@@ -178,7 +178,7 @@ jobs:
         run: |
           cd users-service
           source .venv/bin/activate
-          uvicorn app.main:app --port 8001 &
+          BYPASS_EMAIL_VERIFICATION=true uvicorn app.main:app --port 8001 &
           for i in $(seq 1 30); do
             curl -f http://127.0.0.1:8001/docs && break
             echo "Waiting for FastAPI... ($i/30)"
