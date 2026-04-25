@@ -15,9 +15,6 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 import org.interns.project.users.repo.ApiUserRepo
 import org.junit.jupiter.api.assertNotNull
-import org.junit.Ignore
-
-@Ignore
 class UserLoginTest {
 
     private fun mockClient(

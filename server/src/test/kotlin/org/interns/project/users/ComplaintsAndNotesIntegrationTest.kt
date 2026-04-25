@@ -7,9 +7,6 @@ import org.interns.project.users.repo.ApiUserRepo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.Ignore
-
-@Ignore
 class ComplaintsAndNotesIntegrationTest {
 
     @Test

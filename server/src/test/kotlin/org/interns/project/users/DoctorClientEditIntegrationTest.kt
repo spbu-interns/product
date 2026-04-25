@@ -5,7 +5,6 @@ import org.interns.project.users.model.*
 import org.interns.project.users.repo.ApiUserRepo
 import kotlin.test.*
 
-@Ignore
 class DoctorClientEditIntegrationTest {
 
     private val baseUrl = "http://127.0.0.1:8001"
