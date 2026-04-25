@@ -98,8 +98,10 @@ class UserProfileIntegrationTest {
                 assertEquals(1, dob.monthValue)
                 assertEquals(2, dob.dayOfMonth)
 
-                if (before.updatedAt != null && updated.updatedAt != null) {
-                    assertTrue(updated.updatedAt >= before.updatedAt)
+                val beforeUpdatedAt = before.updatedAt
+                val updatedUpdatedAt = updated.updatedAt
+                if (beforeUpdatedAt != null && updatedUpdatedAt != null) {
+                    assertTrue(updatedUpdatedAt >= beforeUpdatedAt)
                 }
 
                 val loaded = repo.getUserProfile(created.id)
